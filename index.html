@@ -2,35 +2,26 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Outing Management</title>
 
     <!-- Bootstrap -->
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet">
+        rel="stylesheet"
+    >
 
     <!-- Bootstrap Icons -->
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-        rel="stylesheet">
+        rel="stylesheet"
+    >
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-
-        :root {
-            --primary: #2563eb;
-            --bg: #f5f7fb;
-            --card: #ffffff;
-            --text: #1f2937;
-            --muted: #6b7280;
-            --border: #e5e7eb;
-        }
 
         * {
             box-sizing: border-box;
@@ -38,195 +29,219 @@
 
         body {
             margin: 0;
-            background: var(--bg);
-            color: var(--text);
+            background: #f5f7fb;
+            color: #212529;
             font-family:
                 Inter,
-                system-ui,
                 -apple-system,
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-            padding-bottom: 75px;
         }
 
-        /* =========================
-           LOGIN
-        ========================= */
+        /* =====================================
+           AUTH
+        ===================================== */
 
-        #loginPage {
+        .auth-page {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            background: linear-gradient(
+                135deg,
+                #eef4ff,
+                #f8f9fa
+            );
         }
 
-        .login-card {
+        .auth-card {
             width: 100%;
-            max-width: 420px;
-            background: white;
+            max-width: 430px;
+            background: #fff;
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 10px 35px rgba(0,0,0,.08);
+            box-shadow:
+                0 10px 40px rgba(0,0,0,.08);
         }
 
-        .login-logo {
-            width: 60px;
-            height: 60px;
+        .auth-logo {
+            width: 65px;
+            height: 65px;
             border-radius: 18px;
-            background: #eff6ff;
-            color: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
-            margin: auto;
+            margin: 0 auto 15px;
+
+            background: #0d6efd;
+            color: white;
+
+            font-size: 30px;
         }
 
-        /* =========================
+        /* =====================================
            APP
-        ========================= */
+        ===================================== */
 
-        #app {
-            display: none;
+        #appPage {
+            min-height: 100vh;
         }
 
         .topbar {
-            background: white;
-            border-bottom: 1px solid var(--border);
-            padding: 14px 16px;
+            background: #fff;
+            border-bottom: 1px solid #e9ecef;
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 1000;
         }
 
         .topbar-inner {
             max-width: 1100px;
             margin: auto;
+            padding: 13px 18px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
         }
 
         .brand {
             font-weight: 700;
+            font-size: 18px;
         }
 
-        .brand small {
-            display: block;
-            color: var(--muted);
-            font-size: 11px;
-            font-weight: 400;
+        .user-mini {
+            display: flex;
+            align-items: center;
+            gap: 9px;
         }
 
         .avatar {
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background: #eff6ff;
-            color: var(--primary);
+
             display: flex;
             align-items: center;
             justify-content: center;
+
+            background: #e7f0ff;
+            color: #0d6efd;
+
             font-weight: 700;
         }
 
-        .container-main {
+        .main-container {
             max-width: 1100px;
             margin: auto;
-            padding: 20px 15px;
+            padding: 20px 18px 100px;
         }
 
-        /* =========================
+        /* =====================================
            EVENT HEADER
-        ========================= */
+        ===================================== */
 
         .event-card {
-            background: linear-gradient(
-                135deg,
-                #2563eb,
-                #4f46e5
-            );
+            background:
+                linear-gradient(
+                    135deg,
+                    #0d6efd,
+                    #4f8dfd
+                );
+
             color: white;
             border-radius: 20px;
-            padding: 22px;
-            margin-bottom: 18px;
+            padding: 25px;
+            margin-bottom: 20px;
+
+            box-shadow:
+                0 8px 25px rgba(13,110,253,.18);
         }
 
-        .event-card .date {
-            opacity: .85;
-            font-size: 13px;
+        .event-card h2 {
+            font-weight: 700;
+            margin-bottom: 5px;
         }
 
-        /* =========================
+        /* =====================================
            STAT
-        ========================= */
+        ===================================== */
 
         .stat-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 17px;
+            background: #fff;
+            border: 1px solid #edf0f4;
+            border-radius: 17px;
+            padding: 18px;
             height: 100%;
         }
 
         .stat-icon {
-            width: 40px;
-            height: 40px;
+            width: 43px;
+            height: 43px;
             border-radius: 12px;
-            background: #eff6ff;
-            color: var(--primary);
+
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 10px;
+
+            background: #f0f5ff;
+            color: #0d6efd;
+
+            font-size: 20px;
+            margin-bottom: 12px;
         }
 
         .stat-title {
-            color: var(--muted);
-            font-size: 12px;
+            font-size: 13px;
+            color: #6c757d;
         }
 
         .stat-value {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
         }
 
-        /* =========================
-           SECTION CARD
-        ========================= */
+        /* =====================================
+           SECTION
+        ===================================== */
 
-        .section-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            margin-top: 18px;
+        .content-card {
+            background: #fff;
+            border: 1px solid #edf0f4;
+            border-radius: 17px;
+            margin-bottom: 20px;
             overflow: hidden;
         }
 
-        .section-header {
-            padding: 15px 17px;
-            border-bottom: 1px solid var(--border);
+        .content-header {
+            padding: 17px 18px;
+            border-bottom: 1px solid #edf0f4;
+
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
         }
 
-        .section-header h6 {
+        .content-header h5 {
             margin: 0;
+            font-size: 16px;
             font-weight: 700;
         }
 
-        /* =========================
+        .content-body {
+            padding: 18px;
+        }
+
+        /* =====================================
            RUNDOWN
-        ========================= */
+        ===================================== */
 
         .rundown-item {
             display: flex;
             gap: 15px;
-            padding: 14px 17px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 15px 0;
+            border-bottom: 1px solid #edf0f4;
         }
 
         .rundown-item:last-child {
@@ -234,175 +249,241 @@
         }
 
         .rundown-time {
-            width: 50px;
+            min-width: 65px;
             font-weight: 700;
-            font-size: 13px;
-            color: var(--primary);
+            color: #0d6efd;
         }
 
         .rundown-title {
             font-weight: 600;
-            font-size: 14px;
         }
 
-        .rundown-location {
-            color: var(--muted);
-            font-size: 12px;
-            margin-top: 3px;
-        }
-
-        /* =========================
+        /* =====================================
            CASH
-        ========================= */
+        ===================================== */
 
         .money-in {
-            color: #16a34a;
+            color: #198754;
+            font-weight: 700;
         }
 
         .money-out {
-            color: #dc2626;
+            color: #dc3545;
+            font-weight: 700;
         }
 
-        .cash-row {
+        /* =====================================
+           MENU
+        ===================================== */
+
+        .menu-card {
+            background: white;
+            border: 1px solid #edf0f4;
+            border-radius: 17px;
+            padding: 17px;
+            height: 100%;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 20px rgba(0,0,0,.06);
+        }
+
+        .menu-icon {
+            width: 45px;
+            height: 45px;
+
             display: flex;
-            justify-content: space-between;
-            padding: 13px 17px;
-            border-bottom: 1px solid #f0f0f0;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 13px;
+
+            background: #eef4ff;
+            color: #0d6efd;
+
+            font-size: 21px;
+            margin-bottom: 12px;
+        }
+
+        .menu-title {
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .menu-desc {
+            color: #6c757d;
             font-size: 13px;
         }
 
-        /* =========================
-           ANNOUNCEMENT
-        ========================= */
-
-        .announcement {
-            padding: 15px 17px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .announcement-title {
-            font-weight: 600;
-        }
-
-        .announcement-content {
-            color: var(--muted);
-            font-size: 13px;
-            margin-top: 5px;
-        }
-
-        /* =========================
+        /* =====================================
            BOTTOM NAV
-        ========================= */
+        ===================================== */
 
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
+
+            height: 65px;
+
             background: white;
-            border-top: 1px solid var(--border);
-            z-index: 200;
-            display: flex;
-            justify-content: center;
-        }
+            border-top: 1px solid #e9ecef;
 
-        .bottom-nav-inner {
-            width: 100%;
-            max-width: 600px;
             display: flex;
+            align-items: center;
             justify-content: space-around;
+
+            z-index: 2000;
         }
 
-        .nav-item-app {
+        .bottom-nav button {
             border: 0;
             background: transparent;
-            padding: 10px 12px;
-            color: var(--muted);
+
+            color: #6c757d;
+
             font-size: 11px;
             text-align: center;
         }
 
-        .nav-item-app i {
+        .bottom-nav button i {
             display: block;
             font-size: 20px;
+            margin-bottom: 2px;
         }
 
-        .nav-item-app.active {
-            color: var(--primary);
+        .bottom-nav button.active {
+            color: #0d6efd;
         }
 
-        /* =========================
-           DESKTOP
-        ========================= */
+        /* =====================================
+           PAGE
+        ===================================== */
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* =====================================
+           EMPTY
+        ===================================== */
+
+        .empty-state {
+            text-align: center;
+            padding: 35px 15px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 40px;
+            margin-bottom: 10px;
+            opacity: .5;
+        }
+
+        /* =====================================
+           MOBILE
+        ===================================== */
+
+        @media (max-width: 576px) {
+
+            .auth-card {
+                padding: 24px 20px;
+            }
+
+            .main-container {
+                padding-left: 13px;
+                padding-right: 13px;
+            }
+
+            .event-card {
+                padding: 20px;
+            }
+
+            .event-card h2 {
+                font-size: 22px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+        }
 
         @media (min-width: 768px) {
-
-            body {
-                padding-bottom: 0;
-            }
 
             .bottom-nav {
                 display: none;
             }
 
-            .container-main {
-                padding-top: 30px;
-            }
-
-        }
-
-        /* =========================
-           LOADING
-        ========================= */
-
-        .loading {
-            padding: 30px;
-            text-align: center;
-            color: var(--muted);
         }
 
     </style>
 </head>
 
+
 <body>
 
 
-<!-- =========================================================
-     LOGIN PAGE
-========================================================= -->
+<!-- =====================================================
+     LOGIN
+===================================================== -->
 
-<div id="loginPage">
+<div id="loginPage" class="auth-page">
 
-    <div class="login-card">
+    <div class="auth-card">
 
-        <div class="login-logo">
-            <i class="bi bi-people-fill"></i>
+        <div class="text-center mb-4">
+
+            <div class="auth-logo">
+                <i class="bi bi-people-fill"></i>
+            </div>
+
+            <h3 class="fw-bold mb-1">
+                Outing Management
+            </h3>
+
+            <p class="text-muted mb-0">
+                Silakan login untuk melanjutkan
+            </p>
+
         </div>
 
-        <h4 class="text-center mt-3">
-            Outing Management
-        </h4>
-
-        <p class="text-center text-muted small">
-            Silakan login untuk melanjutkan
-        </p>
 
         <form id="loginForm">
 
             <div class="mb-3">
 
                 <label class="form-label">
-                    Email
+                    Nomor Telepon
                 </label>
 
-                <input
-                    type="email"
-                    id="loginEmail"
-                    class="form-control"
-                    placeholder="email@example.com"
-                    required>
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-phone"></i>
+                    </span>
+
+                    <input
+                        type="tel"
+                        id="loginPhone"
+                        class="form-control"
+                        placeholder="08123456789"
+                        required
+                    >
+
+                </div>
 
             </div>
+
 
             <div class="mb-3">
 
@@ -410,41 +491,299 @@
                     Password
                 </label>
 
-                <input
-                    type="password"
-                    id="loginPassword"
-                    class="form-control"
-                    placeholder="Password"
-                    required>
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-lock"></i>
+                    </span>
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        class="form-control"
+                        placeholder="Masukkan password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        onclick="togglePassword(
+                            'loginPassword',
+                            this
+                        )"
+                    >
+                        <i class="bi bi-eye"></i>
+                    </button>
+
+                </div>
 
             </div>
 
-            <div
-                id="loginError"
-                class="alert alert-danger d-none small">
-            </div>
 
             <button
                 type="submit"
-                class="btn btn-primary w-100">
+                class="btn btn-primary w-100"
+                id="loginBtn"
+            >
 
-                <i class="bi bi-box-arrow-in-right"></i>
+                <i class="bi bi-box-arrow-in-right me-1"></i>
+
                 Login
 
             </button>
 
         </form>
 
+
+        <div class="text-center mt-3">
+
+            <span class="text-muted">
+                Belum punya akun?
+            </span>
+
+            <button
+                type="button"
+                class="btn btn-link p-0"
+                onclick="showRegister()"
+            >
+                Daftar sekarang
+            </button>
+
+        </div>
+
+
+        <div id="loginMessage" class="mt-3"></div>
+
     </div>
 
 </div>
 
 
-<!-- =========================================================
-     APP
-========================================================= -->
+<!-- =====================================================
+     REGISTER
+===================================================== -->
 
-<div id="app">
+<div id="registerPage" class="auth-page d-none">
+
+    <div class="auth-card">
+
+        <div class="text-center mb-4">
+
+            <div class="auth-logo">
+                <i class="bi bi-person-plus-fill"></i>
+            </div>
+
+            <h3 class="fw-bold mb-1">
+                Buat Akun
+            </h3>
+
+            <p class="text-muted mb-0">
+                Daftarkan diri untuk mengikuti outing
+            </p>
+
+        </div>
+
+
+        <form id="registerForm">
+
+
+            <!-- NAMA -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Nama Lengkap
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-person"></i>
+                    </span>
+
+                    <input
+                        type="text"
+                        id="registerName"
+                        class="form-control"
+                        placeholder="Nama lengkap"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- USERNAME -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Username
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-at"></i>
+                    </span>
+
+                    <input
+                        type="text"
+                        id="registerUsername"
+                        class="form-control"
+                        placeholder="Contoh: aldi"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- PHONE -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Nomor Telepon
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-phone"></i>
+                    </span>
+
+                    <input
+                        type="tel"
+                        id="registerPhone"
+                        class="form-control"
+                        placeholder="08123456789"
+                        required
+                    >
+
+                </div>
+
+                <small class="text-muted">
+                    Contoh: 08123456789
+                </small>
+
+            </div>
+
+
+            <!-- PASSWORD -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Password
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-lock"></i>
+                    </span>
+
+                    <input
+                        type="password"
+                        id="registerPassword"
+                        class="form-control"
+                        placeholder="Minimal 6 karakter"
+                        minlength="6"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        onclick="togglePassword(
+                            'registerPassword',
+                            this
+                        )"
+                    >
+                        <i class="bi bi-eye"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONFIRM -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Konfirmasi Password
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        <i class="bi bi-shield-lock"></i>
+                    </span>
+
+                    <input
+                        type="password"
+                        id="registerPasswordConfirm"
+                        class="form-control"
+                        placeholder="Ulangi password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+                id="registerBtn"
+            >
+
+                <i class="bi bi-person-plus me-1"></i>
+
+                Daftar
+
+            </button>
+
+        </form>
+
+
+        <div class="text-center mt-3">
+
+            <span class="text-muted">
+                Sudah punya akun?
+            </span>
+
+            <button
+                type="button"
+                class="btn btn-link p-0"
+                onclick="showLogin()"
+            >
+                Login
+            </button>
+
+        </div>
+
+
+        <div id="registerMessage" class="mt-3"></div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     APP
+===================================================== -->
+
+<div id="appPage" class="d-none">
 
 
     <!-- TOPBAR -->
@@ -455,20 +794,41 @@
 
             <div class="brand">
 
-                <span id="topTitle">
-                    Outing Management
-                </span>
+                <i class="bi bi-people-fill text-primary"></i>
 
-                <small id="topRole">
-                    Loading...
-                </small>
+                Outing
 
             </div>
 
-            <div
-                class="avatar"
-                id="userAvatar">
-                A
+
+            <div class="user-mini">
+
+                <div class="text-end d-none d-sm-block">
+
+                    <div
+                        id="topUserName"
+                        class="fw-semibold"
+                    >
+                        User
+                    </div>
+
+                    <small
+                        id="topUserRole"
+                        class="text-muted"
+                    >
+                        Participant
+                    </small>
+
+                </div>
+
+
+                <div
+                    class="avatar"
+                    id="topAvatar"
+                >
+                    U
+                </div>
+
             </div>
 
         </div>
@@ -478,210 +838,232 @@
 
     <!-- MAIN -->
 
-    <main class="container-main">
+    <div class="main-container">
 
 
-        <!-- EVENT -->
-
-        <div class="event-card">
-
-            <div
-                class="date"
-                id="eventDate">
-                Loading...
-            </div>
-
-            <h4
-                class="mt-1 mb-1"
-                id="eventName">
-                Loading...
-            </h4>
-
-            <div
-                class="small"
-                id="eventLocation">
-                -
-            </div>
-
-        </div>
-
-
-        <!-- STATS -->
-
-        <div class="row g-3">
-
-            <div class="col-6 col-md-4">
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        <i class="bi bi-people"></i>
-                    </div>
-
-                    <div class="stat-title">
-                        Peserta
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="totalParticipants">
-                        -
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="col-6 col-md-4">
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-
-                    <div class="stat-title">
-                        Saldo Kas
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="cashBalance">
-                        -
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="col-12 col-md-4">
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        <i class="bi bi-check2-circle"></i>
-                    </div>
-
-                    <div class="stat-title">
-                        Progress Pekerjaan
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="taskProgress">
-                        -
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- RUNDOWN -->
-
-        <div class="section-card">
-
-            <div class="section-header">
-
-                <h6>
-                    <i class="bi bi-calendar-event me-1"></i>
-                    Rundown
-                </h6>
-
-                <button
-                    class="btn btn-sm btn-light"
-                    onclick="loadRundown()">
-
-                    <i class="bi bi-arrow-clockwise"></i>
-
-                </button>
-
-            </div>
-
-            <div id="rundownList">
-
-                <div class="loading">
-                    Loading...
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- CASH -->
-
-        <div class="section-card">
-
-            <div class="section-header">
-
-                <h6>
-                    <i class="bi bi-wallet2 me-1"></i>
-                    Kas Outing
-                </h6>
-
-            </div>
-
-            <div id="cashList">
-
-                <div class="loading">
-                    Loading...
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- ANNOUNCEMENT -->
-
-        <div class="section-card">
-
-            <div class="section-header">
-
-                <h6>
-                    <i class="bi bi-megaphone me-1"></i>
-                    Pengumuman
-                </h6>
-
-            </div>
-
-            <div id="announcementList">
-
-                <div class="loading">
-                    Loading...
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- MANAGEMENT -->
+        <!-- =============================================
+             HOME
+        ============================================== -->
 
         <div
-            class="section-card"
-            id="managementSection"
-            style="display:none">
+            id="pageHome"
+            class="page active"
+        >
 
-            <div class="section-header">
+            <!-- EVENT -->
 
-                <h6>
-                    <i class="bi bi-kanban me-1"></i>
-                    Pekerjaan Saya
-                </h6>
+            <div class="event-card">
+
+                <div class="small opacity-75 mb-1">
+                    OUTING EVENT
+                </div>
+
+                <h2 id="eventName">
+                    Outing Bersama
+                </h2>
+
+                <div id="eventInfo">
+                    Memuat informasi outing...
+                </div>
 
             </div>
 
-            <div class="p-3">
+
+            <!-- STATS -->
+
+            <div class="row g-3 mb-4">
+
+                <div class="col-6 col-md-4">
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+
+                        <div class="stat-title">
+                            Peserta
+                        </div>
+
+                        <div
+                            class="stat-value"
+                            id="statParticipants"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-6 col-md-4">
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+
+                        <div class="stat-title">
+                            Saldo
+                        </div>
+
+                        <div
+                            class="stat-value"
+                            id="statBalance"
+                        >
+                            Rp 0
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-6 col-md-4">
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon">
+                            <i class="bi bi-check2-circle"></i>
+                        </div>
+
+                        <div class="stat-title">
+                            Progress
+                        </div>
+
+                        <div
+                            class="stat-value"
+                            id="statProgress"
+                        >
+                            0%
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RUNDOWN -->
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+                        <i class="bi bi-calendar-event me-1"></i>
+                        Rundown
+                    </h5>
+
+                    <button
+                        class="btn btn-sm btn-light"
+                        onclick="showPage('rundown')"
+                    >
+                        Lihat Semua
+                    </button>
+
+                </div>
+
 
                 <div
-                    class="row g-2"
-                    id="managementButtons">
+                    class="content-body"
+                    id="homeRundown"
+                >
+
+                    <div class="empty-state">
+
+                        <i class="bi bi-calendar"></i>
+
+                        <div>
+                            Memuat rundown...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CASH -->
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+
+                        <i class="bi bi-wallet2 me-1"></i>
+
+                        Keuangan
+
+                    </h5>
+
+                    <button
+                        class="btn btn-sm btn-light"
+                        onclick="showPage('finance')"
+                    >
+                        Lihat Semua
+                    </button>
+
+                </div>
+
+
+                <div
+                    class="content-body"
+                    id="homeFinance"
+                >
+
+                    <div class="empty-state">
+
+                        <i class="bi bi-cash-stack"></i>
+
+                        <div>
+                            Memuat transaksi...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ANNOUNCEMENT -->
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+
+                        <i class="bi bi-megaphone me-1"></i>
+
+                        Pengumuman
+
+                    </h5>
+
+                </div>
+
+
+                <div
+                    class="content-body"
+                    id="homeAnnouncements"
+                >
+
+                    <div class="empty-state">
+
+                        <i class="bi bi-megaphone"></i>
+
+                        <div>
+                            Belum ada pengumuman.
+                        </div>
+
+                    </div>
+
                 </div>
 
             </div>
@@ -689,60 +1071,374 @@
         </div>
 
 
-    </main>
+        <!-- =============================================
+             RUNDOWN
+        ============================================== -->
+
+        <div
+            id="pageRundown"
+            class="page"
+        >
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+                        <i class="bi bi-calendar-event me-1"></i>
+                        Rundown Outing
+                    </h5>
+
+                </div>
+
+                <div
+                    class="content-body"
+                    id="rundownList"
+                >
+
+                    <div class="empty-state">
+                        Memuat...
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
 
 
-    <!-- BOTTOM NAV -->
+        <!-- =============================================
+             FINANCE
+        ============================================== -->
+
+        <div
+            id="pageFinance"
+            class="page"
+        >
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+                        <i class="bi bi-wallet2 me-1"></i>
+                        Keuangan
+                    </h5>
+
+                    <button
+                        id="btnAddTransaction"
+                        class="btn btn-primary btn-sm"
+                        onclick="addTransaction()"
+                    >
+
+                        <i class="bi bi-plus"></i>
+
+                        Transaksi
+
+                    </button>
+
+                </div>
+
+
+                <div class="content-body">
+
+                    <div class="row g-3 mb-4">
+
+                        <div class="col-6">
+
+                            <div class="stat-card">
+
+                                <div class="stat-title">
+                                    Pemasukan
+                                </div>
+
+                                <div
+                                    id="totalIncome"
+                                    class="stat-value text-success"
+                                >
+                                    Rp 0
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-6">
+
+                            <div class="stat-card">
+
+                                <div class="stat-title">
+                                    Pengeluaran
+                                </div>
+
+                                <div
+                                    id="totalExpense"
+                                    class="stat-value text-danger"
+                                >
+                                    Rp 0
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="financeList"
+                    >
+
+                        <div class="empty-state">
+                            Memuat transaksi...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =============================================
+             MANAGEMENT
+        ============================================== -->
+
+        <div
+            id="pageManagement"
+            class="page"
+        >
+
+            <div class="mb-3">
+
+                <h4 class="fw-bold">
+                    Management
+                </h4>
+
+                <p class="text-muted">
+                    Menu sesuai kewenangan Anda.
+                </p>
+
+            </div>
+
+
+            <div
+                class="row g-3"
+                id="managementMenu"
+            >
+
+            </div>
+
+        </div>
+
+
+        <!-- =============================================
+             PROFILE
+        ============================================== -->
+
+        <div
+            id="pageProfile"
+            class="page"
+        >
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+                        <i class="bi bi-person me-1"></i>
+                        Profil
+                    </h5>
+
+                </div>
+
+
+                <div class="content-body">
+
+                    <div class="text-center mb-4">
+
+                        <div
+                            class="avatar mx-auto mb-2"
+                            id="profileAvatar"
+                            style="
+                                width:70px;
+                                height:70px;
+                                font-size:25px;
+                            "
+                        >
+                            U
+                        </div>
+
+                        <h5
+                            id="profileName"
+                            class="mb-0"
+                        >
+                            User
+                        </h5>
+
+                        <small
+                            id="profileUsername"
+                            class="text-muted"
+                        >
+                            username
+                        </small>
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label text-muted">
+                            Nomor Telepon
+                        </label>
+
+                        <div
+                            id="profilePhone"
+                            class="fw-semibold"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label text-muted">
+                            Role
+                        </label>
+
+                        <div
+                            id="profileRole"
+                            class="fw-semibold"
+                        >
+                            Participant
+                        </div>
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label text-muted">
+                            Section
+                        </label>
+
+                        <div
+                            id="profileSection"
+                            class="fw-semibold"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        class="btn btn-outline-danger w-100 mt-3"
+                        onclick="logout()"
+                    >
+
+                        <i class="bi bi-box-arrow-right me-1"></i>
+
+                        Logout
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =============================================
+         BOTTOM NAV
+    ============================================== -->
 
     <div class="bottom-nav">
 
-        <div class="bottom-nav-inner">
+        <button
+            id="navHome"
+            class="active"
+            onclick="showPage('home')"
+        >
 
-            <button
-                class="nav-item-app active">
+            <i class="bi bi-house"></i>
 
-                <i class="bi bi-house"></i>
-                Home
+            Home
 
-            </button>
+        </button>
 
-            <button
-                class="nav-item-app">
 
-                <i class="bi bi-calendar3"></i>
-                Rundown
+        <button
+            id="navRundown"
+            onclick="showPage('rundown')"
+        >
 
-            </button>
+            <i class="bi bi-calendar-event"></i>
 
-            <button
-                class="nav-item-app">
+            Rundown
 
-                <i class="bi bi-wallet2"></i>
-                Kas
+        </button>
 
-            </button>
 
-            <button
-                class="nav-item-app"
-                onclick="logout()">
+        <button
+            id="navFinance"
+            onclick="showPage('finance')"
+        >
 
-                <i class="bi bi-box-arrow-right"></i>
-                Logout
+            <i class="bi bi-wallet2"></i>
 
-            </button>
+            Keuangan
 
-        </div>
+        </button>
+
+
+        <button
+            id="navManagement"
+            onclick="showPage('management')"
+        >
+
+            <i class="bi bi-grid"></i>
+
+            Menu
+
+        </button>
+
+
+        <button
+            id="navProfile"
+            onclick="showPage('profile')"
+        >
+
+            <i class="bi bi-person"></i>
+
+            Profil
+
+        </button>
 
     </div>
 
 </div>
 
 
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
 <script>
 
-    /* ========================================================
-       SUPABASE CONFIG
-    ======================================================== */
+
+/* =====================================================
+   SUPABASE CONFIG
+===================================================== */
 
     const SUPABASE_URL =
         "https://ncylyddceptiukzzanlm.supabase.co";
@@ -751,48 +1447,300 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jeWx5ZGRjZXB0aXVrenphbmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTk4MDEsImV4cCI6MjEwNTI3NTgwMX0.qO3JYJ5wM8StlptYr0nforp0GaRoQHDLRuCi6aXPyzw";
 
 
-    const {
-        createClient
-    } = supabase;
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+    );
 
-    const db =
-        createClient(
-            SUPABASE_URL,
-            SUPABASE_ANON_KEY
+
+/* =====================================================
+   GLOBAL
+===================================================== */
+
+let currentUser = null;
+
+let currentProfile = null;
+
+let currentOuting = null;
+
+
+/* =====================================================
+   FORMAT PHONE
+===================================================== */
+
+function formatPhone(phone) {
+
+    phone = phone
+        .replace(/\D/g, '');
+
+    if (phone.startsWith('0')) {
+
+        phone =
+            '+62' +
+            phone.substring(1);
+
+    } else if (
+        phone.startsWith('62')
+    ) {
+
+        phone =
+            '+' +
+            phone;
+
+    }
+
+    return phone;
+}
+
+
+/* =====================================================
+   FORMAT RUPIAH
+===================================================== */
+
+function formatRupiah(value) {
+
+    const number =
+        Number(value || 0);
+
+    return new Intl.NumberFormat(
+        'id-ID',
+        {
+            style: 'currency',
+            currency: 'IDR',
+            maximumFractionDigits: 0
+        }
+    ).format(number);
+
+}
+
+
+/* =====================================================
+   TOGGLE PASSWORD
+===================================================== */
+
+function togglePassword(
+    inputId,
+    button
+) {
+
+    const input =
+        document.getElementById(inputId);
+
+    const icon =
+        button.querySelector('i');
+
+
+    if (
+        input.type === 'password'
+    ) {
+
+        input.type = 'text';
+
+        icon.classList.remove(
+            'bi-eye'
         );
 
+        icon.classList.add(
+            'bi-eye-slash'
+        );
 
-    /* ========================================================
-       GLOBAL
-    ======================================================== */
+    } else {
 
-    let currentUser = null;
-    let currentOuting = null;
-    let currentMembership = null;
+        input.type = 'password';
+
+        icon.classList.remove(
+            'bi-eye-slash'
+        );
+
+        icon.classList.add(
+            'bi-eye'
+        );
+
+    }
+
+}
 
 
-    /* ========================================================
-       INITIALIZE
-    ======================================================== */
+/* =====================================================
+   SHOW LOGIN
+===================================================== */
 
-    document.addEventListener(
-        "DOMContentLoaded",
-        async () => {
+function showLogin() {
 
-            const {
-                data
-            } = await db.auth.getSession();
+    document
+        .getElementById('loginPage')
+        .classList.remove('d-none');
 
-            if (data.session) {
+    document
+        .getElementById('registerPage')
+        .classList.add('d-none');
+
+    document
+        .getElementById('appPage')
+        .classList.add('d-none');
+
+    document
+        .getElementById('loginMessage')
+        .innerHTML = '';
+
+}
+
+
+/* =====================================================
+   SHOW REGISTER
+===================================================== */
+
+function showRegister() {
+
+    document
+        .getElementById('loginPage')
+        .classList.add('d-none');
+
+    document
+        .getElementById('registerPage')
+        .classList.remove('d-none');
+
+    document
+        .getElementById('appPage')
+        .classList.add('d-none');
+
+}
+
+
+/* =====================================================
+   SHOW APP
+===================================================== */
+
+function showApp() {
+
+    document
+        .getElementById('loginPage')
+        .classList.add('d-none');
+
+    document
+        .getElementById('registerPage')
+        .classList.add('d-none');
+
+    document
+        .getElementById('appPage')
+        .classList.remove('d-none');
+
+}
+
+
+/* =====================================================
+   LOGIN
+===================================================== */
+
+document
+    .getElementById('loginForm')
+    .addEventListener(
+        'submit',
+        async function(e) {
+
+            e.preventDefault();
+
+
+            const phoneInput =
+                document
+                    .getElementById(
+                        'loginPhone'
+                    )
+                    .value
+                    .trim();
+
+
+            const password =
+                document
+                    .getElementById(
+                        'loginPassword'
+                    )
+                    .value;
+
+
+            const btn =
+                document
+                    .getElementById(
+                        'loginBtn'
+                    );
+
+
+            const message =
+                document
+                    .getElementById(
+                        'loginMessage'
+                    );
+
+
+            const phone =
+                formatPhone(
+                    phoneInput
+                );
+
+
+            btn.disabled = true;
+
+            btn.innerHTML = `
+                <span class="spinner-border
+                spinner-border-sm me-1"></span>
+                Login...
+            `;
+
+
+            try {
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabaseClient
+                        .auth
+                        .signInWithPassword({
+
+                            phone: phone,
+
+                            password:
+                                password
+
+                        });
+
+
+                if (error) {
+
+                    throw error;
+
+                }
+
 
                 currentUser =
-                    data.session.user;
+                    data.user;
 
-                await startApp();
 
-            } else {
+                await loadDashboard();
 
-                showLogin();
+
+            } catch (error) {
+
+                console.error(error);
+
+
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2">
+                        ${error.message}
+                    </div>
+                `;
+
+
+            } finally {
+
+                btn.disabled = false;
+
+                btn.innerHTML = `
+                    <i class="bi
+                    bi-box-arrow-in-right me-1"></i>
+                    Login
+                `;
 
             }
 
@@ -800,378 +1748,900 @@
     );
 
 
-    /* ========================================================
-       LOGIN
-    ======================================================== */
+/* =====================================================
+   REGISTER
+===================================================== */
 
-    document
-        .getElementById("loginForm")
-        .addEventListener(
-            "submit",
-            async function(e) {
+document
+    .getElementById('registerForm')
+    .addEventListener(
+        'submit',
+        async function(e) {
 
-                e.preventDefault();
+            e.preventDefault();
 
-                const email =
-                    document
-                        .getElementById("loginEmail")
-                        .value
-                        .trim();
 
-                const password =
-                    document
-                        .getElementById("loginPassword")
-                        .value;
+            const name =
+                document
+                    .getElementById(
+                        'registerName'
+                    )
+                    .value
+                    .trim();
 
-                const errorBox =
-                    document.getElementById(
-                        "loginError"
+
+            const username =
+                document
+                    .getElementById(
+                        'registerUsername'
+                    )
+                    .value
+                    .trim()
+                    .toLowerCase();
+
+
+            const phoneInput =
+                document
+                    .getElementById(
+                        'registerPhone'
+                    )
+                    .value
+                    .trim();
+
+
+            const password =
+                document
+                    .getElementById(
+                        'registerPassword'
+                    )
+                    .value;
+
+
+            const passwordConfirm =
+                document
+                    .getElementById(
+                        'registerPasswordConfirm'
+                    )
+                    .value;
+
+
+            const btn =
+                document
+                    .getElementById(
+                        'registerBtn'
                     );
 
-                errorBox.classList.add(
-                    "d-none"
+
+            const message =
+                document
+                    .getElementById(
+                        'registerMessage'
+                    );
+
+
+            /* VALIDASI */
+
+            if (
+                password !==
+                passwordConfirm
+            ) {
+
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2">
+                        Password dan konfirmasi
+                        password tidak sama.
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            if (
+                password.length < 6
+            ) {
+
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2">
+                        Password minimal 6 karakter.
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            if (
+                username.length < 3
+            ) {
+
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2">
+                        Username minimal 3 karakter.
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            const phone =
+                formatPhone(
+                    phoneInput
                 );
+
+
+            btn.disabled = true;
+
+
+            btn.innerHTML = `
+                <span class="spinner-border
+                spinner-border-sm me-1"></span>
+                Mendaftarkan...
+            `;
+
+
+            message.innerHTML = '';
+
+
+            try {
+
+
+                /* =====================================
+                   CEK USERNAME
+                ===================================== */
+
+                const {
+                    data:
+                        existingUsername,
+                    error:
+                        usernameError
+                } =
+                    await supabaseClient
+                        .from('users')
+                        .select('id')
+                        .eq(
+                            'username',
+                            username
+                        )
+                        .maybeSingle();
+
+
+                if (usernameError) {
+
+                    throw usernameError;
+
+                }
+
+
+                if (
+                    existingUsername
+                ) {
+
+                    throw new Error(
+                        'Username sudah digunakan.'
+                    );
+
+                }
+
+
+                /* =====================================
+                   CREATE AUTH USER
+                ===================================== */
 
                 const {
                     data,
                     error
-                } = await db.auth.signInWithPassword({
-                    email,
-                    password
-                });
+                } =
+                    await supabaseClient
+                        .auth
+                        .signUp({
+
+                            phone: phone,
+
+                            password:
+                                password,
+
+                            options: {
+
+                                data: {
+
+                                    full_name:
+                                        name,
+
+                                    username:
+                                        username
+
+                                }
+
+                            }
+
+                        });
+
 
                 if (error) {
 
-                    errorBox.textContent =
-                        error.message;
+                    throw error;
 
-                    errorBox.classList.remove(
-                        "d-none"
-                    );
-
-                    return;
                 }
 
-                currentUser =
-                    data.user;
 
-                await startApp();
+                /* =====================================
+                   HANDLE USER PROFILE
+                ===================================== */
+
+                if (data.user) {
+
+                    const {
+                        error:
+                            profileError
+                    } =
+                        await supabaseClient
+                            .from('users')
+                            .upsert({
+
+                                id:
+                                    data.user.id,
+
+                                username:
+                                    username,
+
+                                full_name:
+                                    name,
+
+                                phone:
+                                    phone
+
+                            });
+
+
+                    if (
+                        profileError
+                    ) {
+
+                        console.error(
+                            profileError
+                        );
+
+                    }
+
+                }
+
+
+                /* =====================================
+                   SUCCESS
+                ===================================== */
+
+                message.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>
+                            Registrasi berhasil!
+                        </strong>
+
+                        <br><br>
+
+                        Akun berhasil dibuat
+                        menggunakan nomor:
+
+                        <strong>
+                            ${phoneInput}
+                        </strong>
+
+                        <br><br>
+
+                        Silakan login menggunakan
+                        nomor telepon dan password.
+                    </div>
+                `;
+
+
+                document
+                    .getElementById(
+                        'registerForm'
+                    )
+                    .reset();
+
+
+                setTimeout(
+                    () => {
+
+                        showLogin();
+
+                    },
+                    2500
+                );
+
+
+            } catch (error) {
+
+                console.error(error);
+
+
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2">
+                        ${error.message}
+                    </div>
+                `;
+
+
+            } finally {
+
+                btn.disabled = false;
+
+                btn.innerHTML = `
+                    <i class="bi
+                    bi-person-plus me-1"></i>
+                    Daftar
+                `;
 
             }
-        );
+
+        }
+    );
 
 
-    /* ========================================================
-       START APP
-    ======================================================== */
+/* =====================================================
+   LOAD DASHBOARD
+===================================================== */
 
-    async function startApp() {
+async function loadDashboard() {
 
-        document
-            .getElementById("loginPage")
-            .style.display = "none";
+    try {
 
-        document
-            .getElementById("app")
-            .style.display = "block";
+        showApp();
 
 
-        await loadUser();
+        /* USER */
+
+        const {
+            data: {
+                user
+            }
+        } =
+            await supabaseClient
+                .auth
+                .getUser();
+
+
+        if (!user) {
+
+            showLogin();
+
+            return;
+
+        }
+
+
+        currentUser =
+            user;
+
+
+        /* PROFILE */
+
+        await loadProfile();
+
+
+        /* OUTING */
 
         await loadOuting();
 
-        if (!currentOuting) {
 
-            alert(
-                "Anda belum terdaftar pada outing."
-            );
-
-            return;
-        }
+        /* DATA */
 
         await Promise.all([
 
-            loadParticipants(),
-
             loadRundown(),
 
-            loadCash(),
+            loadFinance(),
 
             loadAnnouncements(),
 
-            loadTasks(),
+            loadParticipants(),
 
-            setupManagement()
+            loadTasks()
 
         ]);
 
+
+        setupManagementMenu();
+
+
+        showPage('home');
+
+
+    } catch (error) {
+
+        console.error(
+            'Dashboard error:',
+            error
+        );
+
     }
 
+}
 
-    /* ========================================================
-       LOAD USER
-    ======================================================== */
 
-    async function loadUser() {
+/* =====================================================
+   LOAD PROFILE
+===================================================== */
+
+async function loadProfile() {
+
+    try {
 
         const {
             data,
             error
-        } = await db
-            .from("users")
-            .select("*")
-            .eq(
-                "id",
-                currentUser.id
-            )
-            .single();
+        } =
+            await supabaseClient
+                .from('users')
+                .select(`
+                    *,
+                    roles (
+                        id,
+                        name
+                    ),
+                    sections (
+                        id,
+                        name
+                    )
+                `)
+                .eq(
+                    'id',
+                    currentUser.id
+                )
+                .maybeSingle();
+
 
         if (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
 
             return;
+
         }
 
+
+        currentProfile =
+            data;
+
+
+        if (!data) {
+
+            return;
+
+        }
+
+
         const name =
-            data.full_name || "User";
+            data.full_name ||
+            data.name ||
+            data.username ||
+            'User';
+
+
+        const username =
+            data.username ||
+            '';
+
+
+        const phone =
+            data.phone ||
+            currentUser.phone ||
+            '-';
+
+
+        const role =
+            data.roles?.name ||
+            data.role ||
+            'PARTICIPANT';
+
+
+        const section =
+            data.sections?.name ||
+            data.section ||
+            '-';
+
 
         document
-            .getElementById("topRole")
+            .getElementById(
+                'topUserName'
+            )
             .textContent =
             name;
 
+
         document
-            .getElementById("userAvatar")
+            .getElementById(
+                'topUserRole'
+            )
             .textContent =
+            role;
+
+
+        const initial =
             name
                 .charAt(0)
                 .toUpperCase();
 
-    }
-
-
-    /* ========================================================
-       LOAD OUTING
-    ======================================================== */
-
-    async function loadOuting() {
-
-        const {
-            data,
-            error
-        } = await db
-            .from("outing_users")
-            .select(`
-                id,
-                outing_id,
-                role_id,
-                section_id,
-
-                roles (
-                    code,
-                    name
-                ),
-
-                sections (
-                    code,
-                    name
-                ),
-
-                outings (
-                    id,
-                    code,
-                    name,
-                    description,
-                    start_date,
-                    end_date,
-                    location_name,
-                    location_address,
-                    status
-                )
-            `)
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .eq(
-                "status",
-                "ACTIVE"
-            )
-            .limit(1)
-            .single();
-
-        if (error) {
-
-            console.error(error);
-
-            return;
-        }
-
-        currentMembership = data;
-        currentOuting = data.outings;
-
-        document
-            .getElementById("eventName")
-            .textContent =
-            currentOuting.name;
-
-        document
-            .getElementById("topTitle")
-            .textContent =
-            currentOuting.name;
-
-        document
-            .getElementById("eventLocation")
-            .textContent =
-            currentOuting.location_name || "-";
-
-        document
-            .getElementById("eventDate")
-            .textContent =
-            formatDateRange(
-                currentOuting.start_date,
-                currentOuting.end_date
-            );
-
-        document
-            .getElementById("topRole")
-            .textContent =
-            data.roles?.name || "Member";
-
-    }
-
-
-    /* ========================================================
-       PARTICIPANTS
-    ======================================================== */
-
-    async function loadParticipants() {
-
-        if (!currentOuting)
-            return;
-
-        const {
-            count,
-            error
-        } = await db
-            .from("participants")
-            .select(
-                "id",
-                {
-                    count: "exact",
-                    head: true
-                }
-            )
-            .eq(
-                "outing_id",
-                currentOuting.id
-            )
-            .eq(
-                "status",
-                "ACTIVE"
-            );
-
-        if (error) {
-
-            console.error(error);
-
-            return;
-        }
 
         document
             .getElementById(
-                "totalParticipants"
+                'topAvatar'
             )
             .textContent =
-            count ?? 0;
+            initial;
+
+
+        document
+            .getElementById(
+                'profileAvatar'
+            )
+            .textContent =
+            initial;
+
+
+        document
+            .getElementById(
+                'profileName'
+            )
+            .textContent =
+            name;
+
+
+        document
+            .getElementById(
+                'profileUsername'
+            )
+            .textContent =
+            '@' + username;
+
+
+        document
+            .getElementById(
+                'profilePhone'
+            )
+            .textContent =
+            phone;
+
+
+        document
+            .getElementById(
+                'profileRole'
+            )
+            .textContent =
+            role;
+
+
+        document
+            .getElementById(
+                'profileSection'
+            )
+            .textContent =
+            section;
+
+    } catch (error) {
+
+        console.error(error);
 
     }
 
+}
 
-    /* ========================================================
-       RUNDOWN
-    ======================================================== */
 
-    async function loadRundown() {
+/* =====================================================
+   LOAD OUTING
+===================================================== */
 
-        if (!currentOuting)
-            return;
+async function loadOuting() {
 
-        const container =
-            document.getElementById(
-                "rundownList"
-            );
-
-        container.innerHTML =
-            `<div class="loading">
-                Loading...
-            </div>`;
-
-        const today =
-            new Date()
-                .toISOString()
-                .split("T")[0];
+    try {
 
         const {
             data,
             error
-        } = await db
-            .from("rundowns")
-            .select(`
-                id,
-                activity_date,
-                start_time,
-                end_time,
-                activity,
-                location,
-                description,
-                status
-            `)
-            .eq(
-                "outing_id",
-                currentOuting.id
-            )
-            .order(
-                "activity_date",
-                {
-                    ascending: true
-                }
-            )
-            .order(
-                "sort_order",
-                {
-                    ascending: true
-                })
-            .limit(10);
+        } =
+            await supabaseClient
+                .from('outings')
+                .select('*')
+                .order(
+                    'created_at',
+                    {
+                        ascending: false
+                    }
+                )
+                .limit(1)
+                .maybeSingle();
+
 
         if (error) {
 
-            container.innerHTML =
-                `<div class="p-3 text-danger">
-                    ${escapeHtml(error.message)}
-                </div>`;
+            console.error(
+                error
+            );
 
             return;
+
         }
 
-        if (!data?.length) {
 
-            container.innerHTML =
-                `<div class="loading">
+        currentOuting =
+            data;
+
+
+        if (!data) {
+
+            document
+                .getElementById(
+                    'eventName'
+                )
+                .textContent =
+                'Outing Bersama';
+
+
+            document
+                .getElementById(
+                    'eventInfo'
+                )
+                .textContent =
+                'Belum ada outing aktif.';
+
+            return;
+
+        }
+
+
+        document
+            .getElementById(
+                'eventName'
+            )
+            .textContent =
+            data.name ||
+            data.title ||
+            'Outing Bersama';
+
+
+        let info = '';
+
+
+        if (data.event_date) {
+
+            info +=
+                new Date(
+                    data.event_date
+                ).toLocaleDateString(
+                    'id-ID',
+                    {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                    }
+                );
+
+        }
+
+
+        if (data.location) {
+
+            info +=
+                ' • ' +
+                data.location;
+
+        }
+
+
+        document
+            .getElementById(
+                'eventInfo'
+            )
+            .textContent =
+            info ||
+            'Informasi outing';
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+/* =====================================================
+   LOAD PARTICIPANTS
+===================================================== */
+
+async function loadParticipants() {
+
+    try {
+
+        let query =
+            supabaseClient
+                .from('participants')
+                .select('*');
+
+
+        if (
+            currentOuting?.id
+        ) {
+
+            query =
+                query.eq(
+                    'outing_id',
+                    currentOuting.id
+                );
+
+        }
+
+
+        const {
+            data,
+            error
+        } =
+            await query;
+
+
+        if (error) {
+
+            console.error(
+                error
+            );
+
+            return;
+
+        }
+
+
+        document
+            .getElementById(
+                'statParticipants'
+            )
+            .textContent =
+            data?.length || 0;
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+/* =====================================================
+   LOAD RUNDOWN
+===================================================== */
+
+async function loadRundown() {
+
+    try {
+
+        let query =
+            supabaseClient
+                .from('rundowns')
+                .select('*')
+                .order(
+                    'start_time',
+                    {
+                        ascending: true
+                    }
+                );
+
+
+        if (
+            currentOuting?.id
+        ) {
+
+            query =
+                query.eq(
+                    'outing_id',
+                    currentOuting.id
+                );
+
+        }
+
+
+        const {
+            data,
+            error
+        } =
+            await query;
+
+
+        if (error) {
+
+            console.error(
+                error
+            );
+
+            return;
+
+        }
+
+
+        renderRundown(
+            data || []
+        );
+
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+/* =====================================================
+   RENDER RUNDOWN
+===================================================== */
+
+function renderRundown(
+    data
+) {
+
+    const home =
+        document
+            .getElementById(
+                'homeRundown'
+            );
+
+
+    const list =
+        document
+            .getElementById(
+                'rundownList'
+            );
+
+
+    if (!data.length) {
+
+        const html = `
+            <div class="empty-state">
+                <i class="bi bi-calendar-x"></i>
+                <div>
                     Belum ada rundown.
-                </div>`;
+                </div>
+            </div>
+        `;
 
-            return;
-        }
+        home.innerHTML = html;
 
-        container.innerHTML =
-            data.map(item => {
+        list.innerHTML = html;
+
+        return;
+
+    }
+
+
+    const items =
+        data.map(
+            item => {
 
                 const time =
-                    formatTime(
-                        item.start_time
-                    );
+                    item.start_time ||
+                    item.time ||
+                    '-';
+
+
+                const title =
+                    item.title ||
+                    item.activity ||
+                    item.name ||
+                    'Kegiatan';
+
+
+                const desc =
+                    item.description ||
+                    item.note ||
+                    '';
+
 
                 return `
 
@@ -1184,23 +2654,20 @@
                         <div>
 
                             <div class="rundown-title">
-                                ${escapeHtml(
-                                    item.activity
-                                )}
+                                ${title}
                             </div>
 
-                            <div class="rundown-location">
-
-                                ${
-                                    item.location
-                                    ? `<i class="bi bi-geo-alt"></i>
-                                       ${escapeHtml(
-                                           item.location
-                                       )}`
-                                    : ""
-                                }
-
-                            </div>
+                            ${
+                                desc
+                                ?
+                                `
+                                <small class="text-muted">
+                                    ${desc}
+                                </small>
+                                `
+                                :
+                                ''
+                            }
 
                         </div>
 
@@ -1208,518 +2675,1103 @@
 
                 `;
 
-            }).join("");
+            }
+        )
+        .join('');
 
-    }
+
+    home.innerHTML =
+        items.slice(
+            0,
+            5
+        ).join('');
 
 
-    /* ========================================================
-       CASH
-    ======================================================== */
+    list.innerHTML =
+        items;
 
-    async function loadCash() {
 
-        if (!currentOuting)
-            return;
+    document
+        .getElementById(
+            'statProgress'
+        )
+        .textContent =
+        '0%';
 
-        const container =
-            document.getElementById(
-                "cashList"
-            );
+}
+
+
+/* =====================================================
+   LOAD FINANCE
+===================================================== */
+
+async function loadFinance() {
+
+    try {
 
         const {
             data,
             error
-        } = await db
-            .from("v_cash_summary")
-            .select("*")
-            .eq(
-                "outing_id",
-                currentOuting.id
+        } =
+            await supabaseClient
+                .from('v_cash_summary')
+                .select('*')
+                .limit(1)
+                .maybeSingle();
+
+
+        if (!error && data) {
+
+            const balance =
+                data.balance ??
+                data.saldo ??
+                0;
+
+
+            document
+                .getElementById(
+                    'statBalance'
+                )
+                .textContent =
+                formatRupiah(
+                    balance
+                );
+
+        }
+
+
+        let query =
+            supabaseClient
+                .from('cash_transactions')
+                .select('*')
+                .order(
+                    'transaction_date',
+                    {
+                        ascending: false
+                    }
+                );
+
+
+        if (
+            currentOuting?.id
+        ) {
+
+            query =
+                query.eq(
+                    'outing_id',
+                    currentOuting.id
+                );
+
+        }
+
+
+        const result =
+            await query;
+
+
+        if (
+            result.error
+        ) {
+
+            console.error(
+                result.error
             );
+
+            return;
+
+        }
+
+
+        renderFinance(
+            result.data || []
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Finance:',
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   RENDER FINANCE
+===================================================== */
+
+function renderFinance(
+    data
+) {
+
+    let income = 0;
+
+    let expense = 0;
+
+
+    data.forEach(
+        item => {
+
+            const type =
+                String(
+                    item.type ||
+                    item.transaction_type ||
+                    ''
+                )
+                .toUpperCase();
+
+
+            const amount =
+                Number(
+                    item.amount ||
+                    item.jumlah ||
+                    0
+                );
+
+
+            if (
+                type === 'IN' ||
+                type === 'INCOME' ||
+                type === 'MASUK'
+            ) {
+
+                income += amount;
+
+            } else {
+
+                expense += amount;
+
+            }
+
+        }
+    );
+
+
+    document
+        .getElementById(
+            'totalIncome'
+        )
+        .textContent =
+        formatRupiah(
+            income
+        );
+
+
+    document
+        .getElementById(
+            'totalExpense'
+        )
+        .textContent =
+        formatRupiah(
+            expense
+        );
+
+
+    const home =
+        document
+            .getElementById(
+                'homeFinance'
+            );
+
+
+    const list =
+        document
+            .getElementById(
+                'financeList'
+            );
+
+
+    if (!data.length) {
+
+        const html = `
+            <div class="empty-state">
+                <i class="bi bi-wallet2"></i>
+                <div>
+                    Belum ada transaksi.
+                </div>
+            </div>
+        `;
+
+        home.innerHTML =
+            html;
+
+        list.innerHTML =
+            html;
+
+        return;
+
+    }
+
+
+    const rows =
+        data.map(
+            item => {
+
+                const type =
+                    String(
+                        item.type ||
+                        item.transaction_type ||
+                        ''
+                    )
+                    .toUpperCase();
+
+
+                const amount =
+                    Number(
+                        item.amount ||
+                        item.jumlah ||
+                        0
+                    );
+
+
+                const title =
+                    item.description ||
+                    item.keterangan ||
+                    item.category ||
+                    'Transaksi';
+
+
+                const isIncome =
+                    type === 'IN' ||
+                    type === 'INCOME' ||
+                    type === 'MASUK';
+
+
+                return `
+
+                    <div class="
+                        d-flex
+                        justify-content-between
+                        align-items-center
+                        py-3
+                        border-bottom
+                    ">
+
+                        <div>
+
+                            <div class="fw-semibold">
+                                ${title}
+                            </div>
+
+                            <small class="text-muted">
+                                ${
+                                    item.transaction_date ||
+                                    item.date ||
+                                    ''
+                                }
+                            </small>
+
+                        </div>
+
+
+                        <div class="${
+                            isIncome
+                            ?
+                            'money-in'
+                            :
+                            'money-out'
+                        }">
+
+                            ${
+                                isIncome
+                                ? '+ '
+                                : '- '
+                            }
+
+                            ${formatRupiah(amount)}
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        )
+        .join('');
+
+
+    home.innerHTML =
+        rows.slice(
+            0,
+            5
+        ).join('');
+
+
+    list.innerHTML =
+        rows;
+
+}
+
+
+/* =====================================================
+   LOAD ANNOUNCEMENTS
+===================================================== */
+
+async function loadAnnouncements() {
+
+    try {
+
+        let query =
+            supabaseClient
+                .from('announcements')
+                .select('*')
+                .order(
+                    'created_at',
+                    {
+                        ascending: false
+                    }
+                )
+                .limit(5);
+
+
+        if (
+            currentOuting?.id
+        ) {
+
+            query =
+                query.eq(
+                    'outing_id',
+                    currentOuting.id
+                );
+
+        }
+
+
+        const {
+            data,
+            error
+        } =
+            await query;
+
 
         if (error) {
 
-            console.error(error);
-
-            container.innerHTML =
-                `<div class="p-3 text-danger">
-                    ${escapeHtml(error.message)}
-                </div>`;
+            console.error(
+                error
+            );
 
             return;
+
         }
+
+
+        const container =
+            document
+                .getElementById(
+                    'homeAnnouncements'
+                );
+
 
         if (!data?.length) {
 
-            container.innerHTML =
-                `<div class="loading">
-                    Belum ada kas.
-                </div>`;
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-megaphone"></i>
+
+                    <div>
+                        Belum ada pengumuman.
+                    </div>
+                </div>
+            `;
 
             return;
+
         }
 
-        let totalBalance = 0;
 
-        data.forEach(item => {
+        container.innerHTML =
+            data.map(
+                item => `
 
-            totalBalance +=
-                Number(
-                    item.current_balance || 0
+                    <div class="
+                        border-bottom
+                        py-3
+                    ">
+
+                        <div class="fw-semibold">
+                            ${
+                                item.title ||
+                                'Pengumuman'
+                            }
+                        </div>
+
+                        <div class="text-muted small mt-1">
+                            ${
+                                item.content ||
+                                item.message ||
+                                ''
+                            }
+                        </div>
+
+                    </div>
+
+                `
+            ).join('');
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+/* =====================================================
+   LOAD TASKS
+===================================================== */
+
+async function loadTasks() {
+
+    try {
+
+        let query =
+            supabaseClient
+                .from('tasks')
+                .select('*');
+
+
+        if (
+            currentOuting?.id
+        ) {
+
+            query =
+                query.eq(
+                    'outing_id',
+                    currentOuting.id
                 );
+
+        }
+
+
+        const {
+            data,
+            error
+        } =
+            await query;
+
+
+        if (error) {
+
+            console.error(
+                error
+            );
+
+            return;
+
+        }
+
+
+        if (!data?.length) {
+
+            document
+                .getElementById(
+                    'statProgress'
+                )
+                .textContent =
+                '0%';
+
+            return;
+
+        }
+
+
+        const completed =
+            data.filter(
+                task =>
+                    task.status ===
+                    'DONE'
+            ).length;
+
+
+        const progress =
+            Math.round(
+                (
+                    completed /
+                    data.length
+                ) * 100
+            );
+
+
+        document
+            .getElementById(
+                'statProgress'
+            )
+            .textContent =
+            progress + '%';
+
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+/* =====================================================
+   MANAGEMENT MENU
+===================================================== */
+
+function setupManagementMenu() {
+
+    const container =
+        document
+            .getElementById(
+                'managementMenu'
+            );
+
+
+    container.innerHTML = '';
+
+
+    const role =
+        String(
+            currentProfile?.roles?.name ||
+            currentProfile?.role ||
+            'PARTICIPANT'
+        )
+        .toUpperCase();
+
+
+    const section =
+        String(
+            currentProfile?.sections?.name ||
+            currentProfile?.section ||
+            ''
+        )
+        .toUpperCase();
+
+
+    const menus = [];
+
+
+    /* PARTICIPANT */
+
+    if (
+        role === 'PARTICIPANT'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-person-check',
+
+            title: 'Data Peserta',
+
+            desc:
+                'Lihat informasi peserta',
+
+            action:
+                'showParticipants()'
 
         });
 
-        document
-            .getElementById(
-                "cashBalance"
-            )
-            .textContent =
-            formatRupiah(
-                totalBalance
-            );
+    }
 
-        container.innerHTML =
-            data.map(item => `
 
-                <div class="cash-row">
+    /* FINANCE */
+
+    if (
+        section.includes('KEUANGAN') ||
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-wallet2',
+
+            title: 'Keuangan',
+
+            desc:
+                'Kelola pemasukan dan pengeluaran',
+
+            action:
+                'showPage("finance")'
+
+        });
+
+    }
+
+
+    /* PURCHASING */
+
+    if (
+        section.includes('PURCHASING') ||
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-cart-check',
+
+            title: 'Purchasing',
+
+            desc:
+                'Kelola permintaan pembelian',
+
+            action:
+                'showModule("Purchasing")'
+
+        });
+
+    }
+
+
+    /* LOGISTIC */
+
+    if (
+        section.includes('LOGISTIC') ||
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-box-seam',
+
+            title: 'Logistic',
+
+            desc:
+                'Kelola kebutuhan logistic',
+
+            action:
+                'showModule("Logistic")'
+
+        });
+
+    }
+
+
+    /* KONSUMSI */
+
+    if (
+        section.includes('KONSUMSI') ||
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-cup-hot',
+
+            title: 'Konsumsi',
+
+            desc:
+                'Kelola makanan dan minuman',
+
+            action:
+                'showModule("Konsumsi")'
+
+        });
+
+    }
+
+
+    /* PUBLIC AREA */
+
+    if (
+        section.includes('PUBLIC') ||
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-megaphone',
+
+            title: 'Public Area',
+
+            desc:
+                'Kelola informasi dan pengumuman',
+
+            action:
+                'showModule("Public Area")'
+
+        });
+
+    }
+
+
+    /* INITIATOR */
+
+    if (
+        role === 'ADMIN' ||
+        role === 'INITIATOR'
+    ) {
+
+        menus.push({
+
+            icon: 'bi-sliders',
+
+            title: 'Pengaturan Outing',
+
+            desc:
+                'Kelola peserta dan outing',
+
+            action:
+                'showModule("Pengaturan")'
+
+        });
+
+    }
+
+
+    if (!menus.length) {
+
+        container.innerHTML = `
+
+            <div class="col-12">
+
+                <div class="empty-state">
+
+                    <i class="bi bi-grid"></i>
 
                     <div>
-                        ${escapeHtml(
-                            item.name
-                        )}
-                    </div>
-
-                    <strong>
-                        ${formatRupiah(
-                            item.current_balance
-                        )}
-                    </strong>
-
-                </div>
-
-            `).join("");
-
-    }
-
-
-    /* ========================================================
-       ANNOUNCEMENTS
-    ======================================================== */
-
-    async function loadAnnouncements() {
-
-        if (!currentOuting)
-            return;
-
-        const container =
-            document.getElementById(
-                "announcementList"
-            );
-
-        const {
-            data,
-            error
-        } = await db
-            .from("announcements")
-            .select(`
-                id,
-                title,
-                content,
-                priority,
-                published_at
-            `)
-            .eq(
-                "outing_id",
-                currentOuting.id
-            )
-            .order(
-                "published_at",
-                {
-                    ascending: false
-                }
-            )
-            .limit(5);
-
-        if (error) {
-
-            console.error(error);
-
-            return;
-        }
-
-        if (!data?.length) {
-
-            container.innerHTML =
-                `<div class="loading">
-                    Belum ada pengumuman.
-                </div>`;
-
-            return;
-        }
-
-        container.innerHTML =
-            data.map(item => `
-
-                <div class="announcement">
-
-                    <div class="announcement-title">
-
-                        ${escapeHtml(
-                            item.title
-                        )}
-
-                        ${
-                            item.priority === "URGENT"
-                            ? `<span class="badge text-bg-danger ms-1">
-                                URGENT
-                               </span>`
-                            : ""
-                        }
-
-                    </div>
-
-                    <div class="announcement-content">
-
-                        ${escapeHtml(
-                            item.content
-                        )}
-
+                        Tidak ada menu management.
                     </div>
 
                 </div>
 
-            `).join("");
+            </div>
+
+        `;
+
+        return;
 
     }
 
 
-    /* ========================================================
-       TASK
-    ======================================================== */
-
-    async function loadTasks() {
-
-        if (!currentOuting)
-            return;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("tasks")
-            .select(`
-                id,
-                status
-            `)
-            .eq(
-                "outing_id",
-                currentOuting.id
-            );
-
-        if (error) {
-
-            console.error(error);
-
-            return;
-        }
-
-        const total =
-            data?.length || 0;
-
-        const done =
-            data?.filter(
-                x => x.status === "DONE"
-            ).length || 0;
-
-        const progress =
-            total
-            ? Math.round(
-                done / total * 100
-            )
-            : 0;
-
-        document
-            .getElementById(
-                "taskProgress"
-            )
-            .textContent =
-            progress + "%";
-
-    }
-
-
-    /* ========================================================
-       MANAGEMENT MENU
-    ======================================================== */
-
-    async function setupManagement() {
-
-        const role =
-            currentMembership
-                ?.roles
-                ?.code;
-
-        const section =
-            currentMembership
-                ?.sections
-                ?.code;
-
-        const management =
-            document.getElementById(
-                "managementSection"
-            );
-
-        const buttons =
-            document.getElementById(
-                "managementButtons"
-            );
-
-        let menu = [];
-
-        if (
-            role === "ADMIN" ||
-            role === "INITIATOR"
-        ) {
-
-            menu = [
-
-                {
-                    icon: "bi-people",
-                    title: "Peserta"
-                },
-
-                {
-                    icon: "bi-calendar-event",
-                    title: "Rundown"
-                },
-
-                {
-                    icon: "bi-wallet2",
-                    title: "Keuangan"
-                },
-
-                {
-                    icon: "bi-cart",
-                    title: "Purchasing"
-                },
-
-                {
-                    icon: "bi-truck",
-                    title: "Logistic"
-                },
-
-                {
-                    icon: "bi-cup-hot",
-                    title: "Konsumsi"
-                }
-
-            ];
-
-        } else {
-
-            if (
-                section === "KEUANGAN"
-            ) {
-
-                menu.push({
-                    icon: "bi-wallet2",
-                    title: "Keuangan"
-                });
-
-            }
-
-            if (
-                section === "PURCHASING"
-            ) {
-
-                menu.push({
-                    icon: "bi-cart",
-                    title: "Purchasing"
-                });
-
-            }
-
-            if (
-                section === "LOGISTIC"
-            ) {
-
-                menu.push({
-                    icon: "bi-truck",
-                    title: "Logistic"
-                });
-
-            }
-
-            if (
-                section === "KONSUMSI"
-            ) {
-
-                menu.push({
-                    icon: "bi-cup-hot",
-                    title: "Konsumsi"
-                });
-
-            }
-
-            if (
-                section === "PUBLIC_AREA"
-            ) {
-
-                menu.push({
-                    icon: "bi-megaphone",
-                    title: "Public Area"
-                });
-
-            }
-
-        }
-
-
-        if (!menu.length)
-            return;
-
-
-        management.style.display =
-            "block";
-
-
-        buttons.innerHTML =
-            menu.map(item => `
+    container.innerHTML =
+        menus.map(
+            menu => `
 
                 <div class="col-6 col-md-4">
 
-                    <button
-                        class="btn btn-light border w-100 py-3">
+                    <div
+                        class="menu-card"
+                        onclick='${menu.action}'
+                    >
 
-                        <i class="bi ${item.icon}
-                           d-block fs-4 mb-1"></i>
+                        <div class="menu-icon">
 
-                        ${item.title}
+                            <i class="
+                                bi
+                                ${menu.icon}
+                            "></i>
 
-                    </button>
+                        </div>
+
+                        <div class="menu-title">
+                            ${menu.title}
+                        </div>
+
+                        <div class="menu-desc">
+                            ${menu.desc}
+                        </div>
+
+                    </div>
 
                 </div>
 
-            `).join("");
+            `
+        ).join('');
 
-    }
-
-
-    /* ========================================================
-       LOGOUT
-    ======================================================== */
-
-    async function logout() {
-
-        await db.auth.signOut();
-
-        location.reload();
-
-    }
+}
 
 
-    /* ========================================================
-       HELPERS
-    ======================================================== */
+/* =====================================================
+   SHOW PAGE
+===================================================== */
 
-    function formatRupiah(value) {
+function showPage(
+    page
+) {
 
-        return new Intl.NumberFormat(
-            "id-ID",
-            {
-                style: "currency",
-                currency: "IDR",
-                maximumFractionDigits: 0
+    document
+        .querySelectorAll('.page')
+        .forEach(
+            element => {
+
+                element.classList.remove(
+                    'active'
+                );
+
             }
-        ).format(
-            Number(value || 0)
+        );
+
+
+    const pageMap = {
+
+        home:
+            'pageHome',
+
+        rundown:
+            'pageRundown',
+
+        finance:
+            'pageFinance',
+
+        management:
+            'pageManagement',
+
+        profile:
+            'pageProfile'
+
+    };
+
+
+    const target =
+        document.getElementById(
+            pageMap[page]
+        );
+
+
+    if (target) {
+
+        target.classList.add(
+            'active'
         );
 
     }
 
 
-    function formatDateRange(
-        start,
-        end
-    ) {
+    /* NAV */
 
-        if (!start)
-            return "-";
+    document
+        .querySelectorAll(
+            '.bottom-nav button'
+        )
+        .forEach(
+            button => {
 
-        const s =
-            new Date(start)
-                .toLocaleDateString(
-                    "id-ID",
-                    {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric"
-                    }
+                button.classList.remove(
+                    'active'
                 );
 
-        if (!end)
-            return s;
-
-        const e =
-            new Date(end)
-                .toLocaleDateString(
-                    "id-ID",
-                    {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric"
-                    }
-                );
-
-        return `${s} - ${e}`;
-
-    }
+            }
+        );
 
 
-    function formatTime(time) {
+    const nav =
+        document.getElementById(
+            'nav' +
+            page.charAt(0).toUpperCase() +
+            page.slice(1)
+        );
 
-        if (!time)
-            return "";
 
-        return time.substring(
-            0,
-            5
+    if (nav) {
+
+        nav.classList.add(
+            'active'
         );
 
     }
 
 
-    function escapeHtml(value) {
+    window.scrollTo(
+        {
+            top: 0,
+            behavior: 'smooth'
+        }
+    );
 
-        if (value === null ||
-            value === undefined)
-            return "";
+}
 
-        return String(value)
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
+
+/* =====================================================
+   SHOW MODULE
+===================================================== */
+
+function showModule(
+    module
+) {
+
+    alert(
+        module +
+        ' module akan kita lanjutkan.'
+    );
+
+}
+
+
+/* =====================================================
+   ADD TRANSACTION
+===================================================== */
+
+function addTransaction() {
+
+    alert(
+        'Form tambah transaksi akan kita aktifkan pada tahap berikutnya.'
+    );
+
+}
+
+
+/* =====================================================
+   SHOW PARTICIPANTS
+===================================================== */
+
+async function showParticipants() {
+
+    alert(
+        'Halaman peserta akan kita aktifkan pada tahap berikutnya.'
+    );
+
+}
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+async function logout() {
+
+    const confirmed =
+        confirm(
+            'Apakah Anda yakin ingin logout?'
+        );
+
+
+    if (!confirmed) {
+
+        return;
 
     }
 
 
-    function showLogin() {
+    await supabaseClient
+        .auth
+        .signOut();
 
-        document
-            .getElementById("loginPage")
-            .style.display = "flex";
 
-        document
-            .getElementById("app")
-            .style.display = "none";
+    currentUser = null;
+
+    currentProfile = null;
+
+    currentOuting = null;
+
+
+    showLogin();
+
+
+    document
+        .getElementById(
+            'loginForm'
+        )
+        .reset();
+
+}
+
+
+/* =====================================================
+   CHECK SESSION
+===================================================== */
+
+async function checkSession() {
+
+    try {
+
+        const {
+            data
+        } =
+            await supabaseClient
+                .auth
+                .getSession();
+
+
+        if (
+            data.session
+        ) {
+
+            currentUser =
+                data.session.user;
+
+            await loadDashboard();
+
+        } else {
+
+            showLogin();
+
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        showLogin();
 
     }
+
+}
+
+
+/* =====================================================
+   AUTH STATE
+===================================================== */
+
+supabaseClient
+    .auth
+    .onAuthStateChange(
+        async (
+            event,
+            session
+        ) => {
+
+            if (
+                event ===
+                'SIGNED_IN'
+            ) {
+
+                if (session?.user) {
+
+                    currentUser =
+                        session.user;
+
+                }
+
+            }
+
+
+            if (
+                event ===
+                'SIGNED_OUT'
+            ) {
+
+                currentUser =
+                    null;
+
+                showLogin();
+
+            }
+
+        }
+    );
+
+
+/* =====================================================
+   START
+===================================================== */
+
+checkSession();
+
 
 </script>
+
+
+<!-- Bootstrap JS -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
 
 </body>
 </html>
