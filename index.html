@@ -463,20 +463,20 @@
             <div class="mb-3">
 
                 <label class="form-label">
-                    Nomor Telepon
+                    User ID
                 </label>
 
                 <div class="input-group">
 
                     <span class="input-group-text">
-                        <i class="bi bi-phone"></i>
+                        <i class="bi bi-person"></i>
                     </span>
 
                     <input
-                        type="tel"
-                        id="loginPhone"
+                        type="text"
+                        id="loginUserId"
                         class="form-control"
-                        placeholder="08123456789"
+                        placeholder="Masukkan User ID"
                         required
                     >
 
@@ -1354,6 +1354,57 @@
 
         </div>
 
+
+        <!-- =============================================
+             PARTICIPANTS
+        ============================================== -->
+
+        <div
+            id="pageParticipants"
+            class="page"
+        >
+
+            <div class="content-card">
+
+                <div class="content-header">
+
+                    <h5>
+                        <i class="bi bi-person-check me-1"></i>
+                        Data Peserta Outing
+                    </h5>
+
+                    <button
+                        class="btn btn-sm btn-outline-secondary"
+                        onclick="showPage('home')"
+                    >
+                        <i class="bi bi-arrow-left me-1"></i>
+                        Kembali
+                    </button>
+
+                </div>
+
+
+                <div
+                    class="content-body"
+                    id="participantsList"
+                >
+
+                    <div class="empty-state">
+
+                        <i class="bi bi-people"></i>
+
+                        <div>
+                            Memuat data peserta...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
 
 
@@ -1642,10 +1693,10 @@ document
             e.preventDefault();
 
 
-            const phoneInput =
+            const userIdInput =
                 document
                     .getElementById(
-                        'loginPhone'
+                        'loginUserId'
                     )
                     .value
                     .trim();
@@ -1673,12 +1724,6 @@ document
                     );
 
 
-            const phone =
-                formatPhone(
-                    phoneInput
-                );
-
-
             btn.disabled = true;
 
             btn.innerHTML = `
@@ -1687,34 +1732,124 @@ document
                 Login...
             `;
 
+            message.innerHTML = '';
+
 
             try {
 
-                const {
-                    data,
-                    error
-                } =
-                    await supabaseClient
-                        .auth
-                        .signInWithPassword({
+                if (!userIdInput) {
 
-                            phone: phone,
-
-                            password:
-                                password
-
-                        });
-
-
-                if (error) {
-
-                    throw error;
+                    throw new Error(
+                        'Silakan masukkan User ID.'
+                    );
 
                 }
 
 
-                currentUser =
-                    data.user;
+                if (!password) {
+
+                    throw new Error(
+                        'Silakan masukkan password.'
+                    );
+
+                }
+
+
+                let foundUser = null;
+
+                // 1. Cek data user lokal (localStorage)
+                const localUsers =
+                    JSON.parse(
+                        localStorage.getItem('outing_local_users') || '[]'
+                    );
+
+                const matchedLocal =
+                    localUsers.find(
+                        u =>
+                            (u.username && u.username.toLowerCase() === userIdInput.toLowerCase()) ||
+                            (u.id && String(u.id).toLowerCase() === userIdInput.toLowerCase()) ||
+                            (u.phone && u.phone === userIdInput)
+                    );
+
+                if (matchedLocal) {
+
+                    if (
+                        matchedLocal.password &&
+                        matchedLocal.password !== password
+                    ) {
+
+                        throw new Error(
+                            'Password yang Anda masukkan salah.'
+                        );
+
+                    }
+
+                    foundUser = matchedLocal;
+
+                }
+
+
+                // 2. Cek database Supabase (tabel users)
+                if (!foundUser) {
+
+                    try {
+
+                        const {
+                            data: dbUser
+                        } =
+                            await supabaseClient
+                                .from('users')
+                                .select('*')
+                                .eq(
+                                    'username',
+                                    userIdInput.toLowerCase()
+                                )
+                                .maybeSingle();
+
+
+                        if (dbUser) {
+
+                            if (
+                                dbUser.password &&
+                                dbUser.password !== password
+                            ) {
+
+                                throw new Error(
+                                    'Password yang Anda masukkan salah.'
+                                );
+
+                            }
+
+                            foundUser = dbUser;
+
+                        }
+
+                    } catch (dbErr) {
+
+                        console.warn('DB search note:', dbErr);
+
+                    }
+
+                }
+
+
+                if (!foundUser) {
+
+                    throw new Error(
+                        'User ID atau Password yang Anda masukkan salah.'
+                    );
+
+                }
+
+
+                currentUser = foundUser;
+
+                currentProfile = foundUser;
+
+                localStorage.setItem(
+                    'outing_session',
+                    JSON.stringify(foundUser)
+                );
 
 
                 await loadDashboard();
@@ -1722,12 +1857,13 @@ document
 
             } catch (error) {
 
-                console.error(error);
+                console.error('Login error:', error);
 
 
                 message.innerHTML = `
                     <div class="alert alert-danger py-2">
-                        ${error.message}
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        ${error.message || 'Gagal login, periksa kembali User ID dan Password Anda.'}
                     </div>
                 `;
 
@@ -1828,8 +1964,8 @@ document
 
                 message.innerHTML = `
                     <div class="alert alert-danger py-2">
-                        Password dan konfirmasi
-                        password tidak sama.
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Password dan konfirmasi password tidak sama.
                     </div>
                 `;
 
@@ -1844,6 +1980,7 @@ document
 
                 message.innerHTML = `
                     <div class="alert alert-danger py-2">
+                        <i class="bi bi-exclamation-circle me-1"></i>
                         Password minimal 6 karakter.
                     </div>
                 `;
@@ -1859,6 +1996,7 @@ document
 
                 message.innerHTML = `
                     <div class="alert alert-danger py-2">
+                        <i class="bi bi-exclamation-circle me-1"></i>
                         Username minimal 3 karakter.
                     </div>
                 `;
@@ -1880,7 +2018,7 @@ document
             btn.innerHTML = `
                 <span class="spinner-border
                 spinner-border-sm me-1"></span>
-                Mendaftarkan...
+                Menyimpan data...
             `;
 
 
@@ -1891,122 +2029,124 @@ document
 
 
                 /* =====================================
-                   CEK USERNAME
+                   CEK USERNAME LOKAL & DATABASE
                 ===================================== */
 
-                const {
-                    data:
-                        existingUsername,
-                    error:
-                        usernameError
-                } =
-                    await supabaseClient
-                        .from('users')
-                        .select('id')
-                        .eq(
-                            'username',
-                            username
-                        )
-                        .maybeSingle();
+                const localUsers =
+                    JSON.parse(
+                        localStorage.getItem('outing_local_users') || '[]'
+                    );
 
+                const existingLocal =
+                    localUsers.find(
+                        u => u.username === username
+                    );
 
-                if (usernameError) {
-
-                    throw usernameError;
-
-                }
-
-
-                if (
-                    existingUsername
-                ) {
+                if (existingLocal) {
 
                     throw new Error(
-                        'Username sudah digunakan.'
+                        'Username sudah terdaftar.'
                     );
 
                 }
 
 
-                /* =====================================
-                   CREATE AUTH USER
-                ===================================== */
+                try {
 
-                const {
-                    data,
-                    error
-                } =
-                    await supabaseClient
-                        .auth
-                        .signUp({
-
-                            phone: phone,
-
-                            password:
-                                password,
-
-                            options: {
-
-                                data: {
-
-                                    full_name:
-                                        name,
-
-                                    username:
-                                        username
-
-                                }
-
-                            }
-
-                        });
+                    const {
+                        data: existingDb
+                    } =
+                        await supabaseClient
+                            .from('users')
+                            .select('id')
+                            .eq(
+                                'username',
+                                username
+                            )
+                            .maybeSingle();
 
 
-                if (error) {
+                    if (existingDb) {
 
-                    throw error;
+                        throw new Error(
+                            'Username sudah terdaftar.'
+                        );
+
+                    }
+
+                } catch (e) {
+
+                    if (
+                        e.message &&
+                        e.message.includes('terdaftar')
+                    ) {
+
+                        throw e;
+
+                    }
 
                 }
 
 
                 /* =====================================
-                   HANDLE USER PROFILE
+                   SIMPAN DATA AKUN
                 ===================================== */
 
-                if (data.user) {
+                const userId =
+                    (typeof crypto !== 'undefined' && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : '10000000-1000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
 
-                    const {
-                        error:
-                            profileError
-                    } =
+                const newUser = {
+                    id: userId,
+                    username: username,
+                    full_name: name,
+                    name: name,
+                    phone: phone,
+                    password: password,
+                    role: 'PARTICIPANT',
+                    created_at: new Date().toISOString()
+                };
+
+
+                // Simpan ke local storage
+                localUsers.push(newUser);
+
+                localStorage.setItem(
+                    'outing_local_users',
+                    JSON.stringify(localUsers)
+                );
+
+
+                // Update ke database Supabase (tabel users - tanpa password karena tidak ada kolom password)
+                try {
+
+                    const { error: dbErr } =
                         await supabaseClient
                             .from('users')
-                            .upsert({
-
-                                id:
-                                    data.user.id,
-
-                                username:
-                                    username,
-
-                                full_name:
-                                    name,
-
-                                phone:
-                                    phone
-
+                            .insert({
+                                id: userId,
+                                username: username,
+                                full_name: name,
+                                phone: phone
                             });
 
 
-                    if (
-                        profileError
-                    ) {
+                    if (dbErr) {
 
-                        console.error(
-                            profileError
+                        console.warn(
+                            'Supabase DB Insert notice:',
+                            dbErr.message
                         );
 
                     }
+
+                } catch (dbErr) {
+
+                    console.warn(
+                        'Supabase DB Insert notice:',
+                        dbErr
+                    );
 
                 }
 
@@ -2018,22 +2158,23 @@ document
                 message.innerHTML = `
                     <div class="alert alert-success">
                         <strong>
-                            Registrasi berhasil!
+                            <i class="bi bi-check-circle-fill me-1"></i>
+                            Registrasi Berhasil!
                         </strong>
 
                         <br><br>
 
-                        Akun berhasil dibuat
-                        menggunakan nomor:
+                        Data akun berhasil disimpan.
+                        <br>
+                        User ID Anda:
 
                         <strong>
-                            ${phoneInput}
+                            ${username}
                         </strong>
 
                         <br><br>
 
-                        Silakan login menggunakan
-                        nomor telepon dan password.
+                        Silakan login menggunakan User ID dan Password Anda.
                     </div>
                 `;
 
@@ -2050,19 +2191,29 @@ document
 
                         showLogin();
 
+                        const loginInput =
+                            document.getElementById('loginUserId');
+
+                        if (loginInput) {
+
+                            loginInput.value = username;
+
+                        }
+
                     },
-                    2500
+                    2200
                 );
 
 
             } catch (error) {
 
-                console.error(error);
+                console.error('Register error:', error);
 
 
                 message.innerHTML = `
                     <div class="alert alert-danger py-2">
-                        ${error.message}
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        ${error.message || 'Gagal mendaftar, silakan coba lagi.'}
                     </div>
                 `;
 
@@ -2094,29 +2245,57 @@ async function loadDashboard() {
         showApp();
 
 
-        /* USER */
+        /* USER SESSION CHECK */
 
-        const {
-            data: {
-                user
+        if (!currentUser) {
+
+            const savedSession =
+                localStorage.getItem('outing_session');
+
+            if (savedSession) {
+
+                try {
+
+                    currentUser =
+                        JSON.parse(savedSession);
+
+                } catch (e) {}
+
             }
-        } =
-            await supabaseClient
-                .auth
-                .getUser();
+
+        }
 
 
-        if (!user) {
+        if (!currentUser) {
+
+            try {
+
+                const {
+                    data
+                } =
+                    await supabaseClient
+                        .auth
+                        .getUser();
+
+                if (data?.user) {
+
+                    currentUser =
+                        data.user;
+
+                }
+
+            } catch (e) {}
+
+        }
+
+
+        if (!currentUser) {
 
             showLogin();
 
             return;
 
         }
-
-
-        currentUser =
-            user;
 
 
         /* PROFILE */
@@ -2172,67 +2351,87 @@ async function loadProfile() {
 
     try {
 
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from('users')
-                .select(`
-                    *,
-                    roles (
-                        id,
-                        name
-                    ),
-                    sections (
-                        id,
-                        name
-                    )
-                `)
-                .eq(
-                    'id',
-                    currentUser.id
-                )
-                .maybeSingle();
+        let data = null;
 
+        if (currentUser && currentUser.id) {
 
-        if (error) {
+            try {
 
-            console.error(
-                error
-            );
+                const {
+                    data: dbData
+                } =
+                    await supabaseClient
+                        .from('users')
+                        .select(`
+                            *,
+                            roles (
+                                id,
+                                name
+                            ),
+                            sections (
+                                id,
+                                name
+                            )
+                        `)
+                        .eq(
+                            'id',
+                            currentUser.id
+                        )
+                        .maybeSingle();
 
-            return;
+                if (dbData) data = dbData;
+
+            } catch (err) {
+
+                console.error(err);
+
+            }
 
         }
-
-
-        currentProfile =
-            data;
 
 
         if (!data) {
 
-            return;
+            data = currentProfile || currentUser;
 
         }
 
 
-        const name =
-            data.full_name ||
-            data.name ||
-            data.username ||
-            'User';
+        currentProfile = data;
+
+
+        if (!data) return;
 
 
         const username =
             data.username ||
+            currentUser?.username ||
             '';
+
+
+        const fullName =
+            data.full_name ||
+            data.name ||
+            currentUser?.full_name ||
+            '';
+
+
+        // Tampilkan User ID dengan jelas di Topbar
+        const displayName =
+            username
+            ? (fullName ? `${fullName} (@${username})` : `@${username}`)
+            : (fullName || 'User');
+
+
+        const initial =
+            (username || fullName || 'U')
+                .charAt(0)
+                .toUpperCase();
 
 
         const phone =
             data.phone ||
-            currentUser.phone ||
+            currentUser?.phone ||
             '-';
 
 
@@ -2253,7 +2452,7 @@ async function loadProfile() {
                 'topUserName'
             )
             .textContent =
-            name;
+            displayName;
 
 
         document
@@ -2262,12 +2461,6 @@ async function loadProfile() {
             )
             .textContent =
             role;
-
-
-        const initial =
-            name
-                .charAt(0)
-                .toUpperCase();
 
 
         document
@@ -2291,7 +2484,7 @@ async function loadProfile() {
                 'profileName'
             )
             .textContent =
-            name;
+            fullName || username || 'User';
 
 
         document
@@ -2299,7 +2492,7 @@ async function loadProfile() {
                 'profileUsername'
             )
             .textContent =
-            '@' + username;
+            '@' + (username || '-');
 
 
         document
@@ -2460,55 +2653,175 @@ async function loadParticipants() {
 
     try {
 
-        let query =
-            supabaseClient
-                .from('participants')
-                .select('*');
+        let participants = [];
 
 
-        if (
-            currentOuting?.id
-        ) {
-
-            query =
-                query.eq(
-                    'outing_id',
-                    currentOuting.id
-                );
-
-        }
-
-
-        const {
-            data,
-            error
-        } =
-            await query;
-
-
-        if (error) {
-
-            console.error(
-                error
+        // 1. Data dari localStorage
+        const localUsers =
+            JSON.parse(
+                localStorage.getItem('outing_local_users') || '[]'
             );
 
-            return;
+
+        localUsers.forEach(
+            user => {
+
+                participants.push({
+                    id: user.id,
+                    username: user.username,
+                    full_name: user.full_name || user.name || user.username,
+                    phone: user.phone || '-',
+                    role: user.role || 'PARTICIPANT'
+                });
+
+            }
+        );
+
+
+        // 2. Data dari Supabase
+        try {
+
+            const {
+                data: dbUsers
+            } =
+                await supabaseClient
+                    .from('users')
+                    .select('*');
+
+
+            if (dbUsers && dbUsers.length > 0) {
+
+                dbUsers.forEach(
+                    u => {
+
+                        if (!participants.some(p => p.username === u.username || p.id === u.id)) {
+
+                            participants.push({
+                                id: u.id,
+                                username: u.username || '',
+                                full_name: u.full_name || u.name || u.username || 'Peserta',
+                                phone: u.phone || '-',
+                                role: u.role || 'PARTICIPANT'
+                            });
+
+                        }
+
+                    }
+                );
+
+            }
+
+        } catch (dbErr) {
+
+            console.warn('DB load participants note:', dbErr);
 
         }
 
 
-        document
-            .getElementById(
-                'statParticipants'
-            )
-            .textContent =
-            data?.length || 0;
+        // Update statistik jumlah peserta
+        const statElem =
+            document.getElementById('statParticipants');
+
+        if (statElem) {
+
+            statElem.textContent =
+                participants.length;
+
+        }
+
+
+        renderParticipants(participants);
 
     } catch (error) {
 
-        console.error(error);
+        console.error('Error load participants:', error);
 
     }
+
+}
+
+
+/* =====================================================
+   RENDER PARTICIPANTS
+===================================================== */
+
+function renderParticipants(list) {
+
+    const container =
+        document.getElementById('participantsList');
+
+    if (!container) return;
+
+
+    if (!list || list.length === 0) {
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="bi bi-person-x"></i>
+                <div>Belum ada peserta terdaftar.</div>
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    const currentUsername =
+        (currentProfile?.username || currentUser?.username || '').toLowerCase();
+
+
+    container.innerHTML =
+        list.map(
+            item => {
+
+                const username = item.username || '-';
+
+                const name = item.full_name || item.name || username;
+
+                const initial = (name.charAt(0) || 'U').toUpperCase();
+
+                const isMe = currentUsername && username.toLowerCase() === currentUsername;
+
+
+                return `
+                    <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <div class="avatar" style="width: 42px; height: 42px; font-size: 18px;">
+                                ${initial}
+                            </div>
+
+                            <div>
+
+                                <div class="fw-semibold">
+                                    ${name}
+                                    ${isMe ? '<span class="badge bg-primary ms-1">Anda</span>' : ''}
+                                </div>
+
+                                <div class="text-muted small">
+                                    User ID: <strong class="text-dark">@${username}</strong> • ${item.phone || '-'}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <span class="badge bg-light text-dark border">
+                                ${item.role || 'PARTICIPANT'}
+                            </span>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }
+        ).join('');
 
 }
 
@@ -3522,7 +3835,10 @@ function showPage(
             'pageManagement',
 
         profile:
-            'pageProfile'
+            'pageProfile',
+
+        participants:
+            'pageParticipants'
 
     };
 
@@ -3621,9 +3937,9 @@ function addTransaction() {
 
 async function showParticipants() {
 
-    alert(
-        'Halaman peserta akan kita aktifkan pada tahap berikutnya.'
-    );
+    await loadParticipants();
+
+    showPage('participants');
 
 }
 
@@ -3647,9 +3963,15 @@ async function logout() {
     }
 
 
-    await supabaseClient
-        .auth
-        .signOut();
+    localStorage.removeItem('outing_session');
+
+    try {
+
+        await supabaseClient
+            .auth
+            .signOut();
+
+    } catch (e) {}
 
 
     currentUser = null;
@@ -3666,7 +3988,7 @@ async function logout() {
         .getElementById(
             'loginForm'
         )
-        .reset();
+        ?.reset();
 
 }
 
@@ -3677,38 +3999,8 @@ async function logout() {
 
 async function checkSession() {
 
-    try {
-
-        const {
-            data
-        } =
-            await supabaseClient
-                .auth
-                .getSession();
-
-
-        if (
-            data.session
-        ) {
-
-            currentUser =
-                data.session.user;
-
-            await loadDashboard();
-
-        } else {
-
-            showLogin();
-
-        }
-
-    } catch (error) {
-
-        console.error(error);
-
-        showLogin();
-
-    }
+    // Tampilkan halaman Login secara default saat membuka/refresh aplikasi
+    showLogin();
 
 }
 
