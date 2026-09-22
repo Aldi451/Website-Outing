@@ -3578,7 +3578,11 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             password
         });
         if (authError) {
-            if (String(authError.message || '').toLowerCase().includes('email not confirmed')) {
+            const authMessage = String(authError.message || '');
+            if (/failed to fetch|network|fetch/i.test(authMessage)) {
+                throw new Error('Supabase Auth tidak dapat dihubungi. Periksa Project URL/anon key, status project, dan koneksi browser.');
+            }
+            if (authMessage.toLowerCase().includes('email not confirmed')) {
                 throw new Error('Email akun belum dikonfirmasi. Nonaktifkan email confirmation untuk domain demo atau gunakan email valid.');
             }
             throw new Error('User ID atau Password yang Anda masukkan salah.');
