@@ -805,6 +805,10 @@
             </div>
             <h3 class="fw-bold mb-1">Daftar Akun Baru</h3>
             <p class="text-muted small mb-0">Daftarkan diri Anda untuk berpartisipasi dalam outing</p>
+            <div class="alert alert-warning py-2 px-3 small mt-3 mb-0 text-start">
+                <i class="bi bi-shield-lock-fill me-1"></i>
+                Akun baru harus menunggu persetujuan Admin sebelum dapat login.
+            </div>
         </div>
 
         <form id="registerForm">
@@ -887,6 +891,7 @@
                 <span class="nav-link" id="dnavHome" onclick="showPage('home')"><i class="bi bi-house me-1"></i>Home</span>
                 <span class="nav-link" id="dnavRundown" onclick="showPage('rundown')"><i class="bi bi-calendar-event me-1"></i>Rundown</span>
                 <span class="nav-link" id="dnavFinance" onclick="showPage('finance')"><i class="bi bi-wallet2 me-1"></i>Keuangan</span>
+                <span class="nav-link" id="dnavDonations" onclick="showPage('donations')"><i class="bi bi-heart-fill me-1"></i>Donasi</span>
                 <span class="nav-link" id="dnavPurchasing" onclick="showPage('purchasing')"><i class="bi bi-cart-check me-1"></i>Purchasing</span>
                 <span class="nav-link" id="dnavLogistic" onclick="showPage('logistic')"><i class="bi bi-box-seam me-1"></i>Logistic</span>
                 <span class="nav-link" id="dnavKonsumsi" onclick="showPage('konsumsi')"><i class="bi bi-cup-hot me-1"></i>Konsumsi</span>
@@ -1637,6 +1642,206 @@
         </div>
 
         <!-- =============================================
+             PAGE: USER APPROVALS (ADMIN / INITIATOR)
+        ============================================== -->
+        <div id="pageUserApprovals" class="page">
+            <div class="content-card">
+                <div class="content-header">
+                    <div>
+                        <h5><i class="bi bi-person-check me-2 text-primary"></i>Approval User Baru</h5>
+                        <small class="text-muted">Tinjau dan setujui akun yang baru melakukan registrasi</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark" id="userApprovalPendingBadge">0 Menunggu</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadUserApprovals()" title="Refresh daftar user">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('management')">
+                            <i class="bi bi-arrow-left me-1"></i> Menu
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        User yang berstatus <strong>Menunggu Approval</strong> tidak dapat login sampai Admin menyetujuinya.
+                        Perubahan approval disimpan langsung ke Supabase.
+                    </div>
+                    <div id="userApprovalMessage" class="mb-3"></div>
+                    <div id="userApprovalsList">
+                        <div class="empty-state">Memuat daftar user...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================
+             PAGE: DONATION MANAGEMENT
+        ============================================== -->
+        <div id="pageDonations" class="page">
+            <div class="content-card">
+                <div class="content-header">
+                    <div>
+                        <h5><i class="bi bi-heart-fill me-2 text-danger"></i>Donasi</h5>
+                        <small class="text-muted">Program, donatur aktif, penerima, transaksi, dan reminder WhatsApp</small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadDonations()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('management')">
+                            <i class="bi bi-arrow-left me-1"></i> Menu
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-shield-check me-1"></i>
+                        Pengaturan Donasi berdiri sendiri dari aturan Outing. Hanya Admin yang dapat mengaktifkan donatur,
+                        mengatur penerima, mencatat transaksi, dan membuat antrean reminder bulanan.
+                    </div>
+                    <div id="donationMessage" class="mb-3"></div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-danger border-4">
+                                <div class="stat-title">Donatur Aktif</div>
+                                <div class="stat-value text-danger" id="donationStatDonors">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-primary border-4">
+                                <div class="stat-title">Program Aktif</div>
+                                <div class="stat-value text-primary" id="donationStatPrograms">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-warning border-4">
+                                <div class="stat-title">Antrean Reminder</div>
+                                <div class="stat-value text-warning" id="donationStatReminders">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-success border-4">
+                                <div class="stat-title">Donasi Bulan Ini</div>
+                                <div class="stat-value text-success" id="donationStatPaid">Rp 0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="donationAdminControls" class="card border-danger border-opacity-25 bg-danger bg-opacity-10 p-3 mb-4 d-none">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div>
+                                <h6 class="fw-bold text-danger mb-1"><i class="bi bi-shield-lock me-1"></i>Kontrol Admin Donasi</h6>
+                                <small class="text-muted">Aktivasi donatur dilakukan dari daftar user approved, bukan dari role simulator.</small>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-sm btn-danger" onclick="openDonationProgramModal()"><i class="bi bi-plus-lg me-1"></i>Program</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationBeneficiaryModal()"><i class="bi bi-person-heart me-1"></i>Penerima</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationMembershipModal()"><i class="bi bi-person-plus me-1"></i>Aktifkan Donatur</button>
+                                <button class="btn btn-sm btn-outline-dark" onclick="openDonationTransactionModal()"><i class="bi bi-receipt me-1"></i>Catat Donasi</button>
+                                <button class="btn btn-sm btn-outline-success" onclick="enqueueDonationReminders()"><i class="bi bi-whatsapp me-1"></i>Queue Reminder</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationCaseModal()"><i class="bi bi-bandaid me-1"></i>Kasus Staff</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="openDonationFoundationModal()"><i class="bi bi-building me-1"></i>Yayasan</button>
+                                <button class="btn btn-sm btn-outline-dark" onclick="openDonationClosureModal()"><i class="bi bi-calendar-check me-1"></i>Closing Tahun</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="donationAdminSettings" class="card border-0 bg-light p-3 mb-4 d-none">
+                        <form id="formDonationSettings" onsubmit="saveDonationSettings(event)">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-sliders me-1 text-danger"></i>Pengaturan Reminder Donasi</h6>
+                                <small class="text-muted">Terpisah dari Pengaturan Outing</small>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-semibold">Status Worker</label>
+                                    <select id="donationSettingsEnabled" class="form-select form-select-sm"><option value="true">Aktif</option><option value="false">Nonaktif</option></select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-semibold">Tanggal Default</label>
+                                    <input type="number" id="donationSettingsDay" class="form-control form-control-sm" min="1" max="28" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold">Timezone</label>
+                                    <input type="text" id="donationSettingsTimezone" class="form-control form-control-sm" value="Asia/Jakarta" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-semibold">Template Default WhatsApp</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="donationSettingsTemplate" class="form-control" required>
+                                        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-save"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 bg-light p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-megaphone me-1 text-primary"></i>Program Donasi</h6>
+                                    <span class="small text-muted" id="donationProgramCount">0 program</span>
+                                </div>
+                                <div id="donationProgramsList"><div class="empty-state py-3">Memuat program...</div></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 bg-light p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-person-heart me-1 text-danger"></i>Penerima Donasi</h6>
+                                    <span class="small text-muted" id="donationBeneficiaryCount">0 penerima</span>
+                                </div>
+                                <div id="donationBeneficiariesList"><div class="empty-state py-3">Memuat penerima...</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-7">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-bandaid me-1 text-danger"></i>Kasus Musibah Staff</h6>
+                                    <small class="text-muted">Terlihat oleh donatur aktif</small>
+                                </div>
+                                <div id="donationCasesList" class="table-responsive"><div class="empty-state py-4">Memuat kasus...</div></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-building me-1 text-secondary"></i>Fallback Yayasan</h6>
+                                    <small class="text-muted">Penutupan manual Admin</small>
+                                </div>
+                                <div id="donationFoundationsList" class="p-3"><div class="empty-state py-4">Memuat yayasan...</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-people me-1 text-danger"></i>Donatur Aktif & Komitmen Bulanan</h6>
+                            <small class="text-muted">User ID sebelumnya yang diaktifkan Admin</small>
+                        </div>
+                        <div id="donationMembershipsList" class="table-responsive"><div class="empty-state py-4">Memuat donatur...</div></div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-journal-check me-1 text-success"></i>Riwayat Donasi</h6>
+                            <small class="text-muted">Transaksi terpisah dari kas outing</small>
+                        </div>
+                        <div id="donationTransactionsList" class="table-responsive"><div class="empty-state py-4">Memuat transaksi...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================
              PAGE: PROFILE
         ============================================== -->
         <div id="pageProfile" class="page">
@@ -1676,13 +1881,41 @@
                         </div>
                     </div>
 
-                    <!-- QUICK SIMULATOR ROLE SWITCHER (FOR EASY TESTING) -->
-                    <div class="card border border-primary border-opacity-25 p-3 mb-3 bg-white">
+                    <!-- CHANGE PASSWORD -->
+                    <div class="card border border-warning border-opacity-50 p-3 mb-3 bg-white">
+                        <label class="form-label fw-semibold text-dark small mb-1">
+                            <i class="bi bi-key-fill me-1 text-warning"></i> Ganti Password
+                        </label>
+                        <p class="text-muted mb-3" style="font-size: 11px;">
+                            Gunakan password baru minimal 6 karakter. Perubahan akan disimpan ke Supabase.
+                        </p>
+                        <form id="changePasswordForm" onsubmit="changeUserPassword(event)">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Password Saat Ini</label>
+                                <input type="password" id="currentPassword" class="form-control form-control-sm" minlength="6" required autocomplete="current-password">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Password Baru</label>
+                                <input type="password" id="newPassword" class="form-control form-control-sm" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1">Konfirmasi Password Baru</label>
+                                <input type="password" id="confirmNewPassword" class="form-control form-control-sm" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div id="changePasswordMessage" class="mb-2"></div>
+                            <button type="submit" class="btn btn-warning btn-sm" id="changePasswordBtn">
+                                <i class="bi bi-shield-lock me-1"></i> Simpan Password Baru
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- ROLE SWITCHER: ADMIN ONLY -->
+                    <div class="card border border-primary border-opacity-25 p-3 mb-3 bg-white d-none" id="roleSimulatorCard">
                         <label class="form-label fw-semibold text-primary small mb-1">
-                            <i class="bi bi-shield-check me-1"></i> Simulasi Role Pengguna (Demo Testing):
+                            <i class="bi bi-shield-check me-1"></i> Simulasi Role Pengguna (Admin Only)
                         </label>
                         <p class="text-muted" style="font-size: 11px;">
-                            Ganti hak akses secara instan untuk mencoba tampilan dan wewenang menu modul lain tanpa perlu logout.
+                            Hanya Admin yang dapat mengganti role simulasi untuk pengujian modul tanpa logout.
                         </p>
                         <div class="input-group">
                             <select class="form-select form-select-sm" id="roleSimulatorSelect">
@@ -2324,6 +2557,427 @@
 </div>
 
 <!-- =====================================================
+     DONATION MODALS
+===================================================== -->
+<div class="modal fade" id="modalDonationProgram" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-megaphone me-2"></i>Program Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationProgram" onsubmit="saveDonationProgram(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Kode Program</label>
+                            <input type="text" id="donationProgramCode" class="form-control" required placeholder="DONASI-BULANAN">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Nama Program</label>
+                            <input type="text" id="donationProgramName" class="form-control" required placeholder="Donasi Pendidikan Anak">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tahun Dana</label>
+                            <input type="number" id="donationProgramFundYear" class="form-control" min="2020" max="2200" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select id="donationProgramStatus" class="form-select">
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="PAUSED">PAUSED</option>
+                                <option value="CLOSED">CLOSED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Reminder</label>
+                            <input type="number" id="donationProgramReminderDay" class="form-control" min="1" max="28" value="1" required>
+                            <small class="text-muted">Tanggal 1–28 setiap bulan</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Default</label>
+                            <input type="number" id="donationProgramDefaultAmount" class="form-control" min="0" step="1000" placeholder="50000">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Template WhatsApp</label>
+                            <textarea id="donationProgramTemplate" class="form-control" rows="2" placeholder="Halo {donor_name}, ini pengingat donasi {program_name}. Nominal: {amount}."></textarea>
+                            <small class="text-muted">Placeholder: <code>{donor_name}</code>, <code>{program_name}</code>, <code>{period}</code>, <code>{amount}</code></small>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="donationProgramAllowVariable" checked>
+                                <label class="form-check-label small" for="donationProgramAllowVariable">Izinkan nominal bebas untuk program ini</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationBeneficiary" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-person-heart me-2"></i>Penerima Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationBeneficiary" onsubmit="saveDonationBeneficiary(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Jenis Penerima</label>
+                        <select id="donationBeneficiaryType" class="form-select">
+                            <option value="PERSON">Orang</option>
+                            <option value="FOUNDATION">Yayasan / Lembaga</option>
+                            <option value="USER">User Aplikasi</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="donationBeneficiaryUserWrap">
+                        <label class="form-label small fw-semibold">Hubungkan ke User (opsional)</label>
+                        <select id="donationBeneficiaryUser" class="form-select"><option value="">— Tidak dihubungkan —</option></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nama Penerima</label>
+                        <input type="text" id="donationBeneficiaryName" class="form-control" required placeholder="Nama orang / yayasan">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Organisasi</label>
+                            <input type="text" id="donationBeneficiaryOrganization" class="form-control" placeholder="Opsional">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Nomor Telepon</label>
+                            <input type="tel" id="donationBeneficiaryPhone" class="form-control" placeholder="08xxxxxxxx">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label small fw-semibold">Catatan</label>
+                        <textarea id="donationBeneficiaryNotes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Penerima</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationMembership" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Aktifkan Donatur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationMembership" onsubmit="saveDonationMembership(event)">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small"><i class="bi bi-info-circle me-1"></i>Hanya user dengan status <strong>APPROVED</strong> yang dapat diaktifkan sebagai donatur.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Program Donasi</label>
+                            <select id="donationMembershipProgram" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Donatur dari User ID</label>
+                            <select id="donationMembershipDonor" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Penerima</label>
+                            <select id="donationMembershipBeneficiary" class="form-select"><option value="">— Dana program umum —</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Model Nominal</label>
+                            <select id="donationMembershipAmountMode" class="form-select">
+                                <option value="FIXED">Tetap</option>
+                                <option value="VARIABLE">Bebas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Nominal / Bulan</label>
+                            <input type="number" id="donationMembershipAmount" class="form-control" min="1" step="1000" placeholder="50000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Reminder Khusus</label>
+                            <input type="number" id="donationMembershipReminderDay" class="form-control" min="1" max="28" placeholder="Ikuti program">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Mulai</label>
+                            <input type="date" id="donationMembershipStartDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Berakhir</label>
+                            <input type="date" id="donationMembershipEndDate" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="donationMembershipWhatsapp" checked>
+                                <label class="form-check-label small" for="donationMembershipWhatsapp">Aktifkan reminder WhatsApp untuk donatur ini</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationMembershipNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-person-check me-1"></i>Simpan Aktivasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationTransaction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Catat Transaksi Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationTransaction" onsubmit="saveDonationTransaction(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Komitmen Donatur</label>
+                            <select id="donationTransactionMembership" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Periode Bulan</label>
+                            <input type="month" id="donationTransactionPeriod" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Dibayar</label>
+                            <input type="number" id="donationTransactionAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select id="donationTransactionStatus" class="form-select">
+                                <option value="PAID">PAID</option>
+                                <option value="PENDING">PENDING</option>
+                                <option value="FAILED">FAILED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Bayar</label>
+                            <input type="date" id="donationTransactionPaymentDate" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Metode</label>
+                            <select id="donationTransactionMethod" class="form-select">
+                                <option value="TRANSFER">Transfer</option>
+                                <option value="CASH">Cash</option>
+                                <option value="E_WALLET">E-Wallet</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Referensi</label>
+                            <input type="text" id="donationTransactionReference" class="form-control" placeholder="No. bukti / catatan bank">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationTransactionNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save me-1"></i>Simpan Transaksi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationCase" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-bandaid me-2"></i>Kasus Musibah Staff</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationCase" onsubmit="saveDonationCase(event)">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">Detail yang tampil ke donatur adalah nama dan ringkasan publik. Catatan sensitif tidak disimpan di form publik ini.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Dana / Tahun</label>
+                            <select id="donationCaseProgram" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Staff Penerima</label>
+                            <select id="donationCaseStaff" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Judul Kasus</label>
+                            <input type="text" id="donationCaseTitle" class="form-control" required placeholder="Contoh: Bantuan perawatan keluarga">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Kategori</label>
+                            <select id="donationCaseCategory" class="form-select">
+                                <option value="HEALTH">Kesehatan</option>
+                                <option value="ACCIDENT">Kecelakaan</option>
+                                <option value="DEATH_FAMILY">Kedukaan Keluarga</option>
+                                <option value="NATURAL_DISASTER">Bencana Alam</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Tanggal Kejadian</label>
+                            <input type="date" id="donationCaseDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Nominal yang Diajukan</label>
+                            <input type="number" id="donationCaseAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Ringkasan yang Boleh Dilihat Donatur</label>
+                            <textarea id="donationCaseSummary" class="form-control" rows="3" required placeholder="Tuliskan ringkasan yang sudah disetujui untuk dibaca donatur."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Kasus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationFoundation" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-building me-2"></i>Yayasan Fallback</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationFoundation" onsubmit="saveDonationFoundation(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-4">
+                            <label class="form-label small fw-semibold">Kode</label>
+                            <input type="text" id="donationFoundationCode" class="form-control" required placeholder="YYS-001">
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small fw-semibold">Nama Yayasan</label>
+                            <input type="text" id="donationFoundationName" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Kontak</label>
+                            <input type="text" id="donationFoundationContact" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Telepon</label>
+                            <input type="tel" id="donationFoundationPhone" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Deskripsi</label>
+                            <textarea id="donationFoundationDescription" class="form-control" rows="2" placeholder="Keterangan yang boleh tampil di laporan donatur"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-save me-1"></i>Simpan Yayasan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationAllocation" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Catat Penyaluran ke Staff</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationAllocation" onsubmit="saveDonationAllocation(event)">
+                <input type="hidden" id="donationAllocationCaseId">
+                <div class="modal-body">
+                    <div class="alert alert-success py-2 small" id="donationAllocationCaseLabel">Kasus sudah disetujui Admin.</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Dibayar</label>
+                            <input type="number" id="donationAllocationAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Bayar</label>
+                            <input type="date" id="donationAllocationDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Metode</label>
+                            <select id="donationAllocationMethod" class="form-select">
+                                <option value="TRANSFER">Transfer</option>
+                                <option value="CASH">Cash</option>
+                                <option value="E_WALLET">E-Wallet</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Referensi / Bukti</label>
+                            <input type="text" id="donationAllocationReference" class="form-control" placeholder="Nomor bukti transfer / kuitansi">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationAllocationNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-circle me-1"></i>Simpan Pembayaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationClosure" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-calendar-check me-2"></i>Closing Dana Tahunan</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationClosure" onsubmit="prepareDonationYearClosure(event)">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small">Closing dilakukan manual oleh Admin. Sistem akan menolak closing jika masih ada kasus staff yang belum selesai.</div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Dana yang Ditutup</label>
+                        <select id="donationClosureProgram" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Yayasan Fallback</label>
+                        <select id="donationClosureFoundation" class="form-select" required></select>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-semibold">Catatan Closing</label>
+                        <textarea id="donationClosureNotes" class="form-control" rows="2" placeholder="Contoh: Tidak ada kasus staff approved pada tahun berjalan."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-lock me-1"></i>Siapkan Closing</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================
      JAVASCRIPT LOGIC
 ===================================================== -->
 <script>
@@ -2341,8 +2995,23 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 let currentUser = null;
 let currentProfile = null;
 let currentOuting = null;
+let roleSimulationActive = false;
 let activePurchasingFilter = 'ALL';
 let activeTaskFilter = 'ALL';
+let donationState = {
+    programs: [],
+    beneficiaries: [],
+    foundations: [],
+    memberships: [],
+    transactions: [],
+    reminders: [],
+    cases: [],
+    allocations: [],
+    closures: [],
+    disbursements: [],
+    settings: null,
+    users: []
+};
 
 /* =====================================================
    LOCAL DATA STORAGE & SEEDING (HYBRID ENGINE)
@@ -2467,19 +3136,43 @@ function initSeedDataIfEmpty() {
     }
 
     // 2. Demo Users (Pre-seeded so all 7 roles can be tested immediately)
-    const existingUsers = STORAGE.get('outing_local_users', []);
+    let existingUsers = STORAGE.get('outing_local_users', []);
     if (!existingUsers || existingUsers.length === 0) {
         const demoUsers = [
-            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', password: 'admin123', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
-            { id: 'u-2', username: 'keuangan', full_name: 'Siti Rahma (Finance)', name: 'Siti Rahma', phone: '081234567891', password: 'finance123', role: 'FINANCE', section: 'KEUANGAN', department: 'Finance' },
-            { id: 'u-3', username: 'purchasing', full_name: 'Dedi Kurniawan (Purchasing)', name: 'Dedi Kurniawan', phone: '081234567892', password: 'purchase123', role: 'PURCHASING', section: 'PURCHASING', department: 'Procurement' },
-            { id: 'u-4', username: 'logistic', full_name: 'Hendra Saputra (Logistik)', name: 'Hendra Saputra', phone: '081234567893', password: 'logistik123', role: 'LOGISTIC', section: 'LOGISTIC', department: 'General Affairs' },
-            { id: 'u-5', username: 'konsumsi', full_name: 'Dewi Lestari (Konsumsi)', name: 'Dewi Lestari', phone: '081234567894', password: 'makan123', role: 'KONSUMSI', section: 'KONSUMSI', department: 'HR' },
-            { id: 'u-6', username: 'public', full_name: 'Rian Pratama (Public Area)', name: 'Rian Pratama', phone: '081234567895', password: 'public123', role: 'PUBLIC_AREA', section: 'PUBLIC_AREA', department: 'Corporate Secretary' },
-            { id: 'u-7', username: 'peserta', full_name: 'Ahmad Fauzi (Peserta)', name: 'Ahmad Fauzi', phone: '081234567896', password: 'peserta123', role: 'PARTICIPANT', section: 'PUBLIC', department: 'Engineering' }
+            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
+            { id: 'u-2', username: 'keuangan', full_name: 'Siti Rahma (Finance)', name: 'Siti Rahma', phone: '081234567891', role: 'FINANCE', section: 'KEUANGAN', department: 'Finance' },
+            { id: 'u-3', username: 'purchasing', full_name: 'Dedi Kurniawan (Purchasing)', name: 'Dedi Kurniawan', phone: '081234567892', role: 'PURCHASING', section: 'PURCHASING', department: 'Procurement' },
+            { id: 'u-4', username: 'logistic', full_name: 'Hendra Saputra (Logistik)', name: 'Hendra Saputra', phone: '081234567893', role: 'LOGISTIC', section: 'LOGISTIC', department: 'General Affairs' },
+            { id: 'u-5', username: 'konsumsi', full_name: 'Dewi Lestari (Konsumsi)', name: 'Dewi Lestari', phone: '081234567894', role: 'KONSUMSI', section: 'KONSUMSI', department: 'HR' },
+            { id: 'u-6', username: 'public', full_name: 'Rian Pratama (Public Area)', name: 'Rian Pratama', phone: '081234567895', role: 'PUBLIC_AREA', section: 'PUBLIC_AREA', department: 'Corporate Secretary' },
+            { id: 'u-7', username: 'peserta', full_name: 'Ahmad Fauzi (Peserta)', name: 'Ahmad Fauzi', phone: '081234567896', role: 'PARTICIPANT', section: 'PUBLIC', department: 'Engineering' }
         ];
         STORAGE.set('outing_local_users', demoUsers);
+        existingUsers = demoUsers;
     }
+
+    // Akun lama/demo dianggap sudah aktif agar fitur login yang sudah ada tetap berjalan.
+    // Akun yang dibuat melalui form registrasi selalu membawa status PENDING sendiri.
+    const migratedUsers = (existingUsers || []).map(user => {
+        if (Object.prototype.hasOwnProperty.call(user, 'approval_status')) return user;
+        return {
+            ...user,
+            approval_status: 'APPROVED',
+            requires_remote_approval: false
+        };
+    });
+    // Hapus kredensial dari cache browser lama. LocalStorage hanya boleh
+    // menyimpan data tampilan; Supabase Auth adalah satu-satunya sumber login.
+    const sanitizedUsers = migratedUsers.map(user => {
+        const profile = Object.fromEntries(Object.entries(user).filter(([key]) =>
+            !key.toLowerCase().includes('password')
+        ));
+        return profile;
+    });
+    if (JSON.stringify(sanitizedUsers) !== JSON.stringify(existingUsers || [])) {
+        STORAGE.set('outing_local_users', sanitizedUsers);
+    }
+    existingUsers = sanitizedUsers;
 
     // 3. Rundowns
     if (!STORAGE.get('outing_rundowns', null)) {
@@ -2590,9 +3283,42 @@ function formatPhone(phone) {
 }
 
 function generateUUID() {
-    return (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : 'u-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    // Fallback tetap berbentuk UUID agar dapat dipakai sebagai primary key
+    // PostgreSQL ketika Web Crypto randomUUID belum tersedia.
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+        const random = Math.random() * 16 | 0;
+        const value = char === 'x' ? random : (random & 0x3 | 0x8);
+        return value.toString(16);
+    });
+}
+
+function getApprovalStatus(user) {
+    const raw = String(user?.approval_status || '').trim().toUpperCase();
+    if (!raw) return 'APPROVED'; // backward compatible with legacy/demo users
+    return ['PENDING', 'APPROVED', 'REJECTED'].includes(raw) ? raw : 'PENDING';
+}
+
+function approvalStatusLabel(status) {
+    const labels = {
+        PENDING: 'Menunggu Approval',
+        APPROVED: 'Disetujui',
+        REJECTED: 'Ditolak'
+    };
+    return labels[status] || 'Menunggu Approval';
+}
+
+function isUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function togglePassword(inputId, button) {
@@ -2675,9 +3401,34 @@ function getUserSection() {
     return String(currentProfile?.sections?.name || currentProfile?.section || '').toUpperCase();
 }
 
+// Role simulator tetap dipertahankan untuk testing modul, tetapi tidak boleh
+// dipakai untuk membuka menu persetujuan akun. Role autentikasi disimpan saat
+// login dan dibandingkan dengan role aktif sebelum approval dilakukan.
+function isAuthenticatedAdmin() {
+    const authenticatedRole = String(currentUser?.authenticated_role || currentUser?.role || '').toUpperCase();
+    return authenticatedRole === 'ADMIN';
+}
+
+function isTrustedAdmin() {
+    const authenticatedRole = String(currentUser?.authenticated_role || currentUser?.role || '').toUpperCase();
+    const authenticatedSection = String(currentUser?.authenticated_section || currentUser?.section || '').toUpperCase();
+    const activeRole = getUserRole();
+    const activeSection = getUserSection();
+    // Approval is intentionally stricter than module management: only the
+    // authenticated ADMIN role may call the server-side approval RPC.
+    const isAdminRole = authenticatedRole === 'ADMIN';
+    const roleUnchanged = activeRole === authenticatedRole;
+    const sectionUnchanged = !authenticatedSection || activeSection === authenticatedSection;
+    return !roleSimulationActive && isAdminRole && roleUnchanged && sectionUnchanged;
+}
+
 function canManage(module) {
     const role = getUserRole();
     const section = getUserSection();
+
+    // Approval user baru memiliki pemeriksaan tambahan agar role simulator
+    // tidak dapat dipakai untuk melakukan tindakan administratif ini.
+    if (module === 'user_approval') return isTrustedAdmin();
 
     // Admin & Initiator have all rights
     if (role === 'ADMIN' || role === 'INITIATOR' || section === 'INISIATOR') return true;
@@ -2697,6 +3448,9 @@ function canManage(module) {
             return role === 'ADMIN' || role === 'INITIATOR' || section.includes('ACARA');
         case 'participants':
             return role === 'ADMIN' || role === 'INITIATOR';
+        case 'donation':
+        case 'donations':
+            return isTrustedAdmin();
         case 'settings':
             return role === 'ADMIN' || role === 'INITIATOR';
         default:
@@ -2733,14 +3487,79 @@ function quickLoginDemo(userId, password) {
 }
 
 /* =====================================================
+   SUPABASE AUTH SESSION HELPERS
+===================================================== */
+function authEmailForUsername(username) {
+    return `${String(username || '').replace(/^@+/, '').trim().toLowerCase()}@outing.local`;
+}
+
+async function resolveLoginIdentifier(identifier) {
+    const raw = String(identifier || '').trim();
+    const withoutAt = raw.replace(/^@+/, '').toLowerCase();
+    if (withoutAt.includes('@')) {
+        return { email: withoutAt, username: withoutAt.split('@')[0] };
+    }
+    // Username login does not need a database lookup: the Auth email is
+    // deterministic. This keeps the primary login path usable when the
+    // optional phone resolver RPC is temporarily unavailable. Phone login
+    // still uses the server-side resolver and never guesses an email.
+    if (/^[a-z0-9._-]{3,100}$/.test(withoutAt)) {
+        return { email: authEmailForUsername(withoutAt), username: withoutAt };
+    }
+    const { data, error } = await supabaseClient.rpc('resolve_login_username', {
+        p_identifier: raw
+    });
+    if (error) {
+        console.warn('Phone login resolver unavailable:', error);
+        throw new Error('Tidak dapat memeriksa nomor WhatsApp ke Supabase. Gunakan User ID atau periksa koneksi.');
+    }
+    if (!data) throw new Error('User ID atau Nomor WhatsApp tidak ditemukan.');
+    return { email: authEmailForUsername(data), username: String(data).toLowerCase() };
+}
+
+async function getAuthenticatedProfile(authUserId) {
+    const { data, error } = await supabaseClient
+        .from('users')
+        .select('*, roles(id, name), sections(id, name)')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profil aplikasi untuk akun Auth ini belum tersedia. Hubungi Admin.');
+    return data;
+}
+
+function approvalErrorForUser(user) {
+    const status = getApprovalStatus(user);
+    if (status === 'PENDING') {
+        return new Error('Akun Anda masih menunggu persetujuan Admin. Anda belum dapat login.');
+    }
+    if (status === 'REJECTED') {
+        const reason = user?.rejection_reason ? ` Alasan: ${user.rejection_reason}` : '';
+        return new Error(`Akun Anda ditolak oleh Admin.${reason}`);
+    }
+    return null;
+}
+
+function markAuthenticatedUser(user, authUser = null) {
+    const authenticated = { ...(user || {}) };
+    authenticated.auth_user_id = authUser?.id || authenticated.auth_user_id || authenticated.id;
+    authenticated.auth_email = authUser?.email || authenticated.auth_email || '';
+    authenticated.authenticated_role = String(
+        authenticated.roles?.name || authenticated.role || 'PARTICIPANT'
+    ).toUpperCase();
+    authenticated.authenticated_section = String(
+        authenticated.sections?.name || authenticated.section || ''
+    ).toUpperCase();
+    roleSimulationActive = false;
+    return authenticated;
+}
+
+/* =====================================================
    LOGIN HANDLER
 ===================================================== */
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const rawUserId = document.getElementById('loginUserId').value.trim();
-    const cleanUserId = rawUserId.replace(/^@+/, '').toLowerCase();
-    const phoneClean = formatPhone(rawUserId);
-    const rawDigits = rawUserId.replace(/\D/g, '');
     const password = document.getElementById('loginPassword').value;
     const btn = document.getElementById('loginBtn');
     const message = document.getElementById('loginMessage');
@@ -2753,79 +3572,41 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         if (!rawUserId) throw new Error('Silakan masukkan User ID atau Nomor WhatsApp.');
         if (!password) throw new Error('Silakan masukkan password.');
 
-        let foundUser = null;
-
-        // 1. Cek Local Storage Users (fleksibel: username dg/tanpa @, ID, atau No HP)
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const matchedLocal = localUsers.find(u => {
-            const uName = (u.username || '').replace(/^@+/, '').toLowerCase();
-            const uPhone = (u.phone || '').replace(/\D/g, '');
-            const uId = String(u.id || '').toLowerCase();
-
-            // Cocokkan username (dengan / tanpa @, case-insensitive)
-            if (uName && uName === cleanUserId) return true;
-            // Cocokkan ID
-            if (uId && uId === cleanUserId) return true;
-            // Cocokkan Nomor Telepon (format 08xxx, +62xxx, atau raw digits)
-            if (u.phone && (u.phone === rawUserId || u.phone === phoneClean)) return true;
-            if (rawDigits.length >= 8 && uPhone && (uPhone === rawDigits || uPhone.endsWith(rawDigits) || rawDigits.endsWith(uPhone))) return true;
-            return false;
+        const loginIdentity = await resolveLoginIdentifier(rawUserId);
+        const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+            email: loginIdentity.email,
+            password
         });
-
-        if (matchedLocal) {
-            if (matchedLocal.password && matchedLocal.password !== password) {
-                throw new Error('Password yang Anda masukkan salah.');
+        if (authError) {
+            const authMessage = String(authError.message || '');
+            if (/failed to fetch|network|fetch/i.test(authMessage)) {
+                throw new Error('Supabase Auth tidak dapat dihubungi. Periksa Project URL/anon key, status project, dan koneksi browser.');
             }
-            foundUser = matchedLocal;
-        }
-
-        // 2. Cek Database Supabase (tabel users) jika belum ketemu di lokal
-        if (!foundUser && typeof supabaseClient !== 'undefined' && supabaseClient) {
-            try {
-                const dbPromise = supabaseClient
-                    .from('users')
-                    .select('*')
-                    .or(`username.eq.${cleanUserId},username.eq.@${cleanUserId}`)
-                    .maybeSingle();
-
-                const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ data: null }), 2000));
-                const { data: dbUser } = await Promise.race([dbPromise, timeoutPromise]);
-
-                if (dbUser) {
-                    if (dbUser.password && dbUser.password !== password) {
-                        throw new Error('Password yang Anda masukkan salah.');
-                    }
-                    foundUser = dbUser;
-                    // Simpan juga ke local users agar selanjutnya offline-ready
-                    if (!localUsers.some(u => (u.username || '').toLowerCase() === cleanUserId)) {
-                        localUsers.push(dbUser);
-                        STORAGE.set('outing_local_users', localUsers);
-                    }
-                }
-            } catch (dbErr) {
-                console.warn('Supabase DB search note:', dbErr);
+            if (authMessage.toLowerCase().includes('email not confirmed')) {
+                throw new Error('Email akun belum dikonfirmasi. Nonaktifkan email confirmation untuk domain demo atau gunakan email valid.');
             }
+            throw new Error('User ID atau Password yang Anda masukkan salah.');
+        }
+        if (!authData?.user || !authData?.session) {
+            throw new Error('Sesi Supabase Auth tidak berhasil dibuat.');
         }
 
-        if (!foundUser) {
-            throw new Error('User ID atau Password yang Anda masukkan tidak ditemukan.');
+        const profile = await getAuthenticatedProfile(authData.user.id);
+        const approvalError = approvalErrorForUser(profile);
+        if (approvalError) {
+            await supabaseClient.auth.signOut();
+            throw approvalError;
         }
 
-        // Pastikan user otomatis tersinkronisasi ke data peserta
-        syncUsersToParticipants();
-
-        currentUser = foundUser;
-        currentProfile = foundUser;
-        STORAGE.set('outing_session', foundUser);
-
+        currentUser = markAuthenticatedUser(profile, authData.user);
+        currentProfile = currentUser;
         await loadDashboard();
-
     } catch (error) {
         console.error('Login error:', error);
         message.innerHTML = `
             <div class="alert alert-danger py-2 small">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                ${error.message || 'Gagal login, periksa kembali User ID dan Password Anda.'}
+                ${escapeHtml(error.message || 'Gagal login, periksa kembali User ID dan Password Anda.')}
             </div>
         `;
     } finally {
@@ -2867,143 +3648,86 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
     const phone = formatPhone(phoneInput);
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan data...`;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Membuat akun Auth...`;
     message.innerHTML = '';
 
     try {
-        // 1. Cek apakah username sudah dipakai di local storage
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const alreadyExists = localUsers.some(u => {
-            const uClean = (u.username || '').replace(/^@+/, '').toLowerCase();
-            return uClean === username;
+        const outingInfo = currentOuting || STORAGE.get('outing_current_info', {}) || {};
+        const { data, error } = await supabaseClient.auth.signUp({
+            email: authEmailForUsername(username),
+            password,
+            options: {
+                data: {
+                    username,
+                    full_name: name,
+                    phone,
+                    department: 'Peserta',
+                    outing_id: isUuid(outingInfo.id) ? outingInfo.id : ''
+                }
+            }
         });
-
-        if (alreadyExists) {
-            throw new Error(`User ID / Username "${username}" sudah terdaftar. Silakan gunakan User ID lain.`);
+        if (error) {
+            if (String(error.message || '').toLowerCase().includes('already registered')) {
+                throw new Error(`User ID / Username "${username}" sudah terdaftar.`);
+            }
+            throw error;
         }
+        if (!data?.user) throw new Error('Supabase tidak mengembalikan akun baru.');
 
-        // 2. Buat objek akun baru
-        const userId = generateUUID();
+        // If email confirmation is disabled, signUp may create a session. A new
+        // profile is still PENDING and must never enter the app automatically.
+        if (data.session) await supabaseClient.auth.signOut();
+
         const newUser = {
-            id: userId,
-            username: username,
+            id: data.user.id,
+            auth_user_id: data.user.id,
+            username,
             full_name: name,
-            name: name,
-            phone: phone,
-            password: password,
+            name,
+            phone,
             role: 'PARTICIPANT',
             section: 'PUBLIC',
             department: 'Peserta',
+            approval_status: 'PENDING',
+            requires_remote_approval: true,
+            registration_source: 'SUPABASE',
             created_at: new Date().toISOString()
         };
-
-        // Simpan ke daftar local users
+        const localUsers = STORAGE.get('outing_local_users', []).filter(user =>
+            String(user.username || '').replace(/^@+/, '').toLowerCase() !== username
+        );
         localUsers.push(newUser);
         STORAGE.set('outing_local_users', localUsers);
-
-        // 3. Simpan OTOMATIS ke Data Peserta Outing (outing_participants)
-        let participants = STORAGE.get('outing_participants', []);
-        if (!Array.isArray(participants)) participants = [];
-
-        const partIdx = participants.findIndex(p => {
-            const pClean = (p.username || '').replace(/^@+/, '').toLowerCase();
-            return pClean === username || (p.phone && p.phone === phone);
-        });
-
-        const newParticipant = {
-            id: generateUUID(),
-            user_id: userId,
-            username: username,
-            full_name: name,
-            name: name,
-            phone: phone,
-            department: 'Peserta',
-            gender: 'L',
-            transport: 'Bus 1',
-            room: 'Villa',
-            status: 'CONFIRMED',
-            created_at: new Date().toISOString()
-        };
-
-        if (partIdx !== -1) {
-            participants[partIdx] = { ...participants[partIdx], ...newParticipant };
-        } else {
-            participants.push(newParticipant);
-        }
-        STORAGE.set('outing_participants', participants);
-
-        // Sinkronisasi menyeluruh agar pasti muncul di data peserta
         syncUsersToParticipants();
 
-        // Perbarui badge jumlah peserta terdaftar jika elemen ada
-        const statEl = document.getElementById('statParticipants');
-        if (statEl) {
-            statEl.textContent = STORAGE.get('outing_participants', []).length;
-        }
-
-        // 4. Background non-blocking sync ke Supabase (jika Supabase aktif)
-        try {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                supabaseClient.from('users').insert({
-                    username: username,
-                    full_name: name,
-                    phone: phone,
-                    role: 'PARTICIPANT',
-                    section: 'PUBLIC'
-                }).then(() => {}).catch(() => {});
-
-                supabaseClient.from('participants').insert({
-                    username: username,
-                    full_name: name,
-                    phone: phone,
-                    department: 'Peserta',
-                    gender: 'L',
-                    transport: 'Bus 1',
-                    room: 'Villa',
-                    status: 'CONFIRMED'
-                }).then(() => {}).catch(() => {});
-            }
-        } catch (dbErr) {
-            console.warn('Supabase sync note:', dbErr);
-        }
-
-        // Pesan Sukses
         message.innerHTML = `
             <div class="alert alert-success py-2 small">
                 <i class="bi bi-check-circle-fill me-1"></i>
-                <strong>Registrasi Berhasil!</strong> Akun dengan User ID <strong>@${username}</strong> telah tersimpan dan otomatis terdaftar dalam <strong>Data Peserta Outing</strong>.
+                <strong>Registrasi Auth tersimpan di Supabase.</strong> Akun <strong>@${escapeHtml(username)}</strong>
+                menunggu persetujuan Admin. Login baru dapat dilakukan setelah akun disetujui.
             </div>
         `;
         document.getElementById('registerForm').reset();
-
-        // Alihkan ke Login dalam 1 detik dengan User ID otomatis terisi
         setTimeout(() => {
             showLogin();
             const loginInput = document.getElementById('loginUserId');
-            if (loginInput) {
-                loginInput.value = username;
-            }
+            if (loginInput) loginInput.value = username;
             const loginMsg = document.getElementById('loginMessage');
             if (loginMsg) {
                 loginMsg.innerHTML = `
-                    <div class="alert alert-success py-2 small">
-                        <i class="bi bi-check-circle-fill me-1"></i>
-                        Registrasi berhasil untuk <strong>@${username}</strong>! Silakan masukkan password Anda untuk login.
+                    <div class="alert alert-warning py-2 small">
+                        <i class="bi bi-hourglass-split me-1"></i>
+                        Akun <strong>@${escapeHtml(username)}</strong> sudah terdaftar dan sedang menunggu approval Admin.
                     </div>
                 `;
             }
-            const passInput = document.getElementById('loginPassword');
-            if (passInput) {
-                passInput.focus();
-            }
         }, 1000);
-
     } catch (error) {
         console.error('Register error:', error);
         message.innerHTML = `
             <div class="alert alert-danger py-2 small">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                ${error.message || 'Gagal mendaftar. Silakan coba lagi.'}
+                ${escapeHtml(error.message || 'Gagal mendaftar. Silakan coba lagi.')}
             </div>
         `;
     } finally {
@@ -3017,18 +3741,12 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 ===================================================== */
 async function loadDashboard() {
     try {
-        showApp();
-
-        if (!currentUser) {
-            const savedSession = STORAGE.get('outing_session', null);
-            if (savedSession) currentUser = savedSession;
-        }
-
         if (!currentUser) {
             showLogin();
             return;
         }
 
+        showApp();
         await loadProfile();
         await loadOuting();
 
@@ -3038,7 +3756,8 @@ async function loadDashboard() {
             loadFinance(),
             loadAnnouncements(),
             loadParticipants(),
-            loadTasks()
+            loadTasks(),
+            loadDonations()
         ]);
 
         setupManagementMenu();
@@ -3049,64 +3768,82 @@ async function loadDashboard() {
 
     } catch (error) {
         console.error('Dashboard error:', error);
+        try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
+        currentUser = null;
+        currentProfile = null;
+        roleSimulationActive = false;
+        showLogin();
+        throw error;
     }
+}
+
+function updateRoleSimulatorVisibility() {
+    const roleCard = document.getElementById('roleSimulatorCard');
+    if (!roleCard) return;
+    // Role chooser hanya tampil untuk akun Admin asli, bukan untuk user biasa
+    // atau hasil role simulation.
+    roleCard.classList.toggle('d-none', !isAuthenticatedAdmin());
 }
 
 /* =====================================================
    LOAD PROFILE
 ===================================================== */
 async function loadProfile() {
-    try {
-        let data = null;
-        if (currentUser && currentUser.id) {
-            try {
-                const { data: dbData } = await supabaseClient
-                    .from('users')
-                    .select('*, roles(id, name), sections(id, name)')
-                    .eq('id', currentUser.id)
-                    .maybeSingle();
-                if (dbData) data = dbData;
-            } catch (err) {}
-        }
+    const authUserId = currentUser?.auth_user_id || currentUser?.id;
+    if (!authUserId) throw new Error('Sesi Supabase Auth tidak ditemukan. Silakan login ulang.');
 
-        if (!data) data = currentProfile || currentUser;
-        currentProfile = data;
-        if (!data) return;
+    const { data, error } = await supabaseClient
+        .from('users')
+        .select('*, roles(id, name), sections(id, name)')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profil aplikasi tidak ditemukan untuk sesi Auth ini.');
 
-        const username = data.username || currentUser?.username || '';
-        const fullName = data.full_name || data.name || currentUser?.full_name || 'User';
-        const initial = (username || fullName || 'U').charAt(0).toUpperCase();
-        const phone = data.phone || currentUser?.phone || '-';
-        const role = getUserRole();
-        const section = getUserSection() || '-';
-        const department = data.department || '-';
+    const approvalError = approvalErrorForUser(data);
+    if (approvalError) {
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        currentProfile = null;
+        throw approvalError;
+    }
 
-        document.getElementById('topUserName').textContent = fullName;
-        document.getElementById('topUserRole').textContent = role;
-        document.getElementById('topAvatar').textContent = initial;
+    const authUser = currentUser?.auth_email
+        ? { id: authUserId, email: currentUser.auth_email }
+        : (await supabaseClient.auth.getUser()).data?.user;
+    currentProfile = data;
+    currentUser = markAuthenticatedUser(data, authUser);
 
-        document.getElementById('profileAvatar').textContent = initial;
-        document.getElementById('profileName').textContent = fullName;
-        document.getElementById('profileUsername').textContent = '@' + username;
-        document.getElementById('profilePhone').textContent = phone;
-        document.getElementById('profileDepartment').textContent = department;
-        document.getElementById('profileRoleBadge').textContent = role;
-        document.getElementById('profileSection').textContent = section;
+    const username = data.username || '';
+    const fullName = data.full_name || username || 'User';
+    const initial = (username || fullName || 'U').charAt(0).toUpperCase();
+    const phone = data.phone || '-';
+    const role = getUserRole();
+    const section = getUserSection() || '-';
+    const department = data.department || '-';
 
-        // Set simulator dropdown value
-        const simSelect = document.getElementById('roleSimulatorSelect');
-        if (simSelect) {
-            const combined = `${role}|${section}`;
-            for (let opt of simSelect.options) {
-                if (opt.value === combined || opt.value.startsWith(role + '|')) {
-                    simSelect.value = opt.value;
-                    break;
-                }
+    document.getElementById('topUserName').textContent = fullName;
+    document.getElementById('topUserRole').textContent = role;
+    document.getElementById('topAvatar').textContent = initial;
+
+    document.getElementById('profileAvatar').textContent = initial;
+    document.getElementById('profileName').textContent = fullName;
+    document.getElementById('profileUsername').textContent = '@' + username;
+    document.getElementById('profilePhone').textContent = phone;
+    document.getElementById('profileDepartment').textContent = department;
+    document.getElementById('profileRoleBadge').textContent = role;
+    document.getElementById('profileSection').textContent = section;
+    updateRoleSimulatorVisibility();
+
+    const simSelect = document.getElementById('roleSimulatorSelect');
+    if (simSelect) {
+        const combined = `${role}|${section}`;
+        for (const opt of simSelect.options) {
+            if (opt.value === combined || opt.value.startsWith(role + '|')) {
+                simSelect.value = opt.value;
+                break;
             }
         }
-
-    } catch (error) {
-        console.error('loadProfile error:', error);
     }
 }
 
@@ -3114,25 +3851,93 @@ async function loadProfile() {
    ROLE SIMULATOR (DEMO PERSPECTIVE SWITCHER)
 ===================================================== */
 function applyRoleSimulation() {
+    if (!isAuthenticatedAdmin()) {
+        alert('Akses Ditolak: hanya Admin yang dapat memilih atau mensimulasikan role pengguna.');
+        updateRoleSimulatorVisibility();
+        return;
+    }
     const simSelect = document.getElementById('roleSimulatorSelect');
     if (!simSelect) return;
     const [newRole, newSection] = simSelect.value.split('|');
 
+    if (currentUser) {
+        // Simpan role asli sekali saja; role simulator tidak boleh dianggap
+        // sebagai kredensial Admin untuk approval akun.
+        if (!currentUser.authenticated_role) currentUser.authenticated_role = String(currentUser.role || 'PARTICIPANT').toUpperCase();
+        if (!currentUser.authenticated_section) currentUser.authenticated_section = String(currentUser.section || '').toUpperCase();
+        currentUser.role = newRole;
+        currentUser.section = newSection;
+        roleSimulationActive = String(newRole).toUpperCase() !== String(currentUser.authenticated_role || '').toUpperCase() ||
+            String(newSection).toUpperCase() !== String(currentUser.authenticated_section || '').toUpperCase();
+    }
     if (currentProfile) {
         currentProfile.role = newRole;
         currentProfile.section = newSection;
     }
-    if (currentUser) {
-        currentUser.role = newRole;
-        currentUser.section = newSection;
-    }
-    STORAGE.set('outing_session', currentProfile);
 
-    loadProfile();
+    updateRoleSimulatorVisibility();
     setupManagementMenu();
     updateViewOnlyNotices();
 
     alert(`Simulasi hak akses berhasil diubah ke: ${newRole} (Section: ${newSection}). Menu & wewenang tombol telah disesuaikan!`);
+}
+
+async function changeUserPassword(e) {
+    e.preventDefault();
+    const message = document.getElementById('changePasswordMessage');
+    const button = document.getElementById('changePasswordBtn');
+    const currentPassword = document.getElementById('currentPassword')?.value || '';
+    const newPassword = document.getElementById('newPassword')?.value || '';
+    const confirmPassword = document.getElementById('confirmNewPassword')?.value || '';
+
+    if (!currentUser) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Sesi user tidak ditemukan. Silakan login ulang.</div>`;
+        return;
+    }
+    if (newPassword.length < 6) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Password baru minimal 6 karakter.</div>`;
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Konfirmasi password baru tidak sama.</div>`;
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...`;
+    }
+    if (message) message.innerHTML = '';
+
+    try {
+        const authUser = (await supabaseClient.auth.getUser()).data?.user;
+        const email = authUser?.email || currentUser.auth_email || authEmailForUsername(currentUser.username);
+        if (!email) throw new Error('Identitas Auth tidak ditemukan. Silakan login ulang.');
+
+        // Re-authenticate before changing the credential. The password never
+        // enters public.users or LocalStorage.
+        const { error: reauthError } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password: currentPassword
+        });
+        if (reauthError) throw new Error('Password saat ini salah.');
+
+        const { error: updateError } = await supabaseClient.auth.updateUser({
+            password: newPassword
+        });
+        if (updateError) throw updateError;
+
+        document.getElementById('changePasswordForm')?.reset();
+        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i>Password Supabase Auth berhasil diubah.</div>`;
+    } catch (error) {
+        console.error('changeUserPassword error:', error);
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(error.message || 'Gagal mengubah password.')}</div>`;
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = `<i class="bi bi-shield-lock me-1"></i> Simpan Password Baru`;
+        }
+    }
 }
 
 function updateViewOnlyNotices() {
@@ -4573,7 +5378,7 @@ function openTransactionModal(id = null) {
     modal.show();
 }
 
-function saveTransaction(e) {
+async function saveTransaction(e) {
     e.preventDefault();
     const items = STORAGE.get('outing_transactions', []);
     const newTrans = {
@@ -4588,15 +5393,23 @@ function saveTransaction(e) {
         created_at: new Date().toISOString()
     };
 
+    // `account` is a UI label; the schema uses cash_account_id. Omit unknown
+    // client-only fields from the REST payload.
+    const { account, ...transactionFields } = newTrans;
+    const remoteTrans = {
+        ...transactionFields,
+        created_by: isUuid(currentUser?.id) ? currentUser.id : null
+    };
+    const { error: remoteError } = await supabaseClient.from('cash_transactions').insert(remoteTrans);
+    if (remoteError) {
+        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan transaksi ke Supabase: ${escapeHtml(remoteError.message)}`);
+        return;
+    }
+
     items.unshift(newTrans);
     STORAGE.set('outing_transactions', items);
     bootstrap.Modal.getInstance(document.getElementById('modalTransaction')).hide();
     renderFinance(items);
-
-    // Sync Supabase
-    try {
-        supabaseClient.from('cash_transactions').insert(newTrans).then(() => {});
-    } catch (e) {}
 }
 
 function deleteTransaction(id) {
@@ -4776,6 +5589,30 @@ function initPurchaseDropZone() {
     }, false);
 }
 
+async function hydratePurchaseImageUrls(items) {
+    const list = Array.isArray(items) ? items.map(item => ({ ...item })) : [];
+    await Promise.all(list.map(async item => {
+        if (!item.image_path && item.image_url) {
+            const publicMarker = '/storage/v1/object/public/purchases/';
+            const publicIndex = String(item.image_url).indexOf(publicMarker);
+            if (publicIndex >= 0) {
+                item.image_path = decodeURIComponent(String(item.image_url).slice(publicIndex + publicMarker.length));
+            }
+        }
+        if (!item.image_path || !supabaseClient?.storage) return;
+        try {
+            const { data, error } = await supabaseClient.storage
+                .from('purchases')
+                .createSignedUrl(item.image_path, 3600);
+            if (!error && data?.signedUrl) item.image_url = data.signedUrl;
+        } catch (error) {
+            console.warn('Signed purchase image URL unavailable:', error);
+            item.image_url = '';
+        }
+    }));
+    return list;
+}
+
 async function loadPurchasing() {
     try {
         let list = [];
@@ -4788,6 +5625,8 @@ async function loadPurchasing() {
             list = STORAGE.get('outing_purchases', []);
         }
 
+        list = await hydratePurchaseImageUrls(list);
+        STORAGE.set('outing_purchases', list);
         renderPurchasing(list);
     } catch (error) {
         console.error('loadPurchasing error:', error);
@@ -4953,6 +5792,7 @@ async function savePurchase(e) {
     e.preventDefault();
     const id = document.getElementById('purchaseId').value;
     const list = STORAGE.get('outing_purchases', []);
+    const previousPurchaseList = JSON.parse(JSON.stringify(list));
     const saveBtn = document.getElementById('btnSavePurchase');
     const originalBtnHtml = saveBtn ? saveBtn.innerHTML : 'Simpan';
     if (saveBtn) {
@@ -4961,8 +5801,12 @@ async function savePurchase(e) {
     }
 
     let finalImageUrl = document.getElementById('purchaseImageUrl').value || '';
+    let finalImagePath = '';
+    const existingPurchase = id ? list.find(item => String(item.id) === String(id)) : null;
+    if (existingPurchase?.image_path) finalImagePath = existingPurchase.image_path;
 
-    // If a new compressed blob is pending upload, attempt to upload to Supabase Storage bucket 'purchases'
+    // Uploads go to a private bucket. Store only the object path in the table;
+    // the displayed URL is a short-lived signed URL generated for this session.
     if (currentPurchaseImageBlob) {
         try {
             const fileName = `purchasing/${Date.now()}_${generateUUID().substring(0, 8)}.jpg`;
@@ -4971,21 +5815,30 @@ async function savePurchase(e) {
                 .upload(fileName, currentPurchaseImageBlob, {
                     contentType: 'image/jpeg',
                     cacheControl: '3600',
-                    upsert: true
+                    upsert: false
                 });
-
-            if (!uploadErr && uploadData) {
-                const { data: publicData } = supabaseClient.storage
-                    .from('purchases')
-                    .getPublicUrl(fileName);
-                if (publicData && publicData.publicUrl) {
-                    finalImageUrl = publicData.publicUrl;
-                }
-            } else if (uploadErr) {
-                console.warn('Supabase storage upload error, using compressed base64 data URL:', uploadErr.message);
+            if (uploadErr || !uploadData?.path) {
+                throw new Error(`Foto gagal diunggah ke Storage Supabase: ${uploadErr?.message || 'path tidak tersedia'}`);
             }
-        } catch (storageEx) {
-            console.warn('Supabase storage unavailable, using compressed base64 fallback:', storageEx);
+            finalImagePath = uploadData.path;
+            const { data: signedData, error: signedError } = await supabaseClient.storage
+                .from('purchases')
+                .createSignedUrl(finalImagePath, 3600);
+            if (signedError || !signedData?.signedUrl) {
+                throw new Error(`Foto berhasil diunggah tetapi URL aman gagal dibuat: ${signedError?.message || 'unknown error'}`);
+            }
+            finalImageUrl = signedData.signedUrl;
+        } catch (storageError) {
+            currentPurchaseImageBlob = null;
+            if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
+                try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
+            }
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalBtnHtml;
+            }
+            showToast(`<i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(storageError.message || 'Foto gagal diunggah ke Supabase Storage.')}`);
+            return;
         }
     }
 
@@ -5003,6 +5856,7 @@ async function savePurchase(e) {
         status: document.getElementById('purchaseStatus').value,
         notes: document.getElementById('purchaseNotes').value.trim(),
         image_url: finalImageUrl,
+        image_path: finalImagePath,
         created_at: new Date().toISOString()
     };
 
@@ -5025,21 +5879,20 @@ async function savePurchase(e) {
     renderPurchasing(list);
     showToast(`<i class="bi bi-check2-circle me-1"></i> Permintaan pembelian <strong>${escapeHtml(newReq.item_name)}</strong> berhasil disimpan.`);
 
-    // Remote sync with Supabase table
+    // Persist the private object path, not an expiring signed URL.
     try {
-        const { error } = await supabaseClient.from('purchase_requests').upsert(newReq);
-        if (error) {
-            if (error.code === 'PGRST204' || (error.message && error.message.includes('image_url'))) {
-                console.warn('Kolom image_url belum ada di remote Supabase. Menyimpan data pokok ke remote DB...');
-                const dbReq = { ...newReq };
-                delete dbReq.image_url;
-                await supabaseClient.from('purchase_requests').upsert(dbReq);
-            } else {
-                console.error('Supabase upsert error:', error);
-            }
-        }
+        const dbReq = finalImagePath ? { ...newReq, image_url: '' } : newReq;
+        const { error } = await supabaseClient.from('purchase_requests').upsert(dbReq);
+        if (error) throw error;
     } catch (e) {
         console.error('Supabase sync error:', e);
+        // Do not leave a LocalStorage-only mutation presented as saved data.
+        STORAGE.set('outing_purchases', previousPurchaseList);
+        renderPurchasing(previousPurchaseList);
+        if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
+            try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
+        }
+        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan ke Supabase: ${escapeHtml(e.message || 'periksa RLS/koneksi.')}`);
     }
 }
 
@@ -5740,7 +6593,7 @@ function openParticipantModal(id = null) {
     modal.show();
 }
 
-function saveParticipant(e) {
+async function saveParticipant(e) {
     e.preventDefault();
     const id = document.getElementById('participantId').value;
     const list = STORAGE.get('outing_participants', []);
@@ -5751,6 +6604,7 @@ function saveParticipant(e) {
 
     const newPart = {
         id: id || generateUUID(),
+        outing_id: isUuid(currentOuting?.id) ? currentOuting.id : null,
         full_name: fullName,
         name: fullName,
         username: cleanUser || `user_${Date.now().toString().slice(-4)}`,
@@ -5762,6 +6616,20 @@ function saveParticipant(e) {
         status: document.getElementById('partStatus').value || 'CONFIRMED',
         created_at: new Date().toISOString()
     };
+
+    // Participant management is a server-backed admin operation. Do not claim
+    // success from a LocalStorage-only write when RLS rejects the request.
+    const { name, ...participantFields } = newPart;
+    const remotePart = {
+        ...participantFields,
+        id: isUuid(newPart.id) ? newPart.id : generateUUID(),
+        user_id: null
+    };
+    const { error: remoteError } = await supabaseClient.from('participants').upsert(remotePart);
+    if (remoteError) {
+        alert(`Data peserta gagal disimpan ke Supabase: ${remoteError.message}`);
+        return;
+    }
 
     if (id) {
         const idx = list.findIndex(p => String(p.id) === String(id));
@@ -5775,8 +6643,917 @@ function saveParticipant(e) {
     renderParticipants(list);
 
     const statEl = document.getElementById('statParticipants');
-    if (statEl) {
-        statEl.textContent = list.length;
+    if (statEl) statEl.textContent = list.length;
+}
+
+/* =====================================================
+   USER APPROVAL MANAGEMENT (ADMIN / INITIATOR)
+===================================================== */
+async function loadUserApprovals() {
+    const container = document.getElementById('userApprovalsList');
+    const message = document.getElementById('userApprovalMessage');
+    if (!container) return;
+    if (!isTrustedAdmin()) {
+        container.innerHTML = `<div class="alert alert-danger small">Akses hanya untuk Admin.</div>`;
+        return;
+    }
+
+    container.innerHTML = `<div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-1"></span> Memuat data user dari Supabase...</div>`;
+    if (message) message.innerHTML = '';
+
+    try {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+            throw new Error('Supabase belum terhubung.');
+        }
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        renderUserApprovals(Array.isArray(data) ? data : []);
+    } catch (error) {
+        console.error('loadUserApprovals error:', error);
+        container.innerHTML = `<div class="alert alert-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal memuat user dari Supabase: ${escapeHtml(error.message || 'Unknown error')}</div>`;
+        // Never render a local pending list as an approval authority. The
+        // server query is the only source for this admin action.
+        updateUserApprovalBadge(0);
+    }
+}
+
+function updateUserApprovalBadge(pendingCount) {
+    const badge = document.getElementById('userApprovalPendingBadge');
+    if (!badge) return;
+    badge.textContent = `${Number(pendingCount || 0)} Menunggu`;
+    badge.className = Number(pendingCount || 0) > 0
+        ? 'badge bg-warning text-dark'
+        : 'badge bg-success';
+}
+
+function renderUserApprovals(users) {
+    const container = document.getElementById('userApprovalsList');
+    if (!container) return;
+    const sortedUsers = [...(users || [])].sort((a, b) => {
+        const statusOrder = { PENDING: 0, REJECTED: 1, APPROVED: 2 };
+        const statusDiff = (statusOrder[getApprovalStatus(a)] ?? 9) - (statusOrder[getApprovalStatus(b)] ?? 9);
+        if (statusDiff !== 0) return statusDiff;
+        return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+    const pendingCount = sortedUsers.filter(user => getApprovalStatus(user) === 'PENDING').length;
+    updateUserApprovalBadge(pendingCount);
+
+    if (sortedUsers.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-person-check"></i><div>Belum ada data user di Supabase.</div></div>`;
+        return;
+    }
+
+    container.innerHTML = sortedUsers.map(user => {
+        const status = getApprovalStatus(user);
+        const name = user.full_name || user.name || user.username || 'User';
+        const username = String(user.username || '-').replace(/^@+/, '');
+        const initial = escapeHtml(String(name).charAt(0).toUpperCase() || 'U');
+        const userId = encodeURIComponent(String(user.id || ''));
+        const statusClass = status === 'PENDING' ? 'bg-warning text-dark' : status === 'APPROVED' ? 'bg-success' : 'bg-danger';
+        const createdAt = user.created_at
+            ? new Date(user.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+            : '-';
+        const rejectionReason = status === 'REJECTED' && user.rejection_reason
+            ? `<div class="small text-danger mt-1"><i class="bi bi-info-circle me-1"></i>${escapeHtml(user.rejection_reason)}</div>`
+            : '';
+        let actions = '';
+        if (status === 'PENDING') {
+            actions = `
+                <div class="d-flex flex-wrap justify-content-end gap-2 mt-2">
+                    <button class="btn btn-sm btn-success" onclick="setUserApprovalStatus(decodeURIComponent('${userId}'), 'APPROVED')">
+                        <i class="bi bi-check-lg me-1"></i> Approve
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="rejectUserAccount(decodeURIComponent('${userId}'))">
+                        <i class="bi bi-x-lg me-1"></i> Tolak
+                    </button>
+                </div>`;
+        } else if (status === 'REJECTED') {
+            actions = `
+                <div class="mt-2 text-end">
+                    <button class="btn btn-sm btn-outline-success" onclick="setUserApprovalStatus(decodeURIComponent('${userId}'), 'APPROVED')">
+                        <i class="bi bi-check-lg me-1"></i> Setujui Sekarang
+                    </button>
+                </div>`;
+        }
+
+        return `
+            <div class="border rounded-3 p-3 mb-2 bg-white shadow-sm">
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="avatar flex-shrink-0" style="width:44px;height:44px;">${initial}</div>
+                        <div>
+                            <div class="fw-semibold">${escapeHtml(name)}</div>
+                            <div class="text-muted small">@${escapeHtml(username)} &bull; ${escapeHtml(user.phone || '-')}</div>
+                            <div class="text-muted small">${escapeHtml(user.department || 'Peserta')} &bull; Terdaftar ${escapeHtml(createdAt)}</div>
+                            ${rejectionReason}
+                        </div>
+                    </div>
+                    <div class="text-md-end">
+                        <span class="badge ${statusClass}">${escapeHtml(approvalStatusLabel(status))}</span>
+                        ${user.approved_at ? `<div class="small text-muted mt-1">${status === 'APPROVED' ? 'Disetujui' : 'Diproses'} ${escapeHtml(new Date(user.approved_at).toLocaleString('id-ID'))}</div>` : ''}
+                        ${actions}
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function rejectUserAccount(userId) {
+    if (!isTrustedAdmin()) {
+        alert('Hanya Admin yang dapat menolak user.');
+        return;
+    }
+    const reason = prompt('Masukkan alasan penolakan (opsional):', 'Data registrasi belum dapat diverifikasi');
+    if (reason === null) return;
+    setUserApprovalStatus(userId, 'REJECTED', reason.trim());
+}
+
+async function setUserApprovalStatus(userId, nextStatus, rejectionReason = '') {
+    if (!isTrustedAdmin()) {
+        alert('Akses Ditolak: hanya Admin yang dapat melakukan approval user.');
+        return;
+    }
+    const status = String(nextStatus || '').toUpperCase();
+    if (!['PENDING', 'APPROVED', 'REJECTED'].includes(status)) return;
+
+    const message = document.getElementById('userApprovalMessage');
+    if (message) message.innerHTML = `<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-1"></span> Menyimpan perubahan approval ke Supabase...</div>`;
+
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_set_user_approval', {
+            p_user_id: String(userId),
+            p_status: status,
+            p_rejection_reason: status === 'REJECTED' ? (rejectionReason || null) : null
+        });
+        if (error) throw error;
+        if (!data || !data.id) throw new Error('RPC approval tidak mengembalikan user.');
+
+        // Cache is updated only for display; it is never consulted for access.
+        const localUsers = STORAGE.get('outing_local_users', []);
+        const index = localUsers.findIndex(user => String(user.id) === String(userId) ||
+            String(user.username || '').toLowerCase() === String(data.username || '').toLowerCase());
+        if (index >= 0) {
+            localUsers[index] = {
+                ...localUsers[index],
+                approval_status: data.approval_status,
+                approved_at: data.approved_at,
+                rejection_reason: data.rejection_reason,
+                requires_remote_approval: true
+            };
+            STORAGE.set('outing_local_users', localUsers);
+        }
+
+        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i> Status user <strong>@${escapeHtml(data.username || '')}</strong> berhasil diubah menjadi <strong>${escapeHtml(approvalStatusLabel(data.approval_status))}</strong>.</div>`;
+        await loadUserApprovals();
+    } catch (error) {
+        console.error('setUserApprovalStatus error:', error);
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal menyimpan approval: ${escapeHtml(error.message || 'Unknown error')}</div>`;
+    }
+}
+
+/* =====================================================
+   DONATION MODULE
+===================================================== */
+function canManageDonation() {
+    // Donation activation and reminder control are Admin-only. Role simulation
+    // deliberately cannot grant access to this module's write operations.
+    return isTrustedAdmin();
+}
+
+function donationMessage(message, type = 'success') {
+    const target = document.getElementById('donationMessage');
+    if (!target) return;
+    target.innerHTML = `<div class="alert alert-${type} py-2 small"><i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-1"></i>${message}</div>`;
+}
+
+function donationStatusBadge(status) {
+    const normalized = String(status || '').toUpperCase();
+    const styles = {
+        ACTIVE: 'success',
+        PAID: 'success',
+        DRAFT: 'secondary',
+        PENDING: 'warning text-dark',
+        QUEUED: 'warning text-dark',
+        PROCESSING: 'info',
+        PAUSED: 'warning text-dark',
+        SUBMITTED: 'warning text-dark',
+        UNDER_REVIEW: 'info',
+        REJECTED: 'danger',
+        PENDING_TRANSFER: 'warning text-dark',
+        FAILED: 'danger',
+        CANCELLED: 'dark',
+        CLOSED: 'dark',
+        COMPLETED: 'primary'
+    };
+    return `<span class="badge bg-${styles[normalized] || 'secondary'}">${escapeHtml(normalized || '-')}</span>`;
+}
+
+function donationUserName(userId) {
+    const user = donationState.users.find(item => item.id === userId);
+    if (user) return `${user.full_name || user.username || '-'} (@${user.username || '-'})`;
+    if (currentProfile && (currentProfile.id === userId || currentProfile.auth_user_id === userId)) {
+        return `${currentProfile.full_name || currentProfile.username || '-'} (@${currentProfile.username || '-'})`;
+    }
+    return userId ? String(userId).slice(0, 8) : '-';
+}
+
+function donationProgramName(programId) {
+    return donationState.programs.find(item => item.id === programId)?.name || '-';
+}
+
+function donationBeneficiaryName(beneficiaryId) {
+    return donationState.beneficiaries.find(item => item.id === beneficiaryId)?.name || 'Program umum';
+}
+
+function donationMembershipLabel(membership) {
+    const donor = donationUserName(membership.donor_user_id);
+    const program = donationProgramName(membership.program_id);
+    const amount = membership.amount_mode === 'FIXED' ? formatRupiah(membership.fixed_amount) : 'Nominal bebas';
+    return `${donor} — ${program} — ${amount}`;
+}
+
+function renderDonationPrograms() {
+    const target = document.getElementById('donationProgramsList');
+    const count = document.getElementById('donationProgramCount');
+    if (!target) return;
+    const programs = donationState.programs || [];
+    if (count) count.textContent = `${programs.length} program`;
+    if (!programs.length) {
+        target.innerHTML = '<div class="empty-state py-3"><i class="bi bi-megaphone"></i><div>Belum ada program donasi.</div></div>';
+        return;
+    }
+    target.innerHTML = programs.map(program => `
+        <div class="border rounded-3 bg-white p-2 mb-2">
+            <div class="d-flex justify-content-between gap-2">
+                <div><strong>${escapeHtml(program.name)}</strong><div class="small text-muted">${escapeHtml(program.code)} · Reminder tanggal ${program.reminder_day}</div></div>
+                ${donationStatusBadge(program.status)}
+            </div>
+            <div class="small text-secondary mt-1">Tahun ${escapeHtml(String(program.fund_year || '-'))} · Nominal default: ${program.default_amount ? formatRupiah(program.default_amount) : 'Bebas'} · Prioritas staff, fallback yayasan</div>
+        </div>
+    `).join('');
+}
+
+function renderDonationBeneficiaries() {
+    const target = document.getElementById('donationBeneficiariesList');
+    const count = document.getElementById('donationBeneficiaryCount');
+    if (!target) return;
+    const beneficiaries = donationState.beneficiaries || [];
+    if (count) count.textContent = `${beneficiaries.length} penerima`;
+    if (!beneficiaries.length) {
+        target.innerHTML = '<div class="empty-state py-3"><i class="bi bi-person-heart"></i><div>Belum ada penerima.</div></div>';
+        return;
+    }
+    target.innerHTML = beneficiaries.map(item => `
+        <div class="border rounded-3 bg-white p-2 mb-2">
+            <div class="d-flex justify-content-between gap-2">
+                <strong>${escapeHtml(item.name)}</strong>${item.is_active ? donationStatusBadge('ACTIVE') : donationStatusBadge('PAUSED')}
+            </div>
+            <div class="small text-muted">${escapeHtml(item.beneficiary_type || 'PERSON')}${item.organization ? ` · ${escapeHtml(item.organization)}` : ''}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}</div>
+        </div>
+    `).join('');
+}
+
+function renderDonationCases() {
+    const target = document.getElementById('donationCasesList');
+    if (!target) return;
+    const cases = donationState.cases || [];
+    if (!cases.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-bandaid"></i><div>Belum ada kasus musibah staff.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Staff</th><th>Kasus</th><th>Dana</th><th>Nominal</th><th>Status</th>${canManageDonation() ? '<th>Aksi</th>' : ''}</tr></thead>
+        <tbody>${cases.map(item => {
+            const actions = [];
+            if (canManageDonation() && ['SUBMITTED', 'UNDER_REVIEW'].includes(item.status)) {
+                actions.push(`<button class="btn btn-sm btn-outline-success" onclick="approveDonationCase('${item.id}')">Setujui</button>`);
+                actions.push(`<button class="btn btn-sm btn-outline-danger" onclick="rejectDonationCase('${item.id}')">Tolak</button>`);
+            }
+            if (canManageDonation() && item.status === 'APPROVED') {
+                actions.push(`<button class="btn btn-sm btn-success" onclick="openDonationAllocationModal('${item.id}')">Catat Bayar</button>`);
+            }
+            return `<tr>
+                <td><strong>${escapeHtml(item.staff_name_snapshot || '-')}</strong><div class="small text-muted">${escapeHtml(item.incident_category || '')}</div></td>
+                <td><strong>${escapeHtml(item.case_title)}</strong><div class="small text-muted">${escapeHtml(item.public_summary || '')}</div></td>
+                <td>${escapeHtml(donationProgramName(item.program_id))}</td>
+                <td>${formatRupiah(item.approved_amount || item.requested_amount)}</td>
+                <td>${donationStatusBadge(item.status)}${item.incident_date ? `<div class="small text-muted mt-1">${escapeHtml(item.incident_date)}</div>` : ''}</td>
+                ${canManageDonation() ? `<td class="text-nowrap">${actions.join(' ') || '<span class="text-muted small">Selesai</span>'}</td>` : ''}
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+function renderDonationFoundations() {
+    const target = document.getElementById('donationFoundationsList');
+    if (!target) return;
+    const foundations = donationState.foundations || [];
+    const disbursements = donationState.disbursements || [];
+    const closures = donationState.closures || [];
+    const foundationHtml = foundations.length ? foundations.map(item => `<div class="border rounded-3 bg-white p-2 mb-2">
+        <div class="d-flex justify-content-between gap-2"><strong>${escapeHtml(item.name)}</strong>${item.is_active ? donationStatusBadge('ACTIVE') : donationStatusBadge('PAUSED')}</div>
+        <div class="small text-muted">${escapeHtml(item.code)}${item.contact_name ? ` · ${escapeHtml(item.contact_name)}` : ''}</div>
+        ${item.public_description ? `<div class="small text-secondary mt-1">${escapeHtml(item.public_description)}</div>` : ''}
+    </div>`).join('') : '<div class="empty-state py-3"><i class="bi bi-building"></i><div>Belum ada yayasan fallback.</div></div>';
+    const closureHtml = closures.length ? `<div class="border-top mt-3 pt-2"><div class="small fw-semibold mb-2">Riwayat Closing</div>${closures.map(item => `<div class="small border-bottom py-1"><div class="d-flex justify-content-between"><span>${escapeHtml(donationProgramName(item.program_id))} / ${escapeHtml(String(item.fund_year))}</span>${donationStatusBadge(item.status)}</div><div class="text-muted">Fallback: ${formatRupiah(item.fallback_amount)}</div></div>`).join('')}</div>` : '';
+    const disbursementHtml = disbursements.length ? `<div class="border-top mt-3 pt-2"><div class="small fw-semibold mb-2">Penyaluran Yayasan</div>${disbursements.map(item => `<div class="small border-bottom py-1"><div class="d-flex justify-content-between"><span>${escapeHtml(item.foundation_name_snapshot)}</span>${donationStatusBadge(item.status)}</div><div class="text-muted">${formatRupiah(item.amount)}${item.transfer_date ? ` · ${escapeHtml(item.transfer_date)}` : ''}</div>${canManageDonation() && item.status === 'PENDING' ? `<button class="btn btn-sm btn-outline-success mt-1" onclick="markDonationFoundationPaid('${item.id}')">Catat Transfer</button>` : ''}</div>`).join('')}</div>` : '';
+    target.innerHTML = foundationHtml + closureHtml + disbursementHtml;
+}
+
+function renderDonationMemberships() {
+    const target = document.getElementById('donationMembershipsList');
+    if (!target) return;
+    const memberships = donationState.memberships || [];
+    if (!memberships.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-people"></i><div>Belum ada donatur aktif.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Donatur</th><th>Program / Penerima</th><th>Nominal</th><th>Periode</th><th>Status</th>${canManageDonation() ? '<th>Aksi</th>' : ''}</tr></thead>
+        <tbody>${memberships.map(item => {
+            const donor = donationState.users.find(user => user.id === item.donor_user_id);
+            const phone = canManageDonation() && donor?.phone ? `<div class="small text-muted">${escapeHtml(donor.phone)}</div>` : '';
+            const nextStatus = item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+            return `<tr>
+                <td><strong>${escapeHtml(donor?.full_name || donor?.username || donationUserName(item.donor_user_id))}</strong>${phone}<div class="small text-muted">@${escapeHtml(donor?.username || '-')}</div></td>
+                <td>${escapeHtml(donationProgramName(item.program_id))}<div class="small text-muted">${escapeHtml(donationBeneficiaryName(item.beneficiary_id))}</div></td>
+                <td>${item.amount_mode === 'FIXED' ? formatRupiah(item.fixed_amount) : 'Bebas'}</td>
+                <td>${escapeHtml(item.start_date || '-')}<div class="small text-muted">${item.end_date ? `s/d ${escapeHtml(item.end_date)}` : 'berjalan'}</div></td>
+                <td>${donationStatusBadge(item.status)}${item.whatsapp_opt_in ? '<div class="small text-success mt-1"><i class="bi bi-whatsapp"></i> WA</div>' : ''}</td>
+                ${canManageDonation() ? `<td><button class="btn btn-sm btn-outline-secondary" onclick="toggleDonationMembership('${item.id}','${nextStatus}')">${nextStatus === 'PAUSED' ? 'Pause' : 'Aktifkan'}</button></td>` : ''}
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+function renderDonationTransactions() {
+    const target = document.getElementById('donationTransactionsList');
+    if (!target) return;
+    const transactions = donationState.transactions || [];
+    if (!transactions.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-receipt"></i><div>Belum ada transaksi donasi.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Periode</th><th>Donatur</th><th>Penerima</th><th class="text-end">Nominal</th><th>Status</th><th>Metode</th></tr></thead>
+        <tbody>${transactions.map(item => `<tr>
+            <td>${escapeHtml(String(item.period_start || '-').slice(0, 7))}</td>
+            <td>${escapeHtml(donationUserName(item.donor_user_id))}</td>
+            <td>${escapeHtml(donationBeneficiaryName(item.beneficiary_id))}</td>
+            <td class="text-end fw-semibold">${formatRupiah(item.amount)}</td>
+            <td>${donationStatusBadge(item.status)}</td>
+            <td>${escapeHtml(item.payment_method || '-')}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function updateDonationSummary() {
+    const activeDonors = donationState.memberships.filter(item => item.status === 'ACTIVE').length;
+    const activePrograms = donationState.programs.filter(item => item.status === 'ACTIVE').length;
+    const queued = donationState.reminders.filter(item => ['QUEUED', 'PROCESSING'].includes(item.status)).length;
+    const month = new Date().toISOString().slice(0, 7);
+    const paid = donationState.transactions
+        .filter(item => item.status === 'PAID' && String(item.period_start || '').slice(0, 7) === month)
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const values = {
+        donationStatDonors: activeDonors,
+        donationStatPrograms: activePrograms,
+        donationStatReminders: queued,
+        donationStatPaid: formatRupiah(paid)
+    };
+    Object.entries(values).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+}
+
+function populateDonationSelects() {
+    const activePrograms = donationState.programs.filter(item => item.status === 'ACTIVE' || canManageDonation());
+    const programSelect = document.getElementById('donationMembershipProgram');
+    if (programSelect) {
+        programSelect.innerHTML = activePrograms.length
+            ? activePrograms.map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.code)})</option>`).join('')
+            : '<option value="">Belum ada program ACTIVE</option>';
+    }
+    const donorSelect = document.getElementById('donationMembershipDonor');
+    if (donorSelect) {
+        const users = donationState.users.filter(item => item.approval_status === 'APPROVED');
+        donorSelect.innerHTML = users.length
+            ? users.map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})${item.phone ? ` · ${escapeHtml(item.phone)}` : ' · tanpa nomor WA'}</option>`).join('')
+            : '<option value="">Belum ada user approved</option>';
+    }
+    const beneficiarySelect = document.getElementById('donationMembershipBeneficiary');
+    if (beneficiarySelect) {
+        beneficiarySelect.innerHTML = '<option value="">— Dana program umum —</option>' + donationState.beneficiaries.filter(item => item.is_active).map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.beneficiary_type || 'PERSON')})</option>`).join('');
+    }
+    const userBeneficiarySelect = document.getElementById('donationBeneficiaryUser');
+    if (userBeneficiarySelect) {
+        userBeneficiarySelect.innerHTML = '<option value="">— Tidak dihubungkan —</option>' + donationState.users.filter(item => item.approval_status === 'APPROVED').map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})</option>`).join('');
+    }
+    const transactionSelect = document.getElementById('donationTransactionMembership');
+    if (transactionSelect) {
+        transactionSelect.innerHTML = donationState.memberships.map(item => `<option value="${item.id}">${escapeHtml(donationMembershipLabel(item))}</option>`).join('');
+    }
+    const caseProgramSelect = document.getElementById('donationCaseProgram');
+    if (caseProgramSelect) {
+        caseProgramSelect.innerHTML = donationState.programs.filter(item => item.status !== 'CLOSED').map(item => `<option value="${item.id}">${escapeHtml(item.name)} / ${escapeHtml(String(item.fund_year || ''))}</option>`).join('');
+    }
+    const caseStaffSelect = document.getElementById('donationCaseStaff');
+    if (caseStaffSelect) {
+        caseStaffSelect.innerHTML = donationState.users.filter(item => item.approval_status === 'APPROVED').map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})</option>`).join('');
+    }
+    const closureProgramSelect = document.getElementById('donationClosureProgram');
+    if (closureProgramSelect) {
+        closureProgramSelect.innerHTML = donationState.programs.filter(item => item.status !== 'CLOSED').map(item => `<option value="${item.id}">${escapeHtml(item.name)} / ${escapeHtml(String(item.fund_year || ''))}</option>`).join('');
+    }
+    const closureFoundationSelect = document.getElementById('donationClosureFoundation');
+    if (closureFoundationSelect) {
+        closureFoundationSelect.innerHTML = donationState.foundations.filter(item => item.is_active).map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.code)})</option>`).join('');
+    }
+}
+
+function renderDonationSettings() {
+    const panel = document.getElementById('donationAdminSettings');
+    if (panel) panel.classList.toggle('d-none', !canManageDonation());
+    if (!canManageDonation() || !donationState.settings) return;
+    const settings = donationState.settings;
+    const enabled = document.getElementById('donationSettingsEnabled');
+    const day = document.getElementById('donationSettingsDay');
+    const timezone = document.getElementById('donationSettingsTimezone');
+    const template = document.getElementById('donationSettingsTemplate');
+    if (enabled) enabled.value = settings.enabled ? 'true' : 'false';
+    if (day) day.value = settings.default_reminder_day || 1;
+    if (timezone) timezone.value = settings.timezone || 'Asia/Jakarta';
+    if (template) template.value = settings.message_template || '';
+}
+
+async function loadDonations() {
+    if (!currentUser) return;
+    const controls = document.getElementById('donationAdminControls');
+    if (controls) controls.classList.toggle('d-none', !canManageDonation());
+    try {
+        const caseQuery = canManageDonation()
+            ? supabaseClient.from('donation_incident_cases').select('*').order('created_at', { ascending: false }).limit(100)
+            : supabaseClient.from('v_donation_public_cases').select('*').order('created_at', { ascending: false }).limit(100);
+        const allocationQuery = canManageDonation()
+            ? supabaseClient.from('donation_staff_allocations').select('*').order('created_at', { ascending: false }).limit(100)
+            : supabaseClient.from('v_donation_public_allocations').select('*').order('created_at', { ascending: false }).limit(100);
+        const [programs, beneficiaries, foundations, memberships, transactions, reminders, cases, allocations, closures, disbursements, settings] = await Promise.all([
+            supabaseClient.from('donation_programs').select('*').order('fund_year', { ascending: false }).order('created_at', { ascending: false }),
+            supabaseClient.from('donation_beneficiaries').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_foundations').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_memberships').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_transactions').select('*').order('period_start', { ascending: false }).limit(100),
+            supabaseClient.from('donation_reminders').select('*').order('scheduled_for', { ascending: false }).limit(100),
+            caseQuery,
+            allocationQuery,
+            supabaseClient.from('donation_year_closures').select('*').order('fund_year', { ascending: false }),
+            supabaseClient.from('v_donation_public_foundation_disbursements').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_settings').select('*').eq('id', true).maybeSingle()
+        ]);
+        const responses = [programs, beneficiaries, foundations, memberships, transactions, reminders, cases, allocations, closures, disbursements, settings];
+        const failed = responses.find(response => response.error);
+        if (failed?.error) throw failed.error;
+        donationState.programs = programs.data || [];
+        donationState.beneficiaries = beneficiaries.data || [];
+        donationState.foundations = foundations.data || [];
+        donationState.memberships = memberships.data || [];
+        donationState.transactions = transactions.data || [];
+        donationState.reminders = reminders.data || [];
+        donationState.cases = cases.data || [];
+        donationState.allocations = allocations.data || [];
+        donationState.closures = closures.data || [];
+        donationState.disbursements = disbursements.data || [];
+        donationState.settings = settings.data || null;
+        if (canManageDonation()) {
+            const { data, error } = await supabaseClient.from('users').select('id,username,full_name,phone,approval_status').order('full_name');
+            if (error) throw error;
+            donationState.users = data || [];
+        } else if (currentProfile) {
+            donationState.users = [currentProfile];
+        }
+        renderDonationPrograms();
+        renderDonationBeneficiaries();
+        renderDonationCases();
+        renderDonationFoundations();
+        renderDonationMemberships();
+        renderDonationTransactions();
+        renderDonationSettings();
+        populateDonationSelects();
+        updateDonationSummary();
+    } catch (error) {
+        console.warn('loadDonations error:', error);
+        const message = String(error?.message || 'Tabel Donasi belum tersedia di Supabase.');
+        ['donationProgramsList', 'donationBeneficiariesList', 'donationCasesList', 'donationFoundationsList', 'donationMembershipsList', 'donationTransactionsList'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.innerHTML = `<div class="empty-state py-4"><i class="bi bi-database-exclamation"></i><div>Data Donasi belum dapat dimuat.</div><small class="text-muted">${escapeHtml(message)}</small></div>`;
+        });
+    }
+}
+
+function openDonationProgramModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur program donasi.');
+    document.getElementById('formDonationProgram')?.reset();
+    document.getElementById('donationProgramStatus').value = 'ACTIVE';
+    document.getElementById('donationProgramFundYear').value = new Date().getFullYear();
+    document.getElementById('donationProgramReminderDay').value = '1';
+    document.getElementById('donationProgramAllowVariable').checked = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationProgram')).show();
+}
+
+function openDonationBeneficiaryModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur penerima donasi.');
+    document.getElementById('formDonationBeneficiary')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationBeneficiary')).show();
+}
+
+function openDonationMembershipModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengaktifkan donatur.');
+    populateDonationSelects();
+    document.getElementById('formDonationMembership')?.reset();
+    document.getElementById('donationMembershipStartDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('donationMembershipWhatsapp').checked = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationMembership')).show();
+}
+
+function openDonationTransactionModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat transaksi donasi.');
+    populateDonationSelects();
+    document.getElementById('formDonationTransaction')?.reset();
+    document.getElementById('donationTransactionPeriod').value = new Date().toISOString().slice(0, 7);
+    document.getElementById('donationTransactionPaymentDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationTransaction')).show();
+}
+
+async function saveDonationProgram(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const code = document.getElementById('donationProgramCode').value.trim().toUpperCase();
+        const payload = {
+            code,
+            name: document.getElementById('donationProgramName').value.trim(),
+            status: document.getElementById('donationProgramStatus').value,
+            fund_year: Number(document.getElementById('donationProgramFundYear').value),
+            allocation_policy: 'STAFF_FIRST_FOUNDATION_FALLBACK',
+            reminder_day: Number(document.getElementById('donationProgramReminderDay').value),
+            default_amount: Number(document.getElementById('donationProgramDefaultAmount').value || 0) || null,
+            allow_variable_amount: document.getElementById('donationProgramAllowVariable').checked,
+            whatsapp_template: document.getElementById('donationProgramTemplate').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!code || !payload.name) throw new Error('Kode dan nama program wajib diisi.');
+        const { error } = await supabaseClient.from('donation_programs').upsert(payload, { onConflict: 'code' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationProgram'))?.hide();
+        donationMessage('Program donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan program: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationBeneficiary(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            beneficiary_type: document.getElementById('donationBeneficiaryType').value,
+            user_id: document.getElementById('donationBeneficiaryUser').value || null,
+            name: document.getElementById('donationBeneficiaryName').value.trim(),
+            organization: document.getElementById('donationBeneficiaryOrganization').value.trim() || null,
+            phone: formatPhone(document.getElementById('donationBeneficiaryPhone').value) || null,
+            notes: document.getElementById('donationBeneficiaryNotes').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.name) throw new Error('Nama penerima wajib diisi.');
+        const { error } = await supabaseClient.from('donation_beneficiaries').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationBeneficiary'))?.hide();
+        donationMessage('Penerima donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan penerima: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationMembership(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const amountMode = document.getElementById('donationMembershipAmountMode').value;
+        const fixedAmount = Number(document.getElementById('donationMembershipAmount').value || 0) || null;
+        if (amountMode === 'FIXED' && (!fixedAmount || fixedAmount <= 0)) throw new Error('Nominal tetap wajib lebih besar dari nol.');
+        const payload = {
+            program_id: document.getElementById('donationMembershipProgram').value,
+            donor_user_id: document.getElementById('donationMembershipDonor').value,
+            beneficiary_id: document.getElementById('donationMembershipBeneficiary').value || null,
+            amount_mode: amountMode,
+            fixed_amount: amountMode === 'FIXED' ? fixedAmount : null,
+            frequency: 'MONTHLY',
+            reminder_day: Number(document.getElementById('donationMembershipReminderDay').value || 0) || null,
+            whatsapp_opt_in: document.getElementById('donationMembershipWhatsapp').checked,
+            start_date: document.getElementById('donationMembershipStartDate').value,
+            end_date: document.getElementById('donationMembershipEndDate').value || null,
+            status: 'ACTIVE',
+            notes: document.getElementById('donationMembershipNotes').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.program_id || !payload.donor_user_id || !payload.start_date) throw new Error('Program, donor, dan tanggal mulai wajib diisi.');
+        const { error } = await supabaseClient.from('donation_memberships').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationMembership'))?.hide();
+        donationMessage('Donatur berhasil diaktifkan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mengaktifkan donatur: ${escapeHtml(error.message || 'User mungkin sudah memiliki komitmen yang sama.')}`, 'danger');
+    }
+}
+
+async function saveDonationTransaction(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const membershipId = document.getElementById('donationTransactionMembership').value;
+        const membership = donationState.memberships.find(item => item.id === membershipId);
+        const period = document.getElementById('donationTransactionPeriod').value;
+        const amount = Number(document.getElementById('donationTransactionAmount').value || 0);
+        if (!membership || !/^\d{4}-\d{2}$/.test(period) || amount <= 0) throw new Error('Komitmen, periode, dan nominal transaksi wajib valid.');
+        const payload = {
+            membership_id: membership.id,
+            donor_user_id: membership.donor_user_id,
+            beneficiary_id: membership.beneficiary_id || null,
+            period_start: `${period}-01`,
+            amount,
+            status: document.getElementById('donationTransactionStatus').value,
+            payment_date: document.getElementById('donationTransactionPaymentDate').value || null,
+            payment_method: document.getElementById('donationTransactionMethod').value,
+            reference: document.getElementById('donationTransactionReference').value.trim() || null,
+            notes: document.getElementById('donationTransactionNotes').value.trim() || null,
+            recorded_by: currentProfile.id
+        };
+        const { error } = await supabaseClient.from('donation_transactions').upsert(payload, { onConflict: 'membership_id,period_start' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationTransaction'))?.hide();
+        donationMessage('Transaksi donasi berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan transaksi: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function toggleDonationMembership(id, status) {
+    if (!canManageDonation()) return;
+    try {
+        const { error } = await supabaseClient.from('donation_memberships').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+        if (error) throw error;
+        donationMessage(`Status donatur berhasil diubah menjadi ${escapeHtml(status)}.`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mengubah status donatur: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+function openDonationCaseModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat kasus staff.');
+    populateDonationSelects();
+    document.getElementById('formDonationCase')?.reset();
+    document.getElementById('donationCaseDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationCase')).show();
+}
+
+async function saveDonationCase(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const staffId = document.getElementById('donationCaseStaff').value;
+        const staff = donationState.users.find(item => item.id === staffId);
+        const requestedAmount = Number(document.getElementById('donationCaseAmount').value || 0);
+        const payload = {
+            program_id: document.getElementById('donationCaseProgram').value,
+            staff_user_id: staffId,
+            staff_name_snapshot: staff?.full_name || staff?.username || 'Staff',
+            case_title: document.getElementById('donationCaseTitle').value.trim(),
+            public_summary: document.getElementById('donationCaseSummary').value.trim(),
+            incident_category: document.getElementById('donationCaseCategory').value,
+            incident_date: document.getElementById('donationCaseDate').value,
+            requested_amount: requestedAmount,
+            status: 'SUBMITTED',
+            created_by: currentProfile.id
+        };
+        if (!payload.program_id || !payload.staff_user_id || !payload.case_title || !payload.public_summary || requestedAmount <= 0) {
+            throw new Error('Dana, staff, judul, ringkasan, dan nominal wajib diisi.');
+        }
+        const { error } = await supabaseClient.from('donation_incident_cases').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationCase'))?.hide();
+        donationMessage('Kasus staff berhasil dicatat dan menunggu review Admin.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function approveDonationCase(id) {
+    if (!canManageDonation()) return;
+    const item = donationState.cases.find(caseItem => caseItem.id === id);
+    if (!item || !confirm(`Setujui kasus ${item.staff_name_snapshot} dengan nominal ${formatRupiah(item.requested_amount)}?`)) return;
+    try {
+        const { error } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'APPROVED',
+            approved_amount: item.requested_amount,
+            approved_by: currentProfile.id,
+            approved_at: new Date().toISOString(),
+            rejection_reason: null,
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
+        if (error) throw error;
+        donationMessage('Kasus berhasil disetujui. Admin dapat mencatat pembayaran berikutnya.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyetujui kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function rejectDonationCase(id) {
+    if (!canManageDonation()) return;
+    const reason = prompt('Alasan penolakan kasus:');
+    if (reason === null) return;
+    try {
+        const { error } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'REJECTED',
+            rejection_reason: reason.trim() || 'Tidak memenuhi kriteria',
+            approved_by: currentProfile.id,
+            approved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
+        if (error) throw error;
+        donationMessage('Kasus ditolak dan tercatat di riwayat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menolak kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+function openDonationAllocationModal(caseId) {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat pencairan.');
+    const item = donationState.cases.find(caseItem => caseItem.id === caseId);
+    if (!item || item.status !== 'APPROVED') return alert('Kasus belum berstatus APPROVED.');
+    document.getElementById('formDonationAllocation')?.reset();
+    document.getElementById('donationAllocationCaseId').value = item.id;
+    document.getElementById('donationAllocationCaseLabel').innerHTML = `<strong>${escapeHtml(item.staff_name_snapshot)}</strong> · ${escapeHtml(item.case_title)} · Disetujui ${formatRupiah(item.approved_amount || item.requested_amount)}`;
+    document.getElementById('donationAllocationAmount').value = item.approved_amount || item.requested_amount;
+    document.getElementById('donationAllocationDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationAllocation')).show();
+}
+
+async function saveDonationAllocation(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const caseId = document.getElementById('donationAllocationCaseId').value;
+        const item = donationState.cases.find(caseItem => caseItem.id === caseId);
+        const amount = Number(document.getElementById('donationAllocationAmount').value || 0);
+        if (!item || item.status !== 'APPROVED' || amount <= 0) throw new Error('Kasus harus APPROVED dan nominal pembayaran valid.');
+        const payload = {
+            case_id: item.id,
+            program_id: item.program_id,
+            recipient_user_id: item.staff_user_id,
+            recipient_name_snapshot: item.staff_name_snapshot,
+            amount,
+            status: 'PAID',
+            payment_date: document.getElementById('donationAllocationDate').value,
+            payment_method: document.getElementById('donationAllocationMethod').value,
+            reference: document.getElementById('donationAllocationReference').value.trim() || null,
+            notes: document.getElementById('donationAllocationNotes').value.trim() || null,
+            recorded_by: currentProfile.id
+        };
+        const { error: allocationError } = await supabaseClient.from('donation_staff_allocations').insert(payload);
+        if (allocationError) throw allocationError;
+        const { error: caseError } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'PAID',
+            approved_amount: amount,
+            closed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('id', item.id);
+        if (caseError) throw caseError;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationAllocation'))?.hide();
+        donationMessage('Penyaluran kepada staff berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mencatat penyaluran: ${escapeHtml(error.message || 'Pastikan kasus belum pernah dibayar.')}`, 'danger');
+    }
+}
+
+function openDonationFoundationModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur yayasan.');
+    document.getElementById('formDonationFoundation')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationFoundation')).show();
+}
+
+async function saveDonationFoundation(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            code: document.getElementById('donationFoundationCode').value.trim().toUpperCase(),
+            name: document.getElementById('donationFoundationName').value.trim(),
+            contact_name: document.getElementById('donationFoundationContact').value.trim() || null,
+            phone: formatPhone(document.getElementById('donationFoundationPhone').value) || null,
+            public_description: document.getElementById('donationFoundationDescription').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.code || !payload.name) throw new Error('Kode dan nama yayasan wajib diisi.');
+        const { error } = await supabaseClient.from('donation_foundations').upsert(payload, { onConflict: 'code' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationFoundation'))?.hide();
+        donationMessage('Yayasan fallback berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan yayasan: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+function openDonationClosureModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat melakukan closing tahunan.');
+    populateDonationSelects();
+    document.getElementById('formDonationClosure')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationClosure')).show();
+}
+
+async function prepareDonationYearClosure(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_prepare_donation_year_closure', {
+            p_program_id: document.getElementById('donationClosureProgram').value,
+            p_foundation_id: document.getElementById('donationClosureFoundation').value,
+            p_notes: document.getElementById('donationClosureNotes').value.trim() || null
+        });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationClosure'))?.hide();
+        donationMessage(`Closing berhasil disiapkan. Saldo fallback yayasan: <strong>${formatRupiah(data?.fallback_amount || 0)}</strong>. ${data?.status === 'PENDING_TRANSFER' ? 'Silakan catat transfer setelah pembayaran dilakukan.' : 'Periode sudah ditutup.'}`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Closing belum dapat dilakukan: ${escapeHtml(error.message || 'Pastikan semua kasus staff sudah selesai.')}`, 'danger');
+    }
+}
+
+async function markDonationFoundationPaid(id) {
+    if (!canManageDonation()) return;
+    const reference = prompt('Nomor referensi transfer yayasan:');
+    if (reference === null) return;
+    const method = prompt('Metode pembayaran:', 'TRANSFER') || 'TRANSFER';
+    try {
+        const { error } = await supabaseClient.rpc('admin_mark_foundation_disbursement_paid', {
+            p_disbursement_id: id,
+            p_transfer_date: new Date().toISOString().slice(0, 10),
+            p_payment_method: method,
+            p_reference: reference,
+            p_notes: null
+        });
+        if (error) throw error;
+        donationMessage('Transfer fallback ke yayasan berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mencatat transfer yayasan: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationSettings(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            enabled: document.getElementById('donationSettingsEnabled').value === 'true',
+            default_reminder_day: Number(document.getElementById('donationSettingsDay').value),
+            timezone: document.getElementById('donationSettingsTimezone').value.trim(),
+            message_template: document.getElementById('donationSettingsTemplate').value.trim(),
+            updated_by: currentProfile.id,
+            updated_at: new Date().toISOString()
+        };
+        if (!payload.timezone || !payload.message_template) throw new Error('Timezone dan template wajib diisi.');
+        const { error } = await supabaseClient.from('donation_settings').update(payload).eq('id', true);
+        if (error) throw error;
+        donationMessage('Pengaturan reminder donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan pengaturan reminder: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function enqueueDonationReminders() {
+    if (!canManageDonation()) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_enqueue_donation_reminders');
+        if (error) throw error;
+        donationMessage(`Antrean reminder berhasil dibuat: ${Number(data || 0)} donatur. Worker WhatsApp akan memproses antrean sesuai jadwal.`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal membuat antrean reminder: ${escapeHtml(error.message || 'Pastikan schema Donasi sudah dijalankan.')}`, 'danger');
     }
 }
 
@@ -5801,6 +7578,28 @@ function setupManagementMenu() {
         desc: 'Lihat daftar peserta, departemen, kamar & bus',
         action: "showPage('participants')"
     });
+
+    // DONASI (domain terpisah dari outing). Non-donatur tidak diberi menu
+    // laporan kasus; RLS tetap menjadi pengaman utama di database.
+    const hasDonationAccess = isTrustedAdmin() || donationState.memberships.some(item => item.status === 'ACTIVE');
+    if (hasDonationAccess) {
+        menus.push({
+            icon: 'bi-heart-fill',
+            title: 'Donasi',
+            desc: isTrustedAdmin() ? 'Kelola dana, kasus staff, yayasan & reminder WhatsApp' : 'Lihat komitmen, kasus, dan riwayat donasi',
+            action: "showPage('donations')"
+        });
+    }
+
+    // APPROVAL USER BARU (khusus Admin yang login secara nyata)
+    if (isTrustedAdmin()) {
+        menus.push({
+            icon: 'bi-person-check',
+            title: 'Approval User Baru',
+            desc: 'Setujui atau tolak akun yang baru mendaftar',
+            action: "showPage('user_approvals')"
+        });
+    }
 
     // KEUANGAN
     menus.push({
@@ -5891,15 +7690,26 @@ function setupManagementMenu() {
    PAGE NAVIGATION SWITCHER
 ===================================================== */
 function showPage(page) {
+    if (page === 'donations' && !isTrustedAdmin() && !donationState.memberships.some(item => item.status === 'ACTIVE')) {
+        alert('Menu Donasi hanya tersedia untuk donatur aktif. Hubungi Admin jika perlu diaktifkan.');
+        page = 'management';
+    }
+    if (page === 'user_approvals' && !isTrustedAdmin()) {
+        alert('Akses Ditolak: hanya Admin yang dapat melakukan approval user.');
+        page = 'management';
+    }
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
     const pageMap = {
         home: 'pageHome',
         rundown: 'pageRundown',
         finance: 'pageFinance',
+        donations: 'pageDonations',
         management: 'pageManagement',
         profile: 'pageProfile',
         participants: 'pageParticipants',
+        user_approvals: 'pageUserApprovals',
         purchasing: 'pagePurchasing',
         logistic: 'pageLogistic',
         konsumsi: 'pageKonsumsi',
@@ -5928,8 +7738,10 @@ function showPage(page) {
     if (page === 'konsumsi') loadKonsumsi();
     if (page === 'public_area') loadAnnouncements();
     if (page === 'participants') loadParticipants();
+    if (page === 'user_approvals') loadUserApprovals();
     if (page === 'rundown') loadRundown();
     if (page === 'finance') loadFinance();
+    if (page === 'donations') loadDonations();
 
     updateViewOnlyNotices();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -5943,6 +7755,7 @@ function showModule(moduleName) {
         'Public Area': 'public_area',
         'Pengaturan': 'settings',
         'Keuangan': 'finance',
+        'Donasi': 'donations',
         'Data Peserta': 'participants'
     };
     showPage(map[moduleName] || 'management');
@@ -5953,23 +7766,43 @@ function showModule(moduleName) {
 ===================================================== */
 async function logout() {
     if (!confirm('Apakah Anda yakin ingin logout?')) return;
-    localStorage.removeItem('outing_session');
     try { await supabaseClient.auth.signOut(); } catch (e) {}
     currentUser = null;
     currentProfile = null;
     currentOuting = null;
+    roleSimulationActive = false;
     showLogin();
     document.getElementById('loginForm')?.reset();
 }
 
 async function checkSession() {
-    const saved = STORAGE.get('outing_session', null);
-    if (saved && saved.username) {
-        currentUser = saved;
-        currentProfile = saved;
+    try {
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        const session = sessionData?.session;
+        if (!session?.user) {
+            showLogin();
+            return;
+        }
+
+        const profile = await getAuthenticatedProfile(session.user.id);
+        const approvalError = approvalErrorForUser(profile);
+        if (approvalError) throw approvalError;
+
+        currentUser = markAuthenticatedUser(profile, session.user);
+        currentProfile = currentUser;
         await loadDashboard();
-    } else {
+    } catch (error) {
+        console.warn('Session validation:', error);
+        try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
+        currentUser = null;
+        currentProfile = null;
+        roleSimulationActive = false;
         showLogin();
+        const loginMessage = document.getElementById('loginMessage');
+        if (loginMessage && error?.message) {
+            loginMessage.innerHTML = `<div class="alert alert-warning py-2 small"><i class="bi bi-shield-exclamation me-1"></i>${escapeHtml(error.message)}</div>`;
+        }
     }
 }
 

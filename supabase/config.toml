@@ -1,0 +1,2 @@
+[functions.send-donation-reminders]
+verify_jwt = false
