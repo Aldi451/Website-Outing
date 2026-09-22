@@ -2538,13 +2538,13 @@ function initSeedDataIfEmpty() {
     let existingUsers = STORAGE.get('outing_local_users', []);
     if (!existingUsers || existingUsers.length === 0) {
         const demoUsers = [
-            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', password: 'power88', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
-            { id: 'u-2', username: 'keuangan', full_name: 'Siti Rahma (Finance)', name: 'Siti Rahma', phone: '081234567891', password: 'finance123', role: 'FINANCE', section: 'KEUANGAN', department: 'Finance' },
-            { id: 'u-3', username: 'purchasing', full_name: 'Dedi Kurniawan (Purchasing)', name: 'Dedi Kurniawan', phone: '081234567892', password: 'purchase123', role: 'PURCHASING', section: 'PURCHASING', department: 'Procurement' },
-            { id: 'u-4', username: 'logistic', full_name: 'Hendra Saputra (Logistik)', name: 'Hendra Saputra', phone: '081234567893', password: 'logistik123', role: 'LOGISTIC', section: 'LOGISTIC', department: 'General Affairs' },
-            { id: 'u-5', username: 'konsumsi', full_name: 'Dewi Lestari (Konsumsi)', name: 'Dewi Lestari', phone: '081234567894', password: 'makan123', role: 'KONSUMSI', section: 'KONSUMSI', department: 'HR' },
-            { id: 'u-6', username: 'public', full_name: 'Rian Pratama (Public Area)', name: 'Rian Pratama', phone: '081234567895', password: 'public123', role: 'PUBLIC_AREA', section: 'PUBLIC_AREA', department: 'Corporate Secretary' },
-            { id: 'u-7', username: 'peserta', full_name: 'Ahmad Fauzi (Peserta)', name: 'Ahmad Fauzi', phone: '081234567896', password: 'peserta123', role: 'PARTICIPANT', section: 'PUBLIC', department: 'Engineering' }
+            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
+            { id: 'u-2', username: 'keuangan', full_name: 'Siti Rahma (Finance)', name: 'Siti Rahma', phone: '081234567891', role: 'FINANCE', section: 'KEUANGAN', department: 'Finance' },
+            { id: 'u-3', username: 'purchasing', full_name: 'Dedi Kurniawan (Purchasing)', name: 'Dedi Kurniawan', phone: '081234567892', role: 'PURCHASING', section: 'PURCHASING', department: 'Procurement' },
+            { id: 'u-4', username: 'logistic', full_name: 'Hendra Saputra (Logistik)', name: 'Hendra Saputra', phone: '081234567893', role: 'LOGISTIC', section: 'LOGISTIC', department: 'General Affairs' },
+            { id: 'u-5', username: 'konsumsi', full_name: 'Dewi Lestari (Konsumsi)', name: 'Dewi Lestari', phone: '081234567894', role: 'KONSUMSI', section: 'KONSUMSI', department: 'HR' },
+            { id: 'u-6', username: 'public', full_name: 'Rian Pratama (Public Area)', name: 'Rian Pratama', phone: '081234567895', role: 'PUBLIC_AREA', section: 'PUBLIC_AREA', department: 'Corporate Secretary' },
+            { id: 'u-7', username: 'peserta', full_name: 'Ahmad Fauzi (Peserta)', name: 'Ahmad Fauzi', phone: '081234567896', role: 'PARTICIPANT', section: 'PUBLIC', department: 'Engineering' }
         ];
         STORAGE.set('outing_local_users', demoUsers);
         existingUsers = demoUsers;
@@ -2560,18 +2560,18 @@ function initSeedDataIfEmpty() {
             requires_remote_approval: false
         };
     });
-    // Migrasi sekali jalan untuk browser yang masih menyimpan kredensial demo lama.
-    // Password custom yang sudah pernah diubah user tidak ditimpa.
-    const usersWithUpdatedAdminPassword = migratedUsers.map(user => {
-        const username = String(user.username || '').replace(/^@+/, '').toLowerCase();
-        if (username === 'admin' && user.password === 'admin123') {
-            return { ...user, password: 'power88' };
-        }
-        return user;
+    // Hapus kredensial dari cache browser lama. LocalStorage hanya boleh
+    // menyimpan data tampilan; Supabase Auth adalah satu-satunya sumber login.
+    const sanitizedUsers = migratedUsers.map(user => {
+        const profile = Object.fromEntries(Object.entries(user).filter(([key]) =>
+            !key.toLowerCase().includes('password')
+        ));
+        return profile;
     });
-    if (JSON.stringify(usersWithUpdatedAdminPassword) !== JSON.stringify(existingUsers || [])) {
-        STORAGE.set('outing_local_users', usersWithUpdatedAdminPassword);
+    if (JSON.stringify(sanitizedUsers) !== JSON.stringify(existingUsers || [])) {
+        STORAGE.set('outing_local_users', sanitizedUsers);
     }
+    existingUsers = sanitizedUsers;
 
     // 3. Rundowns
     if (!STORAGE.get('outing_rundowns', null)) {
@@ -2692,98 +2692,6 @@ function generateUUID() {
     });
 }
 
-function getWebCrypto() {
-    if (typeof window !== 'undefined' && window.crypto) return window.crypto;
-    if (typeof crypto !== 'undefined') return crypto;
-    return null;
-}
-
-function bytesToBase64(value) {
-    const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
-    let binary = '';
-    bytes.forEach(byte => { binary += String.fromCharCode(byte); });
-    return btoa(binary);
-}
-
-function base64ToBytes(value) {
-    const binary = atob(value);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes;
-}
-
-function constantTimeEqual(left, right) {
-    if (!left || !right || left.length !== right.length) return false;
-    let result = 0;
-    for (let i = 0; i < left.length; i++) {
-        result |= left.charCodeAt(i) ^ right.charCodeAt(i);
-    }
-    return result === 0;
-}
-
-// Password akun baru tidak disimpan sebagai plaintext. Hash ini tetap dapat
-// diverifikasi di browser karena aplikasi lama menggunakan tabel users custom.
-async function hashPassword(password) {
-    const webCrypto = getWebCrypto();
-    if (!webCrypto || !webCrypto.subtle || typeof TextEncoder === 'undefined') {
-        throw new Error('Browser tidak mendukung Web Crypto. Buka aplikasi melalui HTTPS atau server lokal.');
-    }
-    const iterations = 120000;
-    const salt = webCrypto.getRandomValues(new Uint8Array(16));
-    const key = await webCrypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(password),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits']
-    );
-    const bits = await webCrypto.subtle.deriveBits(
-        { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-        key,
-        256
-    );
-    return `pbkdf2$${iterations}$${bytesToBase64(salt)}$${bytesToBase64(bits)}`;
-}
-
-async function verifyPasswordHash(password, storedHash) {
-    if (!storedHash) return false;
-    if (!String(storedHash).startsWith('pbkdf2$')) return false;
-    const parts = String(storedHash).split('$');
-    if (parts.length !== 4) return false;
-    const iterations = Number(parts[1]);
-    if (!Number.isFinite(iterations) || iterations < 1) return false;
-    const webCrypto = getWebCrypto();
-    if (!webCrypto || !webCrypto.subtle || typeof TextEncoder === 'undefined') return false;
-    try {
-        const key = await webCrypto.subtle.importKey(
-            'raw',
-            new TextEncoder().encode(password),
-            { name: 'PBKDF2' },
-            false,
-            ['deriveBits']
-        );
-        const bits = await webCrypto.subtle.deriveBits(
-            { name: 'PBKDF2', salt: base64ToBytes(parts[2]), iterations, hash: 'SHA-256' },
-            key,
-            256
-        );
-        return constantTimeEqual(bytesToBase64(bits), parts[3]);
-    } catch (error) {
-        console.warn('Password verification error:', error);
-        return false;
-    }
-}
-
-async function verifyUserPassword(user, password) {
-    if (user && user.password_hash) return verifyPasswordHash(password, user.password_hash);
-    // Fallback only for the pre-existing demo/local accounts. New registrations
-    // never write this field.
-    if (user && Object.prototype.hasOwnProperty.call(user, 'password')) {
-        return String(user.password || '') === String(password || '');
-    }
-    return false;
-}
-
 function getApprovalStatus(user) {
     const raw = String(user?.approval_status || '').trim().toUpperCase();
     if (!raw) return 'APPROVED'; // backward compatible with legacy/demo users
@@ -2810,17 +2718,6 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-}
-
-function requiresRemoteApproval(user) {
-    return user?.requires_remote_approval === true;
-}
-
-function safeUserForSession(user) {
-    const safe = { ...(user || {}) };
-    delete safe.password;
-    delete safe.password_hash;
-    return safe;
 }
 
 function togglePassword(inputId, button) {
@@ -2916,7 +2813,9 @@ function isTrustedAdmin() {
     const authenticatedSection = String(currentUser?.authenticated_section || currentUser?.section || '').toUpperCase();
     const activeRole = getUserRole();
     const activeSection = getUserSection();
-    const isAdminRole = authenticatedRole === 'ADMIN' || authenticatedRole === 'INITIATOR';
+    // Approval is intentionally stricter than module management: only the
+    // authenticated ADMIN role may call the server-side approval RPC.
+    const isAdminRole = authenticatedRole === 'ADMIN';
     const roleUnchanged = activeRole === authenticatedRole;
     const sectionUnchanged = !authenticatedSection || activeSection === authenticatedSection;
     return !roleSimulationActive && isAdminRole && roleUnchanged && sectionUnchanged;
@@ -2984,91 +2883,35 @@ function quickLoginDemo(userId, password) {
 }
 
 /* =====================================================
-   LOGIN HANDLER
+   SUPABASE AUTH SESSION HELPERS
 ===================================================== */
-function supabaseQueryWithTimeout(queryPromise, timeoutMs = 5000) {
-    return new Promise(resolve => {
-        let settled = false;
-        const timer = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            resolve({ data: null, error: new Error('Koneksi ke Supabase timeout.'), timedOut: true });
-        }, timeoutMs);
-
-        queryPromise.then(result => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            resolve(result || { data: null, error: null });
-        }).catch(error => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            resolve({ data: null, error });
-        });
-    });
+function authEmailForUsername(username) {
+    return `${String(username || '').replace(/^@+/, '').trim().toLowerCase()}@outing.local`;
 }
 
-async function fetchRemoteUser(identifier, timeoutMs = 5000) {
-    if (typeof supabaseClient === 'undefined' || !supabaseClient) {
-        return { data: null, error: new Error('Supabase belum terhubung.') };
+async function resolveLoginIdentifier(identifier) {
+    const raw = String(identifier || '').trim();
+    const withoutAt = raw.replace(/^@+/, '').toLowerCase();
+    if (withoutAt.includes('@')) {
+        return { email: withoutAt, username: withoutAt.split('@')[0] };
     }
-
-    const rawIdentifier = String(identifier || '').trim();
-    const cleanIdentifier = rawIdentifier.replace(/^@+/, '').toLowerCase();
-    const usernameResult = await supabaseQueryWithTimeout(
-        supabaseClient
-            .from('users')
-            .select('*')
-            .or(`username.eq.${cleanIdentifier},username.eq.@${cleanIdentifier}`)
-            .limit(1)
-            .maybeSingle(),
-        timeoutMs
-    );
-
-    if (usernameResult.timedOut || usernameResult.error) return usernameResult;
-    if (usernameResult.data) return usernameResult;
-
-    const digits = rawIdentifier.replace(/\D/g, '');
-    if (digits.length >= 8) {
-        const phoneResult = await supabaseQueryWithTimeout(
-            supabaseClient
-                .from('users')
-                .select('*')
-                .eq('phone', formatPhone(rawIdentifier))
-                .limit(1)
-                .maybeSingle(),
-            timeoutMs
-        );
-        if (phoneResult.timedOut || phoneResult.error || phoneResult.data) return phoneResult;
-    }
-
-    return { data: null, error: null };
+    const { data, error } = await supabaseClient.rpc('resolve_login_username', {
+        p_identifier: raw
+    });
+    if (error) throw new Error('Tidak dapat memeriksa User ID ke Supabase. Periksa koneksi lalu coba lagi.');
+    if (!data) throw new Error('User ID atau Nomor WhatsApp tidak ditemukan.');
+    return { email: authEmailForUsername(data), username: String(data).toLowerCase() };
 }
 
-function syncRemoteUserToLocal(remoteUser, localFallback = null) {
-    if (!remoteUser) return localFallback;
-    const localUsers = STORAGE.get('outing_local_users', []);
-    const remoteUsername = String(remoteUser.username || '').replace(/^@+/, '').toLowerCase();
-    const localIndex = localUsers.findIndex(user => {
-        const username = String(user.username || '').replace(/^@+/, '').toLowerCase();
-        return (remoteUser.id && String(user.id) === String(remoteUser.id)) ||
-            (remoteUsername && username === remoteUsername);
-    });
-
-    const merged = {
-        ...(localIndex >= 0 ? localUsers[localIndex] : {}),
-        ...(localFallback || {}),
-        ...remoteUser,
-        requires_remote_approval: localFallback?.requires_remote_approval !== false
-            ? true
-            : false
-    };
-
-    if (localIndex >= 0) localUsers[localIndex] = merged;
-    else localUsers.push(merged);
-    STORAGE.set('outing_local_users', localUsers);
-    return merged;
+async function getAuthenticatedProfile(authUserId) {
+    const { data, error } = await supabaseClient
+        .from('users')
+        .select('*, roles(id, name), sections(id, name)')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profil aplikasi untuk akun Auth ini belum tersedia. Hubungi Admin.');
+    return data;
 }
 
 function approvalErrorForUser(user) {
@@ -3083,20 +2926,17 @@ function approvalErrorForUser(user) {
     return null;
 }
 
-function markAuthenticatedUser(user) {
+function markAuthenticatedUser(user, authUser = null) {
     const authenticated = { ...(user || {}) };
+    authenticated.auth_user_id = authUser?.id || authenticated.auth_user_id || authenticated.id;
+    authenticated.auth_email = authUser?.email || authenticated.auth_email || '';
     authenticated.authenticated_role = String(
-        authenticated.authenticated_role || authenticated.roles?.name || authenticated.role || 'PARTICIPANT'
+        authenticated.roles?.name || authenticated.role || 'PARTICIPANT'
     ).toUpperCase();
     authenticated.authenticated_section = String(
-        authenticated.authenticated_section || authenticated.sections?.name || authenticated.section || ''
+        authenticated.sections?.name || authenticated.section || ''
     ).toUpperCase();
-    roleSimulationActive = authenticated.role &&
-        String(authenticated.role).toUpperCase() !== authenticated.authenticated_role;
-    if (authenticated.authenticated_section && authenticated.section) {
-        roleSimulationActive = roleSimulationActive ||
-            String(authenticated.section).toUpperCase() !== authenticated.authenticated_section;
-    }
+    roleSimulationActive = false;
     return authenticated;
 }
 
@@ -3106,9 +2946,6 @@ function markAuthenticatedUser(user) {
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const rawUserId = document.getElementById('loginUserId').value.trim();
-    const cleanUserId = rawUserId.replace(/^@+/, '').toLowerCase();
-    const phoneClean = formatPhone(rawUserId);
-    const rawDigits = rawUserId.replace(/\D/g, '');
     const password = document.getElementById('loginPassword').value;
     const btn = document.getElementById('loginBtn');
     const message = document.getElementById('loginMessage');
@@ -3121,65 +2958,31 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         if (!rawUserId) throw new Error('Silakan masukkan User ID atau Nomor WhatsApp.');
         if (!password) throw new Error('Silakan masukkan password.');
 
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const matchedLocal = localUsers.find(user => {
-            const username = String(user.username || '').replace(/^@+/, '').toLowerCase();
-            const phone = String(user.phone || '').replace(/\D/g, '');
-            const id = String(user.id || '').toLowerCase();
-            if (username && username === cleanUserId) return true;
-            if (id && id === cleanUserId) return true;
-            if (user.phone && (user.phone === rawUserId || user.phone === phoneClean)) return true;
-            return rawDigits.length >= 8 && phone && (phone === rawDigits || phone.endsWith(rawDigits) || rawDigits.endsWith(phone));
+        const loginIdentity = await resolveLoginIdentifier(rawUserId);
+        const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+            email: loginIdentity.email,
+            password
         });
-
-        // Supabase selalu menjadi sumber status approval bila akun ditemukan di sana.
-        // Ini mencegah cache LocalStorage yang masih PENDING/APPROVED menjadi jalan pintas.
-        const remoteResult = await fetchRemoteUser(rawUserId);
-        const remoteUser = remoteResult.data;
-        let foundUser = null;
-
-        if (remoteUser) {
-            const approvalError = approvalErrorForUser(remoteUser);
-            if (approvalError) throw approvalError;
-
-            // Akun baru menggunakan password_hash. Fallback ke akun lokal hanya
-            // untuk kompatibilitas akun demo lama yang belum punya kredensial DB.
-            const credentialUser = (remoteUser.password_hash || Object.prototype.hasOwnProperty.call(remoteUser, 'password'))
-                ? remoteUser
-                : matchedLocal;
-            if (!credentialUser || !(await verifyUserPassword(credentialUser, password))) {
-                throw new Error('Password yang Anda masukkan salah.');
+        if (authError) {
+            if (String(authError.message || '').toLowerCase().includes('email not confirmed')) {
+                throw new Error('Email akun belum dikonfirmasi. Nonaktifkan email confirmation untuk domain demo atau gunakan email valid.');
             }
-            foundUser = syncRemoteUserToLocal(remoteUser, matchedLocal);
-        } else {
-            if (!matchedLocal) {
-                if (remoteResult.error) throw new Error('Tidak dapat memeriksa akun ke Supabase. Periksa koneksi internet lalu coba lagi.');
-                throw new Error('User ID atau Password yang Anda masukkan tidak ditemukan.');
-            }
-
-            // User baru wajib tervalidasi ke Supabase. Saat jaringan gagal
-            // atau record remote tidak ditemukan, fail closed agar cache lokal
-            // tidak dapat dipakai untuk melewati approval.
-            if (requiresRemoteApproval(matchedLocal) && (remoteResult.error || !remoteUser)) {
-                throw new Error('Status approval belum dapat diverifikasi ke Supabase. Periksa koneksi internet lalu coba lagi.');
-            }
-
-            const approvalError = approvalErrorForUser(matchedLocal);
-            if (approvalError) throw approvalError;
-            if (!(await verifyUserPassword(matchedLocal, password))) {
-                throw new Error('Password yang Anda masukkan salah.');
-            }
-            foundUser = matchedLocal;
+            throw new Error('User ID atau Password yang Anda masukkan salah.');
+        }
+        if (!authData?.user || !authData?.session) {
+            throw new Error('Sesi Supabase Auth tidak berhasil dibuat.');
         }
 
-        if (!foundUser) throw new Error('User ID atau Password yang Anda masukkan tidak ditemukan.');
+        const profile = await getAuthenticatedProfile(authData.user.id);
+        const approvalError = approvalErrorForUser(profile);
+        if (approvalError) {
+            await supabaseClient.auth.signOut();
+            throw approvalError;
+        }
 
-        syncUsersToParticipants();
-        currentUser = markAuthenticatedUser(foundUser);
+        currentUser = markAuthenticatedUser(profile, authData.user);
         currentProfile = currentUser;
-        STORAGE.set('outing_session', safeUserForSession(currentUser));
         await loadDashboard();
-
     } catch (error) {
         console.error('Login error:', error);
         message.innerHTML = `
@@ -3227,134 +3030,66 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
     const phone = formatPhone(phoneInput);
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan ke Supabase...`;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Membuat akun Auth...`;
     message.innerHTML = '';
 
     try {
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const alreadyExists = localUsers.some(user => {
-            const localUsername = String(user.username || '').replace(/^@+/, '').toLowerCase();
-            return localUsername === username;
-        });
-        if (alreadyExists) {
-            throw new Error(`User ID / Username "${username}" sudah terdaftar. Silakan gunakan User ID lain.`);
-        }
-
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
-            throw new Error('Supabase belum terhubung. Data tidak disimpan secara lokal agar tidak kehilangan data.');
-        }
-
-        // Cek duplikasi di database sebelum membuat akun baru.
-        const remoteCheck = await fetchRemoteUser(username);
-        if (remoteCheck.error) {
-            throw new Error('Tidak dapat memeriksa username ke Supabase. Periksa koneksi lalu coba lagi.');
-        }
-        if (remoteCheck.data) {
-            throw new Error(`User ID / Username "${username}" sudah terdaftar di Supabase. Silakan gunakan User ID lain.`);
-        }
-
-        const userId = generateUUID();
-        const participantId = generateUUID();
-        const now = new Date().toISOString();
-        const passwordHash = await hashPassword(password);
         const outingInfo = currentOuting || STORAGE.get('outing_current_info', {}) || {};
-
-        // Simpan akun terlebih dahulu dengan status PENDING. Password tidak pernah
-        // dikirim sebagai plaintext; hanya hash PBKDF2 yang disimpan di Supabase.
-        const userPayload = {
-            id: userId,
-            username,
-            full_name: name,
-            phone,
-            department: 'Peserta',
-            role: 'PARTICIPANT',
-            section: 'PUBLIC',
-            password_hash: passwordHash,
-            approval_status: 'PENDING',
-            created_at: now,
-            updated_at: now
-        };
-        const { data: remoteUser, error: userError } = await supabaseClient
-            .from('users')
-            .insert(userPayload)
-            .select('*')
-            .single();
-        if (userError) throw userError;
-
-        // Profil peserta juga ditulis ke Supabase, supaya akun dan direktori
-        // peserta tetap konsisten di perangkat/admin yang berbeda.
-        const participantPayload = {
-            id: participantId,
-            outing_id: isUuid(outingInfo.id) ? outingInfo.id : null,
-            user_id: userId,
-            username,
-            full_name: name,
-            phone,
-            department: 'Peserta',
-            gender: 'L',
-            transport: 'Bus 1',
-            room: 'Villa',
-            status: 'CONFIRMED',
-            created_at: now
-        };
-        const { error: participantError } = await supabaseClient
-            .from('participants')
-            .insert(participantPayload);
-        if (participantError) {
-            throw new Error(`Akun tersimpan, tetapi data peserta gagal disimpan ke Supabase: ${participantError.message}`);
+        const { data, error } = await supabaseClient.auth.signUp({
+            email: authEmailForUsername(username),
+            password,
+            options: {
+                data: {
+                    username,
+                    full_name: name,
+                    phone,
+                    department: 'Peserta',
+                    outing_id: isUuid(outingInfo.id) ? outingInfo.id : ''
+                }
+            }
+        });
+        if (error) {
+            if (String(error.message || '').toLowerCase().includes('already registered')) {
+                throw new Error(`User ID / Username "${username}" sudah terdaftar.`);
+            }
+            throw error;
         }
+        if (!data?.user) throw new Error('Supabase tidak mengembalikan akun baru.');
 
-        // Cache lokal hanya dibuat setelah kedua penulisan Supabase berhasil.
+        // If email confirmation is disabled, signUp may create a session. A new
+        // profile is still PENDING and must never enter the app automatically.
+        if (data.session) await supabaseClient.auth.signOut();
+
         const newUser = {
-            id: userId,
+            id: data.user.id,
+            auth_user_id: data.user.id,
             username,
             full_name: name,
             name,
             phone,
-            password_hash: passwordHash,
             role: 'PARTICIPANT',
             section: 'PUBLIC',
             department: 'Peserta',
             approval_status: 'PENDING',
             requires_remote_approval: true,
             registration_source: 'SUPABASE',
-            created_at: now
+            created_at: new Date().toISOString()
         };
+        const localUsers = STORAGE.get('outing_local_users', []).filter(user =>
+            String(user.username || '').replace(/^@+/, '').toLowerCase() !== username
+        );
         localUsers.push(newUser);
         STORAGE.set('outing_local_users', localUsers);
-
-        let participants = STORAGE.get('outing_participants', []);
-        if (!Array.isArray(participants)) participants = [];
-        participants.push({
-            id: participantId,
-            user_id: userId,
-            username,
-            full_name: name,
-            name,
-            phone,
-            department: 'Peserta',
-            gender: 'L',
-            transport: 'Bus 1',
-            room: 'Villa',
-            status: 'CONFIRMED',
-            approval_status: 'PENDING',
-            created_at: now
-        });
-        STORAGE.set('outing_participants', participants);
         syncUsersToParticipants();
-
-        const statEl = document.getElementById('statParticipants');
-        if (statEl) statEl.textContent = participants.length;
 
         message.innerHTML = `
             <div class="alert alert-success py-2 small">
                 <i class="bi bi-check-circle-fill me-1"></i>
-                <strong>Registrasi tersimpan di Supabase.</strong> Akun <strong>@${escapeHtml(username)}</strong>
+                <strong>Registrasi Auth tersimpan di Supabase.</strong> Akun <strong>@${escapeHtml(username)}</strong>
                 menunggu persetujuan Admin. Login baru dapat dilakukan setelah akun disetujui.
             </div>
         `;
         document.getElementById('registerForm').reset();
-
         setTimeout(() => {
             showLogin();
             const loginInput = document.getElementById('loginUserId');
@@ -3368,10 +3103,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
                     </div>
                 `;
             }
-            const passInput = document.getElementById('loginPassword');
-            if (passInput) passInput.focus();
         }, 1000);
-
     } catch (error) {
         console.error('Register error:', error);
         message.innerHTML = `
@@ -3391,18 +3123,12 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 ===================================================== */
 async function loadDashboard() {
     try {
-        showApp();
-
-        if (!currentUser) {
-            const savedSession = STORAGE.get('outing_session', null);
-            if (savedSession) currentUser = savedSession;
-        }
-
         if (!currentUser) {
             showLogin();
             return;
         }
 
+        showApp();
         await loadProfile();
         await loadOuting();
 
@@ -3423,6 +3149,12 @@ async function loadDashboard() {
 
     } catch (error) {
         console.error('Dashboard error:', error);
+        try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
+        currentUser = null;
+        currentProfile = null;
+        roleSimulationActive = false;
+        showLogin();
+        throw error;
     }
 }
 
@@ -3438,58 +3170,61 @@ function updateRoleSimulatorVisibility() {
    LOAD PROFILE
 ===================================================== */
 async function loadProfile() {
-    try {
-        let data = null;
-        if (currentUser && currentUser.id) {
-            try {
-                const { data: dbData } = await supabaseClient
-                    .from('users')
-                    .select('*, roles(id, name), sections(id, name)')
-                    .eq('id', currentUser.id)
-                    .maybeSingle();
-                if (dbData) data = dbData;
-            } catch (err) {}
-        }
+    const authUserId = currentUser?.auth_user_id || currentUser?.id;
+    if (!authUserId) throw new Error('Sesi Supabase Auth tidak ditemukan. Silakan login ulang.');
 
-        if (!data) data = currentProfile || currentUser;
-        currentProfile = data;
-        if (!data) return;
+    const { data, error } = await supabaseClient
+        .from('users')
+        .select('*, roles(id, name), sections(id, name)')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profil aplikasi tidak ditemukan untuk sesi Auth ini.');
 
-        const username = data.username || currentUser?.username || '';
-        const fullName = data.full_name || data.name || currentUser?.full_name || 'User';
-        const initial = (username || fullName || 'U').charAt(0).toUpperCase();
-        const phone = data.phone || currentUser?.phone || '-';
-        const role = getUserRole();
-        const section = getUserSection() || '-';
-        const department = data.department || '-';
+    const approvalError = approvalErrorForUser(data);
+    if (approvalError) {
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        currentProfile = null;
+        throw approvalError;
+    }
 
-        document.getElementById('topUserName').textContent = fullName;
-        document.getElementById('topUserRole').textContent = role;
-        document.getElementById('topAvatar').textContent = initial;
+    const authUser = currentUser?.auth_email
+        ? { id: authUserId, email: currentUser.auth_email }
+        : (await supabaseClient.auth.getUser()).data?.user;
+    currentProfile = data;
+    currentUser = markAuthenticatedUser(data, authUser);
 
-        document.getElementById('profileAvatar').textContent = initial;
-        document.getElementById('profileName').textContent = fullName;
-        document.getElementById('profileUsername').textContent = '@' + username;
-        document.getElementById('profilePhone').textContent = phone;
-        document.getElementById('profileDepartment').textContent = department;
-        document.getElementById('profileRoleBadge').textContent = role;
-        document.getElementById('profileSection').textContent = section;
-        updateRoleSimulatorVisibility();
+    const username = data.username || '';
+    const fullName = data.full_name || username || 'User';
+    const initial = (username || fullName || 'U').charAt(0).toUpperCase();
+    const phone = data.phone || '-';
+    const role = getUserRole();
+    const section = getUserSection() || '-';
+    const department = data.department || '-';
 
-        // Set simulator dropdown value
-        const simSelect = document.getElementById('roleSimulatorSelect');
-        if (simSelect) {
-            const combined = `${role}|${section}`;
-            for (let opt of simSelect.options) {
-                if (opt.value === combined || opt.value.startsWith(role + '|')) {
-                    simSelect.value = opt.value;
-                    break;
-                }
+    document.getElementById('topUserName').textContent = fullName;
+    document.getElementById('topUserRole').textContent = role;
+    document.getElementById('topAvatar').textContent = initial;
+
+    document.getElementById('profileAvatar').textContent = initial;
+    document.getElementById('profileName').textContent = fullName;
+    document.getElementById('profileUsername').textContent = '@' + username;
+    document.getElementById('profilePhone').textContent = phone;
+    document.getElementById('profileDepartment').textContent = department;
+    document.getElementById('profileRoleBadge').textContent = role;
+    document.getElementById('profileSection').textContent = section;
+    updateRoleSimulatorVisibility();
+
+    const simSelect = document.getElementById('roleSimulatorSelect');
+    if (simSelect) {
+        const combined = `${role}|${section}`;
+        for (const opt of simSelect.options) {
+            if (opt.value === combined || opt.value.startsWith(role + '|')) {
+                simSelect.value = opt.value;
+                break;
             }
         }
-
-    } catch (error) {
-        console.error('loadProfile error:', error);
     }
 }
 
@@ -3520,9 +3255,7 @@ function applyRoleSimulation() {
         currentProfile.role = newRole;
         currentProfile.section = newSection;
     }
-    STORAGE.set('outing_session', safeUserForSession(currentUser || currentProfile));
 
-    loadProfile();
     updateRoleSimulatorVisibility();
     setupManagementMenu();
     updateViewOnlyNotices();
@@ -3558,77 +3291,25 @@ async function changeUserPassword(e) {
     if (message) message.innerHTML = '';
 
     try {
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const currentUsername = String(currentUser.username || '').replace(/^@+/, '').toLowerCase();
-        const localIndex = localUsers.findIndex(user =>
-            (currentUser.id && String(user.id) === String(currentUser.id)) ||
-            (currentUsername && String(user.username || '').replace(/^@+/, '').toLowerCase() === currentUsername)
-        );
-        const localUser = localIndex >= 0 ? localUsers[localIndex] : null;
-        let remoteUser = null;
+        const authUser = (await supabaseClient.auth.getUser()).data?.user;
+        const email = authUser?.email || currentUser.auth_email || authEmailForUsername(currentUser.username);
+        if (!email) throw new Error('Identitas Auth tidak ditemukan. Silakan login ulang.');
 
-        // Akun hasil registrasi/akun Supabase wajib memperbarui password di DB.
-        // Demo account lokal tetap dapat mengganti password tanpa mengubah fitur lama.
-        const needsRemoteLookup = isUuid(currentUser.id) || requiresRemoteApproval(currentUser);
-        if (needsRemoteLookup) {
-            const remoteResult = await fetchRemoteUser(currentUser.username || currentUser.phone);
-            if (remoteResult.error) {
-                throw new Error('Tidak dapat terhubung ke Supabase untuk mengganti password.');
-            }
-            remoteUser = remoteResult.data;
-            if (!remoteUser) {
-                throw new Error('Data akun tidak ditemukan di Supabase.');
-            }
-            const approvalError = approvalErrorForUser(remoteUser);
-            if (approvalError) throw approvalError;
-        }
+        // Re-authenticate before changing the credential. The password never
+        // enters public.users or LocalStorage.
+        const { error: reauthError } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password: currentPassword
+        });
+        if (reauthError) throw new Error('Password saat ini salah.');
 
-        const credentialUser = remoteUser && (remoteUser.password_hash || Object.prototype.hasOwnProperty.call(remoteUser, 'password'))
-            ? remoteUser
-            : (localUser || remoteUser || currentUser);
-        if (!(await verifyUserPassword(credentialUser, currentPassword))) {
-            throw new Error('Password saat ini salah.');
-        }
-
-        const passwordHash = await hashPassword(newPassword);
-        const now = new Date().toISOString();
-
-        if (remoteUser) {
-            const { data: updatedRemote, error: updateError } = await supabaseClient
-                .from('users')
-                .update({ password_hash: passwordHash, updated_at: now })
-                .eq('id', String(remoteUser.id))
-                .select('*')
-                .maybeSingle();
-            if (updateError) throw updateError;
-            if (!updatedRemote) throw new Error('Password gagal diperbarui di Supabase.');
-        }
-
-        // Simpan hash di cache lokal agar login offline untuk demo account tetap
-        // kompatibel; plaintext password lama dihapus.
-        const targetIndex = localIndex >= 0 ? localIndex : localUsers.findIndex(user =>
-            currentUsername && String(user.username || '').replace(/^@+/, '').toLowerCase() === currentUsername
-        );
-        if (targetIndex >= 0) {
-            localUsers[targetIndex] = {
-                ...localUsers[targetIndex],
-                password_hash: passwordHash,
-                updated_at: now
-            };
-            delete localUsers[targetIndex].password;
-            STORAGE.set('outing_local_users', localUsers);
-        }
-
-        currentUser.password_hash = passwordHash;
-        delete currentUser.password;
-        if (currentProfile) {
-            currentProfile.password_hash = passwordHash;
-            delete currentProfile.password;
-        }
-        STORAGE.set('outing_session', safeUserForSession(currentUser));
+        const { error: updateError } = await supabaseClient.auth.updateUser({
+            password: newPassword
+        });
+        if (updateError) throw updateError;
 
         document.getElementById('changePasswordForm')?.reset();
-        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i>Password berhasil diubah.</div>`;
+        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i>Password Supabase Auth berhasil diubah.</div>`;
     } catch (error) {
         console.error('changeUserPassword error:', error);
         if (message) message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(error.message || 'Gagal mengubah password.')}</div>`;
@@ -5078,7 +4759,7 @@ function openTransactionModal(id = null) {
     modal.show();
 }
 
-function saveTransaction(e) {
+async function saveTransaction(e) {
     e.preventDefault();
     const items = STORAGE.get('outing_transactions', []);
     const newTrans = {
@@ -5093,15 +4774,23 @@ function saveTransaction(e) {
         created_at: new Date().toISOString()
     };
 
+    // `account` is a UI label; the schema uses cash_account_id. Omit unknown
+    // client-only fields from the REST payload.
+    const { account, ...transactionFields } = newTrans;
+    const remoteTrans = {
+        ...transactionFields,
+        created_by: isUuid(currentUser?.id) ? currentUser.id : null
+    };
+    const { error: remoteError } = await supabaseClient.from('cash_transactions').insert(remoteTrans);
+    if (remoteError) {
+        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan transaksi ke Supabase: ${escapeHtml(remoteError.message)}`);
+        return;
+    }
+
     items.unshift(newTrans);
     STORAGE.set('outing_transactions', items);
     bootstrap.Modal.getInstance(document.getElementById('modalTransaction')).hide();
     renderFinance(items);
-
-    // Sync Supabase
-    try {
-        supabaseClient.from('cash_transactions').insert(newTrans).then(() => {});
-    } catch (e) {}
 }
 
 function deleteTransaction(id) {
@@ -5281,6 +4970,30 @@ function initPurchaseDropZone() {
     }, false);
 }
 
+async function hydratePurchaseImageUrls(items) {
+    const list = Array.isArray(items) ? items.map(item => ({ ...item })) : [];
+    await Promise.all(list.map(async item => {
+        if (!item.image_path && item.image_url) {
+            const publicMarker = '/storage/v1/object/public/purchases/';
+            const publicIndex = String(item.image_url).indexOf(publicMarker);
+            if (publicIndex >= 0) {
+                item.image_path = decodeURIComponent(String(item.image_url).slice(publicIndex + publicMarker.length));
+            }
+        }
+        if (!item.image_path || !supabaseClient?.storage) return;
+        try {
+            const { data, error } = await supabaseClient.storage
+                .from('purchases')
+                .createSignedUrl(item.image_path, 3600);
+            if (!error && data?.signedUrl) item.image_url = data.signedUrl;
+        } catch (error) {
+            console.warn('Signed purchase image URL unavailable:', error);
+            item.image_url = '';
+        }
+    }));
+    return list;
+}
+
 async function loadPurchasing() {
     try {
         let list = [];
@@ -5293,6 +5006,8 @@ async function loadPurchasing() {
             list = STORAGE.get('outing_purchases', []);
         }
 
+        list = await hydratePurchaseImageUrls(list);
+        STORAGE.set('outing_purchases', list);
         renderPurchasing(list);
     } catch (error) {
         console.error('loadPurchasing error:', error);
@@ -5458,6 +5173,7 @@ async function savePurchase(e) {
     e.preventDefault();
     const id = document.getElementById('purchaseId').value;
     const list = STORAGE.get('outing_purchases', []);
+    const previousPurchaseList = JSON.parse(JSON.stringify(list));
     const saveBtn = document.getElementById('btnSavePurchase');
     const originalBtnHtml = saveBtn ? saveBtn.innerHTML : 'Simpan';
     if (saveBtn) {
@@ -5466,8 +5182,12 @@ async function savePurchase(e) {
     }
 
     let finalImageUrl = document.getElementById('purchaseImageUrl').value || '';
+    let finalImagePath = '';
+    const existingPurchase = id ? list.find(item => String(item.id) === String(id)) : null;
+    if (existingPurchase?.image_path) finalImagePath = existingPurchase.image_path;
 
-    // If a new compressed blob is pending upload, attempt to upload to Supabase Storage bucket 'purchases'
+    // Uploads go to a private bucket. Store only the object path in the table;
+    // the displayed URL is a short-lived signed URL generated for this session.
     if (currentPurchaseImageBlob) {
         try {
             const fileName = `purchasing/${Date.now()}_${generateUUID().substring(0, 8)}.jpg`;
@@ -5476,21 +5196,30 @@ async function savePurchase(e) {
                 .upload(fileName, currentPurchaseImageBlob, {
                     contentType: 'image/jpeg',
                     cacheControl: '3600',
-                    upsert: true
+                    upsert: false
                 });
-
-            if (!uploadErr && uploadData) {
-                const { data: publicData } = supabaseClient.storage
-                    .from('purchases')
-                    .getPublicUrl(fileName);
-                if (publicData && publicData.publicUrl) {
-                    finalImageUrl = publicData.publicUrl;
-                }
-            } else if (uploadErr) {
-                console.warn('Supabase storage upload error, using compressed base64 data URL:', uploadErr.message);
+            if (uploadErr || !uploadData?.path) {
+                throw new Error(`Foto gagal diunggah ke Storage Supabase: ${uploadErr?.message || 'path tidak tersedia'}`);
             }
-        } catch (storageEx) {
-            console.warn('Supabase storage unavailable, using compressed base64 fallback:', storageEx);
+            finalImagePath = uploadData.path;
+            const { data: signedData, error: signedError } = await supabaseClient.storage
+                .from('purchases')
+                .createSignedUrl(finalImagePath, 3600);
+            if (signedError || !signedData?.signedUrl) {
+                throw new Error(`Foto berhasil diunggah tetapi URL aman gagal dibuat: ${signedError?.message || 'unknown error'}`);
+            }
+            finalImageUrl = signedData.signedUrl;
+        } catch (storageError) {
+            currentPurchaseImageBlob = null;
+            if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
+                try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
+            }
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalBtnHtml;
+            }
+            showToast(`<i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(storageError.message || 'Foto gagal diunggah ke Supabase Storage.')}`);
+            return;
         }
     }
 
@@ -5508,6 +5237,7 @@ async function savePurchase(e) {
         status: document.getElementById('purchaseStatus').value,
         notes: document.getElementById('purchaseNotes').value.trim(),
         image_url: finalImageUrl,
+        image_path: finalImagePath,
         created_at: new Date().toISOString()
     };
 
@@ -5530,21 +5260,20 @@ async function savePurchase(e) {
     renderPurchasing(list);
     showToast(`<i class="bi bi-check2-circle me-1"></i> Permintaan pembelian <strong>${escapeHtml(newReq.item_name)}</strong> berhasil disimpan.`);
 
-    // Remote sync with Supabase table
+    // Persist the private object path, not an expiring signed URL.
     try {
-        const { error } = await supabaseClient.from('purchase_requests').upsert(newReq);
-        if (error) {
-            if (error.code === 'PGRST204' || (error.message && error.message.includes('image_url'))) {
-                console.warn('Kolom image_url belum ada di remote Supabase. Menyimpan data pokok ke remote DB...');
-                const dbReq = { ...newReq };
-                delete dbReq.image_url;
-                await supabaseClient.from('purchase_requests').upsert(dbReq);
-            } else {
-                console.error('Supabase upsert error:', error);
-            }
-        }
+        const dbReq = finalImagePath ? { ...newReq, image_url: '' } : newReq;
+        const { error } = await supabaseClient.from('purchase_requests').upsert(dbReq);
+        if (error) throw error;
     } catch (e) {
         console.error('Supabase sync error:', e);
+        // Do not leave a LocalStorage-only mutation presented as saved data.
+        STORAGE.set('outing_purchases', previousPurchaseList);
+        renderPurchasing(previousPurchaseList);
+        if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
+            try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
+        }
+        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan ke Supabase: ${escapeHtml(e.message || 'periksa RLS/koneksi.')}`);
     }
 }
 
@@ -6245,7 +5974,7 @@ function openParticipantModal(id = null) {
     modal.show();
 }
 
-function saveParticipant(e) {
+async function saveParticipant(e) {
     e.preventDefault();
     const id = document.getElementById('participantId').value;
     const list = STORAGE.get('outing_participants', []);
@@ -6256,6 +5985,7 @@ function saveParticipant(e) {
 
     const newPart = {
         id: id || generateUUID(),
+        outing_id: isUuid(currentOuting?.id) ? currentOuting.id : null,
         full_name: fullName,
         name: fullName,
         username: cleanUser || `user_${Date.now().toString().slice(-4)}`,
@@ -6267,6 +5997,20 @@ function saveParticipant(e) {
         status: document.getElementById('partStatus').value || 'CONFIRMED',
         created_at: new Date().toISOString()
     };
+
+    // Participant management is a server-backed admin operation. Do not claim
+    // success from a LocalStorage-only write when RLS rejects the request.
+    const { name, ...participantFields } = newPart;
+    const remotePart = {
+        ...participantFields,
+        id: isUuid(newPart.id) ? newPart.id : generateUUID(),
+        user_id: null
+    };
+    const { error: remoteError } = await supabaseClient.from('participants').upsert(remotePart);
+    if (remoteError) {
+        alert(`Data peserta gagal disimpan ke Supabase: ${remoteError.message}`);
+        return;
+    }
 
     if (id) {
         const idx = list.findIndex(p => String(p.id) === String(id));
@@ -6280,9 +6024,7 @@ function saveParticipant(e) {
     renderParticipants(list);
 
     const statEl = document.getElementById('statParticipants');
-    if (statEl) {
-        statEl.textContent = list.length;
-    }
+    if (statEl) statEl.textContent = list.length;
 }
 
 /* =====================================================
@@ -6293,7 +6035,7 @@ async function loadUserApprovals() {
     const message = document.getElementById('userApprovalMessage');
     if (!container) return;
     if (!isTrustedAdmin()) {
-        container.innerHTML = `<div class="alert alert-danger small">Akses hanya untuk Admin/Inisiator.</div>`;
+        container.innerHTML = `<div class="alert alert-danger small">Akses hanya untuk Admin.</div>`;
         return;
     }
 
@@ -6313,8 +6055,9 @@ async function loadUserApprovals() {
     } catch (error) {
         console.error('loadUserApprovals error:', error);
         container.innerHTML = `<div class="alert alert-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal memuat user dari Supabase: ${escapeHtml(error.message || 'Unknown error')}</div>`;
-        const localPending = STORAGE.get('outing_local_users', []).filter(user => getApprovalStatus(user) === 'PENDING');
-        updateUserApprovalBadge(localPending.length);
+        // Never render a local pending list as an approval authority. The
+        // server query is the only source for this admin action.
+        updateUserApprovalBadge(0);
     }
 }
 
@@ -6401,7 +6144,7 @@ function renderUserApprovals(users) {
 
 function rejectUserAccount(userId) {
     if (!isTrustedAdmin()) {
-        alert('Hanya Admin atau Inisiator yang dapat menolak user.');
+        alert('Hanya Admin yang dapat menolak user.');
         return;
     }
     const reason = prompt('Masukkan alasan penolakan (opsional):', 'Data registrasi belum dapat diverifikasi');
@@ -6411,7 +6154,7 @@ function rejectUserAccount(userId) {
 
 async function setUserApprovalStatus(userId, nextStatus, rejectionReason = '') {
     if (!isTrustedAdmin()) {
-        alert('Akses Ditolak: hanya Admin atau Inisiator yang dapat melakukan approval user.');
+        alert('Akses Ditolak: hanya Admin yang dapat melakukan approval user.');
         return;
     }
     const status = String(nextStatus || '').toUpperCase();
@@ -6421,40 +6164,30 @@ async function setUserApprovalStatus(userId, nextStatus, rejectionReason = '') {
     if (message) message.innerHTML = `<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-1"></span> Menyimpan perubahan approval ke Supabase...</div>`;
 
     try {
-        const now = new Date().toISOString();
-        const payload = {
-            approval_status: status,
-            approved_at: status === 'APPROVED' ? now : null,
-            approved_by: status === 'APPROVED' && isUuid(currentUser?.id) ? currentUser.id : null,
-            rejection_reason: status === 'REJECTED' ? (rejectionReason || null) : null,
-            updated_at: now
-        };
-        const { data, error } = await supabaseClient
-            .from('users')
-            .update(payload)
-            .eq('id', String(userId))
-            .select('*')
-            .maybeSingle();
+        const { data, error } = await supabaseClient.rpc('admin_set_user_approval', {
+            p_user_id: String(userId),
+            p_status: status,
+            p_rejection_reason: status === 'REJECTED' ? (rejectionReason || null) : null
+        });
         if (error) throw error;
-        if (!data) throw new Error('User tidak ditemukan atau perubahan ditolak oleh policy Supabase.');
+        if (!data || !data.id) throw new Error('RPC approval tidak mengembalikan user.');
 
-        // Segarkan cache lokal tanpa menjadikan LocalStorage sebagai sumber
-        // keputusan approval.
+        // Cache is updated only for display; it is never consulted for access.
         const localUsers = STORAGE.get('outing_local_users', []);
         const index = localUsers.findIndex(user => String(user.id) === String(userId) ||
             String(user.username || '').toLowerCase() === String(data.username || '').toLowerCase());
         if (index >= 0) {
             localUsers[index] = {
                 ...localUsers[index],
-                approval_status: status,
-                approved_at: payload.approved_at,
-                rejection_reason: payload.rejection_reason,
+                approval_status: data.approval_status,
+                approved_at: data.approved_at,
+                rejection_reason: data.rejection_reason,
                 requires_remote_approval: true
             };
             STORAGE.set('outing_local_users', localUsers);
         }
 
-        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i> Status user <strong>@${escapeHtml(data.username || '')}</strong> berhasil diubah menjadi <strong>${escapeHtml(approvalStatusLabel(status))}</strong>.</div>`;
+        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i> Status user <strong>@${escapeHtml(data.username || '')}</strong> berhasil diubah menjadi <strong>${escapeHtml(approvalStatusLabel(data.approval_status))}</strong>.</div>`;
         await loadUserApprovals();
     } catch (error) {
         console.error('setUserApprovalStatus error:', error);
@@ -6484,7 +6217,7 @@ function setupManagementMenu() {
         action: "showPage('participants')"
     });
 
-    // APPROVAL USER BARU (khusus Admin/Inisiator yang login secara nyata)
+    // APPROVAL USER BARU (khusus Admin yang login secara nyata)
     if (isTrustedAdmin()) {
         menus.push({
             icon: 'bi-person-check',
@@ -6584,7 +6317,7 @@ function setupManagementMenu() {
 ===================================================== */
 function showPage(page) {
     if (page === 'user_approvals' && !isTrustedAdmin()) {
-        alert('Akses Ditolak: hanya Admin atau Inisiator yang dapat melakukan approval user.');
+        alert('Akses Ditolak: hanya Admin yang dapat melakukan approval user.');
         page = 'management';
     }
 
@@ -6652,7 +6385,6 @@ function showModule(moduleName) {
 ===================================================== */
 async function logout() {
     if (!confirm('Apakah Anda yakin ingin logout?')) return;
-    localStorage.removeItem('outing_session');
     try { await supabaseClient.auth.signOut(); } catch (e) {}
     currentUser = null;
     currentProfile = null;
@@ -6663,40 +6395,32 @@ async function logout() {
 }
 
 async function checkSession() {
-    const saved = STORAGE.get('outing_session', null);
-    if (!saved || !saved.username) {
-        showLogin();
-        return;
-    }
-
     try {
-        let sessionUser = saved;
-        // Session akun hasil registrasi harus divalidasi ulang ke Supabase setiap
-        // kali aplikasi dibuka, sehingga approval yang dicabut langsung berlaku.
-        if (requiresRemoteApproval(saved)) {
-            const remoteResult = await fetchRemoteUser(saved.username);
-            if (remoteResult.error || !remoteResult.data) {
-                throw new Error('Sesi akun tidak dapat diverifikasi ke Supabase. Silakan login ulang saat koneksi tersedia.');
-            }
-            const approvalError = approvalErrorForUser(remoteResult.data);
-            if (approvalError) throw approvalError;
-            sessionUser = syncRemoteUserToLocal(remoteResult.data, saved);
-        } else if (getApprovalStatus(saved) !== 'APPROVED') {
-            throw approvalErrorForUser(saved) || new Error('Akun belum disetujui Admin.');
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        const session = sessionData?.session;
+        if (!session?.user) {
+            showLogin();
+            return;
         }
 
-        currentUser = markAuthenticatedUser(sessionUser);
+        const profile = await getAuthenticatedProfile(session.user.id);
+        const approvalError = approvalErrorForUser(profile);
+        if (approvalError) throw approvalError;
+
+        currentUser = markAuthenticatedUser(profile, session.user);
         currentProfile = currentUser;
         await loadDashboard();
     } catch (error) {
         console.warn('Session validation:', error);
-        localStorage.removeItem('outing_session');
+        try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
         currentUser = null;
         currentProfile = null;
+        roleSimulationActive = false;
         showLogin();
         const loginMessage = document.getElementById('loginMessage');
-        if (loginMessage) {
-            loginMessage.innerHTML = `<div class="alert alert-warning py-2 small"><i class="bi bi-shield-exclamation me-1"></i>${escapeHtml(error.message || 'Sesi login perlu diverifikasi ulang.')}</div>`;
+        if (loginMessage && error?.message) {
+            loginMessage.innerHTML = `<div class="alert alert-warning py-2 small"><i class="bi bi-shield-exclamation me-1"></i>${escapeHtml(error.message)}</div>`;
         }
     }
 }
