@@ -473,6 +473,213 @@ CREATE TABLE IF NOT EXISTS public.donation_reminders (
 );
 CREATE INDEX IF NOT EXISTS donation_reminders_queue_idx ON public.donation_reminders (status, scheduled_for);
 
+-- A foundation is the fallback recipient for a fund year. Sensitive bank
+-- details are intentionally not stored in the browser-facing table.
+CREATE TABLE IF NOT EXISTS public.donation_foundations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    contact_name VARCHAR(255),
+    phone VARCHAR(30),
+    address TEXT,
+    public_description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Existing donation programs become annual funds without changing their
+-- existing IDs or contribution history.
+ALTER TABLE public.donation_programs ADD COLUMN IF NOT EXISTS fund_year SMALLINT;
+UPDATE public.donation_programs
+SET fund_year = EXTRACT(YEAR FROM COALESCE(start_date, CURRENT_DATE))::SMALLINT
+WHERE fund_year IS NULL;
+ALTER TABLE public.donation_programs ALTER COLUMN fund_year SET DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::SMALLINT;
+ALTER TABLE public.donation_programs ALTER COLUMN fund_year SET NOT NULL;
+ALTER TABLE public.donation_programs ADD COLUMN IF NOT EXISTS allocation_policy VARCHAR(50) NOT NULL DEFAULT 'STAFF_FIRST_FOUNDATION_FALLBACK';
+ALTER TABLE public.donation_programs ADD COLUMN IF NOT EXISTS fallback_foundation_id UUID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'donation_programs_fallback_foundation_fkey'
+          AND conrelid = 'public.donation_programs'::regclass
+    ) THEN
+        ALTER TABLE public.donation_programs
+            ADD CONSTRAINT donation_programs_fallback_foundation_fkey
+            FOREIGN KEY (fallback_foundation_id) REFERENCES public.donation_foundations(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.donation_incident_cases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    program_id UUID NOT NULL REFERENCES public.donation_programs(id) ON DELETE RESTRICT,
+    staff_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    staff_name_snapshot VARCHAR(255) NOT NULL,
+    case_title VARCHAR(255) NOT NULL,
+    public_summary TEXT NOT NULL,
+    incident_category VARCHAR(50) NOT NULL DEFAULT 'OTHER',
+    incident_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    requested_amount NUMERIC(15,2) NOT NULL CHECK (requested_amount > 0),
+    approved_amount NUMERIC(15,2) CHECK (approved_amount IS NULL OR approved_amount > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED', -- SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, PAID, CLOSED
+    rejection_reason TEXT,
+    approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_incident_cases_status_check CHECK (status IN ('SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID', 'CLOSED')),
+    CONSTRAINT donation_incident_cases_category_check CHECK (incident_category IN ('HEALTH', 'ACCIDENT', 'DEATH_FAMILY', 'NATURAL_DISASTER', 'OTHER')),
+    CONSTRAINT donation_incident_cases_approved_amount_check CHECK (approved_amount IS NULL OR approved_amount <= requested_amount)
+);
+CREATE INDEX IF NOT EXISTS donation_incident_cases_program_idx ON public.donation_incident_cases (program_id, status);
+CREATE INDEX IF NOT EXISTS donation_incident_cases_staff_idx ON public.donation_incident_cases (staff_user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.donation_staff_allocations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID NOT NULL UNIQUE REFERENCES public.donation_incident_cases(id) ON DELETE RESTRICT,
+    program_id UUID NOT NULL REFERENCES public.donation_programs(id) ON DELETE RESTRICT,
+    recipient_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    recipient_name_snapshot VARCHAR(255) NOT NULL,
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PAID, CANCELLED
+    payment_date DATE,
+    payment_method VARCHAR(30),
+    reference VARCHAR(255),
+    notes TEXT,
+    proof_path TEXT,
+    recorded_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_staff_allocations_status_check CHECK (status IN ('PENDING', 'PAID', 'CANCELLED'))
+);
+CREATE INDEX IF NOT EXISTS donation_staff_allocations_program_idx ON public.donation_staff_allocations (program_id, status);
+
+CREATE TABLE IF NOT EXISTS public.donation_year_closures (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    program_id UUID NOT NULL REFERENCES public.donation_programs(id) ON DELETE RESTRICT,
+    fund_year SMALLINT NOT NULL,
+    fallback_foundation_id UUID REFERENCES public.donation_foundations(id) ON DELETE RESTRICT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING_TRANSFER', -- PENDING_TRANSFER, CLOSED, CANCELLED
+    unresolved_case_count INTEGER NOT NULL DEFAULT 0,
+    contributions_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+    staff_allocated_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+    available_balance NUMERIC(15,2) NOT NULL DEFAULT 0,
+    fallback_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+    notes TEXT,
+    closed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    closed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_year_closures_status_check CHECK (status IN ('PENDING_TRANSFER', 'CLOSED', 'CANCELLED')),
+    UNIQUE (program_id, fund_year)
+);
+
+CREATE TABLE IF NOT EXISTS public.donation_foundation_disbursements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    closure_id UUID NOT NULL UNIQUE REFERENCES public.donation_year_closures(id) ON DELETE RESTRICT,
+    program_id UUID NOT NULL REFERENCES public.donation_programs(id) ON DELETE RESTRICT,
+    foundation_id UUID NOT NULL REFERENCES public.donation_foundations(id) ON DELETE RESTRICT,
+    foundation_name_snapshot VARCHAR(255) NOT NULL,
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PAID, CANCELLED
+    transfer_date DATE,
+    payment_method VARCHAR(30),
+    reference VARCHAR(255),
+    notes TEXT,
+    proof_path TEXT,
+    recorded_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_foundation_disbursements_status_check CHECK (status IN ('PENDING', 'PAID', 'CANCELLED'))
+);
+CREATE INDEX IF NOT EXISTS donation_foundation_disbursements_program_idx ON public.donation_foundation_disbursements (program_id, status);
+
+-- Unified read-only ledger for reports. It is a security-invoker view so the
+-- RLS policies on the underlying donation tables still apply.
+CREATE OR REPLACE VIEW public.v_donation_ledger AS
+SELECT
+    t.id, m.program_id, p.fund_year, 'CONTRIBUTION'::TEXT AS entry_type,
+    'IN'::TEXT AS direction, t.amount, t.status,
+    COALESCE(u.full_name, u.username)::TEXT AS counterparty_name,
+    t.period_start AS entry_date, t.created_at
+FROM public.donation_transactions t
+JOIN public.donation_memberships m ON m.id = t.membership_id
+JOIN public.donation_programs p ON p.id = m.program_id
+JOIN public.users u ON u.id = t.donor_user_id
+UNION ALL
+SELECT
+    a.id, a.program_id, p.fund_year, 'STAFF_ALLOCATION'::TEXT,
+    'OUT'::TEXT, a.amount, a.status, a.recipient_name_snapshot::TEXT,
+    COALESCE(a.payment_date, a.created_at::DATE), a.created_at
+FROM public.donation_staff_allocations a
+JOIN public.donation_programs p ON p.id = a.program_id
+UNION ALL
+SELECT
+    d.id, d.program_id, p.fund_year, 'FOUNDATION_FALLBACK'::TEXT,
+    'OUT'::TEXT, d.amount, d.status, d.foundation_name_snapshot::TEXT,
+    COALESCE(d.transfer_date, d.created_at::DATE), d.created_at
+FROM public.donation_foundation_disbursements d
+JOIN public.donation_programs p ON p.id = d.program_id;
+ALTER VIEW public.v_donation_ledger SET (security_invoker = true);
+REVOKE ALL ON public.v_donation_ledger FROM anon;
+GRANT SELECT ON public.v_donation_ledger TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.enforce_donation_incident_staff()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_status TEXT;
+    v_name TEXT;
+BEGIN
+    SELECT approval_status, full_name INTO v_status, v_name
+    FROM public.users
+    WHERE id = NEW.staff_user_id;
+    IF v_status IS DISTINCT FROM 'APPROVED' THEN
+        RAISE EXCEPTION 'Penerima kasus harus merupakan staff/user yang sudah approved';
+    END IF;
+    NEW.staff_name_snapshot := COALESCE(NULLIF(TRIM(v_name), ''), NEW.staff_name_snapshot);
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_enforce_donation_incident_staff ON public.donation_incident_cases;
+CREATE TRIGGER trg_enforce_donation_incident_staff
+BEFORE INSERT OR UPDATE ON public.donation_incident_cases
+FOR EACH ROW EXECUTE FUNCTION public.enforce_donation_incident_staff();
+
+CREATE OR REPLACE FUNCTION public.enforce_donation_staff_allocation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_case public.donation_incident_cases;
+BEGIN
+    SELECT * INTO v_case FROM public.donation_incident_cases WHERE id = NEW.case_id;
+    IF v_case.id IS NULL THEN RAISE EXCEPTION 'Kasus donasi tidak ditemukan'; END IF;
+    IF v_case.status NOT IN ('APPROVED', 'PAID') THEN
+        RAISE EXCEPTION 'Kasus harus berstatus APPROVED sebelum dibuatkan alokasi';
+    END IF;
+    NEW.program_id := v_case.program_id;
+    NEW.recipient_user_id := v_case.staff_user_id;
+    NEW.recipient_name_snapshot := v_case.staff_name_snapshot;
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_enforce_donation_staff_allocation ON public.donation_staff_allocations;
+CREATE TRIGGER trg_enforce_donation_staff_allocation
+BEFORE INSERT OR UPDATE ON public.donation_staff_allocations
+FOR EACH ROW EXECUTE FUNCTION public.enforce_donation_staff_allocation();
+
 CREATE OR REPLACE FUNCTION public.enforce_donation_membership_donor()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -522,6 +729,16 @@ DROP TRIGGER IF EXISTS trg_touch_donation_transactions ON public.donation_transa
 CREATE TRIGGER trg_touch_donation_transactions BEFORE UPDATE ON public.donation_transactions FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
 DROP TRIGGER IF EXISTS trg_touch_donation_reminders ON public.donation_reminders;
 CREATE TRIGGER trg_touch_donation_reminders BEFORE UPDATE ON public.donation_reminders FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_foundations ON public.donation_foundations;
+CREATE TRIGGER trg_touch_donation_foundations BEFORE UPDATE ON public.donation_foundations FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_incident_cases ON public.donation_incident_cases;
+CREATE TRIGGER trg_touch_donation_incident_cases BEFORE UPDATE ON public.donation_incident_cases FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_staff_allocations ON public.donation_staff_allocations;
+CREATE TRIGGER trg_touch_donation_staff_allocations BEFORE UPDATE ON public.donation_staff_allocations FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_year_closures ON public.donation_year_closures;
+CREATE TRIGGER trg_touch_donation_year_closures BEFORE UPDATE ON public.donation_year_closures FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_foundation_disbursements ON public.donation_foundation_disbursements;
+CREATE TRIGGER trg_touch_donation_foundation_disbursements BEFORE UPDATE ON public.donation_foundation_disbursements FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
 
 -- Called by the scheduled WhatsApp worker. The unique period key makes this
 -- idempotent: a retried cron invocation cannot enqueue duplicate reminders.
@@ -741,6 +958,47 @@ AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION public.current_app_user_is_active_donor()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.donation_memberships
+        WHERE donor_user_id = public.current_app_user_id()
+          AND status = 'ACTIVE'
+    );
+$$;
+
+-- Donors receive a column-safe public projection. Internal rejection notes,
+-- actor IDs, and proof object paths remain Admin-only on the base tables.
+CREATE OR REPLACE VIEW public.v_donation_public_cases AS
+SELECT id, program_id, staff_user_id, staff_name_snapshot, case_title,
+       public_summary, incident_category, incident_date, requested_amount,
+       approved_amount, status, approved_at, closed_at, created_at
+FROM public.donation_incident_cases
+WHERE public.current_app_user_is_active_donor() OR public.current_app_user_is_admin();
+GRANT SELECT ON public.v_donation_public_cases TO authenticated;
+REVOKE ALL ON public.v_donation_public_cases FROM anon;
+
+CREATE OR REPLACE VIEW public.v_donation_public_allocations AS
+SELECT id, case_id, program_id, recipient_user_id, recipient_name_snapshot,
+       amount, status, payment_date, payment_method, reference, notes, created_at
+FROM public.donation_staff_allocations
+WHERE public.current_app_user_is_active_donor() OR public.current_app_user_is_admin();
+GRANT SELECT ON public.v_donation_public_allocations TO authenticated;
+REVOKE ALL ON public.v_donation_public_allocations FROM anon;
+
+CREATE OR REPLACE VIEW public.v_donation_public_foundation_disbursements AS
+SELECT id, closure_id, program_id, foundation_id, foundation_name_snapshot,
+       amount, status, transfer_date, payment_method, reference, notes, created_at
+FROM public.donation_foundation_disbursements
+WHERE public.current_app_user_is_active_donor() OR public.current_app_user_is_admin();
+GRANT SELECT ON public.v_donation_public_foundation_disbursements TO authenticated;
+REVOKE ALL ON public.v_donation_public_foundation_disbursements FROM anon;
+
 CREATE OR REPLACE FUNCTION public.current_app_user_has_role(required_roles TEXT[])
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -772,6 +1030,166 @@ BEGIN
 END;
 $$;
 
+-- Manual year closing: the system never sends funds automatically. Admin
+-- confirms that no unresolved staff case remains, then records the foundation
+-- fallback as a pending transfer.
+CREATE OR REPLACE FUNCTION public.admin_prepare_donation_year_closure(
+    p_program_id UUID,
+    p_foundation_id UUID,
+    p_notes TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_program public.donation_programs;
+    v_foundation public.donation_foundations;
+    v_closure_id UUID;
+    v_existing_status TEXT;
+    v_unresolved INTEGER := 0;
+    v_contributions NUMERIC(15,2) := 0;
+    v_allocated NUMERIC(15,2) := 0;
+    v_available NUMERIC(15,2) := 0;
+BEGIN
+    IF NOT public.current_app_user_is_admin() THEN
+        RAISE EXCEPTION 'Hanya Admin yang dapat menutup periode dana donasi';
+    END IF;
+
+    SELECT * INTO v_program FROM public.donation_programs WHERE id = p_program_id;
+    IF v_program.id IS NULL THEN RAISE EXCEPTION 'Program dana tidak ditemukan'; END IF;
+    SELECT * INTO v_foundation FROM public.donation_foundations WHERE id = p_foundation_id AND is_active = TRUE;
+    IF v_foundation.id IS NULL THEN RAISE EXCEPTION 'Yayasan fallback aktif tidak ditemukan'; END IF;
+
+    SELECT status INTO v_existing_status
+    FROM public.donation_year_closures
+    WHERE program_id = p_program_id AND fund_year = v_program.fund_year;
+    IF v_existing_status = 'CLOSED' THEN
+        RAISE EXCEPTION 'Periode dana ini sudah ditutup';
+    END IF;
+
+    SELECT COUNT(*) INTO v_unresolved
+    FROM public.donation_incident_cases
+    WHERE program_id = p_program_id
+      AND status IN ('SUBMITTED', 'UNDER_REVIEW', 'APPROVED');
+    IF v_unresolved > 0 THEN
+        RAISE EXCEPTION 'Masih ada % kasus staff yang belum selesai diproses', v_unresolved;
+    END IF;
+
+    SELECT COALESCE(SUM(t.amount), 0) INTO v_contributions
+    FROM public.donation_transactions t
+    JOIN public.donation_memberships m ON m.id = t.membership_id
+    WHERE m.program_id = p_program_id AND t.status = 'PAID';
+
+    SELECT COALESCE(SUM(a.amount), 0) INTO v_allocated
+    FROM public.donation_staff_allocations a
+    WHERE a.program_id = p_program_id AND a.status = 'PAID';
+
+    v_available := GREATEST(v_contributions - v_allocated, 0);
+
+    INSERT INTO public.donation_year_closures (
+        program_id, fund_year, fallback_foundation_id, status,
+        unresolved_case_count, contributions_total, staff_allocated_total,
+        available_balance, fallback_amount, notes, closed_by, closed_at, updated_at
+    ) VALUES (
+        p_program_id, v_program.fund_year, p_foundation_id,
+        CASE WHEN v_available > 0 THEN 'PENDING_TRANSFER' ELSE 'CLOSED' END,
+        v_unresolved, v_contributions, v_allocated, v_available,
+        v_available, NULLIF(TRIM(p_notes), ''),
+        public.current_app_user_id(),
+        CASE WHEN v_available > 0 THEN NULL ELSE NOW() END,
+        NOW()
+    )
+    ON CONFLICT (program_id, fund_year) DO UPDATE SET
+        fallback_foundation_id = EXCLUDED.fallback_foundation_id,
+        status = EXCLUDED.status,
+        unresolved_case_count = EXCLUDED.unresolved_case_count,
+        contributions_total = EXCLUDED.contributions_total,
+        staff_allocated_total = EXCLUDED.staff_allocated_total,
+        available_balance = EXCLUDED.available_balance,
+        fallback_amount = EXCLUDED.fallback_amount,
+        notes = EXCLUDED.notes,
+        closed_by = EXCLUDED.closed_by,
+        closed_at = EXCLUDED.closed_at,
+        updated_at = NOW()
+    RETURNING id INTO v_closure_id;
+
+    IF v_available > 0 THEN
+        INSERT INTO public.donation_foundation_disbursements (
+            closure_id, program_id, foundation_id, foundation_name_snapshot,
+            amount, status, notes, recorded_by
+        ) VALUES (
+            v_closure_id, p_program_id, p_foundation_id, v_foundation.name,
+            v_available, 'PENDING', NULLIF(TRIM(p_notes), ''), public.current_app_user_id()
+        )
+        ON CONFLICT (closure_id) DO UPDATE SET
+            foundation_id = EXCLUDED.foundation_id,
+            foundation_name_snapshot = EXCLUDED.foundation_name_snapshot,
+            amount = EXCLUDED.amount,
+            status = CASE WHEN donation_foundation_disbursements.status = 'PAID' THEN donation_foundation_disbursements.status ELSE 'PENDING' END,
+            notes = EXCLUDED.notes,
+            updated_at = NOW();
+    END IF;
+
+    UPDATE public.donation_programs
+    SET status = 'CLOSED', updated_at = NOW()
+    WHERE id = p_program_id;
+
+    RETURN jsonb_build_object(
+        'closure_id', v_closure_id,
+        'program_id', p_program_id,
+        'fund_year', v_program.fund_year,
+        'contributions_total', v_contributions,
+        'staff_allocated_total', v_allocated,
+        'fallback_amount', v_available,
+        'status', CASE WHEN v_available > 0 THEN 'PENDING_TRANSFER' ELSE 'CLOSED' END,
+        'foundation_name', v_foundation.name
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_mark_foundation_disbursement_paid(
+    p_disbursement_id UUID,
+    p_transfer_date DATE,
+    p_payment_method TEXT,
+    p_reference TEXT,
+    p_notes TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_disbursement public.donation_foundation_disbursements;
+BEGIN
+    IF NOT public.current_app_user_is_admin() THEN
+        RAISE EXCEPTION 'Hanya Admin yang dapat mencatat transfer yayasan';
+    END IF;
+    UPDATE public.donation_foundation_disbursements
+    SET status = 'PAID', transfer_date = COALESCE(p_transfer_date, CURRENT_DATE),
+        payment_method = NULLIF(TRIM(p_payment_method), ''),
+        reference = NULLIF(TRIM(p_reference), ''),
+        notes = NULLIF(TRIM(p_notes), ''),
+        recorded_by = public.current_app_user_id(), updated_at = NOW()
+    WHERE id = p_disbursement_id AND status = 'PENDING'
+    RETURNING * INTO v_disbursement;
+    IF v_disbursement.id IS NULL THEN RAISE EXCEPTION 'Transfer yayasan tidak ditemukan atau sudah diproses'; END IF;
+
+    UPDATE public.donation_year_closures
+    SET status = 'CLOSED', closed_at = NOW(), updated_at = NOW()
+    WHERE id = v_disbursement.closure_id;
+
+    RETURN jsonb_build_object(
+        'id', v_disbursement.id,
+        'status', v_disbursement.status,
+        'amount', v_disbursement.amount,
+        'foundation_name', v_disbursement.foundation_name_snapshot
+    );
+END;
+$$;
+
 -- Used before login so phone-number login still works without exposing the
 -- users table or password hashes to anonymous callers.
 REVOKE ALL ON FUNCTION public.current_app_user_id() FROM PUBLIC;
@@ -779,12 +1197,14 @@ REVOKE ALL ON FUNCTION public.current_app_role() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_section() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_is_approved() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.current_app_user_is_active_donor() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_has_role(TEXT[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_app_user_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_section() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_user_is_approved() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_user_is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_app_user_is_active_donor() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_user_has_role(TEXT[]) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.resolve_login_username(p_identifier TEXT)
@@ -927,6 +1347,10 @@ REVOKE ALL ON FUNCTION public.admin_set_user_approval(UUID, TEXT, TEXT) FROM PUB
 GRANT EXECUTE ON FUNCTION public.admin_set_user_approval(UUID, TEXT, TEXT) TO authenticated;
 REVOKE ALL ON FUNCTION public.admin_enqueue_donation_reminders() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_enqueue_donation_reminders() TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_prepare_donation_year_closure(UUID, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_prepare_donation_year_closure(UUID, UUID, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_mark_foundation_disbursement_paid(UUID, DATE, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_mark_foundation_disbursement_paid(UUID, DATE, TEXT, TEXT, TEXT) TO authenticated;
 REVOKE ALL ON FUNCTION public.enqueue_due_donation_reminders(TIMESTAMPTZ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.claim_donation_reminders(INTEGER) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.complete_donation_reminder(UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
@@ -954,14 +1378,24 @@ ALTER TABLE public.donation_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donation_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donation_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donation_reminders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_foundations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_incident_cases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_staff_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_year_closures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_foundation_disbursements ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.donation_programs, public.donation_beneficiaries,
     public.donation_memberships, public.donation_transactions,
-    public.donation_settings, public.donation_reminders FROM anon;
+    public.donation_settings, public.donation_reminders,
+    public.donation_foundations, public.donation_incident_cases,
+    public.donation_staff_allocations, public.donation_year_closures,
+    public.donation_foundation_disbursements FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.donation_programs,
     public.donation_beneficiaries, public.donation_memberships,
     public.donation_transactions, public.donation_settings,
-    public.donation_reminders TO authenticated;
+    public.donation_reminders, public.donation_foundations,
+    public.donation_incident_cases, public.donation_staff_allocations,
+    public.donation_year_closures, public.donation_foundation_disbursements TO authenticated;
 
 DO $$
 DECLARE
@@ -971,7 +1405,7 @@ BEGIN
         SELECT schemaname, tablename, policyname
         FROM pg_policies
         WHERE schemaname = 'public'
-          AND tablename IN ('roles','sections','users','outings','outing_users','rundowns','cash_accounts','cash_transactions','purchase_requests','tasks','consumption_plans','announcements','participants','donation_programs','donation_beneficiaries','donation_memberships','donation_transactions','donation_settings','donation_reminders')
+          AND tablename IN ('roles','sections','users','outings','outing_users','rundowns','cash_accounts','cash_transactions','purchase_requests','tasks','consumption_plans','announcements','participants','donation_programs','donation_beneficiaries','donation_memberships','donation_transactions','donation_settings','donation_reminders','donation_foundations','donation_incident_cases','donation_staff_allocations','donation_year_closures','donation_foundation_disbursements')
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', policy_row.policyname, policy_row.schemaname, policy_row.tablename);
     END LOOP;
@@ -1069,6 +1503,36 @@ CREATE POLICY "approved users read active beneficiaries" ON public.donation_bene
     FOR SELECT TO authenticated
     USING (public.current_app_user_is_approved() AND (is_active OR public.current_app_user_is_admin()));
 CREATE POLICY "admin manage donation beneficiaries" ON public.donation_beneficiaries
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "active donors read active donation foundations" ON public.donation_foundations
+    FOR SELECT TO authenticated
+    USING ((public.current_app_user_is_active_donor() OR public.current_app_user_is_admin()) AND (is_active OR public.current_app_user_is_admin()));
+CREATE POLICY "admin manage donation foundations" ON public.donation_foundations
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "admin manage donation cases" ON public.donation_incident_cases
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "admin manage staff allocations" ON public.donation_staff_allocations
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "active donors read year closures" ON public.donation_year_closures
+    FOR SELECT TO authenticated USING (public.current_app_user_is_active_donor() OR public.current_app_user_is_admin());
+CREATE POLICY "admin manage year closures" ON public.donation_year_closures
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "admin manage foundation disbursements" ON public.donation_foundation_disbursements
     FOR ALL TO authenticated
     USING (public.current_app_user_is_admin())
     WITH CHECK (public.current_app_user_is_admin());

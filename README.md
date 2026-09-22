@@ -225,6 +225,22 @@ Fungsi SQL penting:
 
 > **Catatan migrasi:** jalankan schema pada project Supabase yang benar. Migration menghapus kolom legacy `users.password_hash` karena kolom tersebut tidak boleh lagi menjadi sumber otorisasi. Profile lama tanpa `auth_user_id` harus dipasangkan dengan user Auth melalui SQL/admin migration yang terkontrol.
 
+## 💝 Model Dana Solidaritas Staff & Fallback Yayasan
+
+Modul Donasi tidak mengikat donatur secara langsung ke penerima. Setoran bulanan masuk ke dana bersama per program/tahun, misalnya **Dana Solidaritas Staff 2026**.
+
+Alur bisnisnya:
+
+1. Admin mengaktifkan user `APPROVED` sebagai donatur aktif.
+2. Worker mengirim reminder WhatsApp setiap bulan kepada donatur aktif.
+3. Admin mencatat kasus staff yang mengalami musibah beserta ringkasan publik, nominal yang diajukan, dan status verifikasi.
+4. Admin menyetujui kasus terlebih dahulu, lalu mencatat pembayaran dan bukti penyaluran.
+5. Nama staff, ringkasan kasus, nominal, status, dan riwayat penerimaan dapat dilihat oleh donatur aktif sesuai kebijakan yang dipilih.
+6. **Closing tahunan bersifat manual oleh Admin.** Sistem menolak closing jika masih ada kasus `SUBMITTED`, `UNDER_REVIEW`, atau `APPROVED`.
+7. Jika tidak ada kasus yang belum selesai, saldo tersedia dapat disiapkan sebagai fallback ke yayasan. Transfer yayasan tetap harus dicatat Admin dan memiliki referensi pembayaran.
+
+Tabel `donation_year_closures` dan `donation_foundation_disbursements` memastikan saldo fallback, yayasan, periode, nominal, dan bukti transfer tercatat. Data donasi tidak memakai `outing_id` dan tidak bercampur dengan kas outing.
+
 ## 🛠️ Detail Masalah yang Telah Diselesaikan
 
 1. **Masalah Phone Signups (`Phone signups are disabled`)**:
@@ -266,7 +282,7 @@ D:\PowerPro\Tools\Web\Outing│
 - [x] Fitur ganti password mandiri dari halaman Profil melalui Supabase Auth (tanpa hash password di public.users).
 - [x] Skema database lengkap dengan view `v_cash_summary`, RLS policies, serta approval user baru di Supabase.
 - [x] Approval user baru: registrasi berstatus `PENDING`, approval Admin-only melalui RPC, dan validasi status login dari Supabase Auth/RLS.
-- [x] Modul Donasi terpisah dari Outing: Admin mengaktifkan donatur dari user approved, penerima internal/eksternal, transaksi bulanan, RLS, serta antrean reminder WhatsApp idempotent.
+- [x] Modul Dana Solidaritas Staff terpisah dari Outing: kasus musibah, approval Admin, penyaluran staff, closing tahunan manual, dan fallback yayasan tercatat dengan ledger/RLS.
 - [x] Supabase Edge Function worker untuk memproses antrean reminder WhatsApp tanpa menyimpan token provider di frontend.
 - [x] Dokumentasi progress dan pembaruan pada `README.md` dan `Rangkuman_Project_Outing_Management.docx`.
 - [ ] *(Opsional)* Integrasi WhatsApp Click-to-Chat URL pada nomor telepon peserta untuk memudahkan koordinator bus menghubungi peserta secara instan.

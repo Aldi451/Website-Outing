@@ -1743,6 +1743,9 @@
                                 <button class="btn btn-sm btn-outline-danger" onclick="openDonationMembershipModal()"><i class="bi bi-person-plus me-1"></i>Aktifkan Donatur</button>
                                 <button class="btn btn-sm btn-outline-dark" onclick="openDonationTransactionModal()"><i class="bi bi-receipt me-1"></i>Catat Donasi</button>
                                 <button class="btn btn-sm btn-outline-success" onclick="enqueueDonationReminders()"><i class="bi bi-whatsapp me-1"></i>Queue Reminder</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationCaseModal()"><i class="bi bi-bandaid me-1"></i>Kasus Staff</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="openDonationFoundationModal()"><i class="bi bi-building me-1"></i>Yayasan</button>
+                                <button class="btn btn-sm btn-outline-dark" onclick="openDonationClosureModal()"><i class="bi bi-calendar-check me-1"></i>Closing Tahun</button>
                             </div>
                         </div>
                     </div>
@@ -1794,6 +1797,27 @@
                                     <span class="small text-muted" id="donationBeneficiaryCount">0 penerima</span>
                                 </div>
                                 <div id="donationBeneficiariesList"><div class="empty-state py-3">Memuat penerima...</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-7">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-bandaid me-1 text-danger"></i>Kasus Musibah Staff</h6>
+                                    <small class="text-muted">Terlihat oleh donatur aktif</small>
+                                </div>
+                                <div id="donationCasesList" class="table-responsive"><div class="empty-state py-4">Memuat kasus...</div></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-building me-1 text-secondary"></i>Fallback Yayasan</h6>
+                                    <small class="text-muted">Penutupan manual Admin</small>
+                                </div>
+                                <div id="donationFoundationsList" class="p-3"><div class="empty-state py-4">Memuat yayasan...</div></div>
                             </div>
                         </div>
                     </div>
@@ -2554,6 +2578,10 @@
                             <input type="text" id="donationProgramName" class="form-control" required placeholder="Donasi Pendidikan Anak">
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tahun Dana</label>
+                            <input type="number" id="donationProgramFundYear" class="form-control" min="2020" max="2200" required>
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label small fw-semibold">Status</label>
                             <select id="donationProgramStatus" class="form-select">
                                 <option value="DRAFT">DRAFT</option>
@@ -2772,6 +2800,183 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalDonationCase" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-bandaid me-2"></i>Kasus Musibah Staff</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationCase" onsubmit="saveDonationCase(event)">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">Detail yang tampil ke donatur adalah nama dan ringkasan publik. Catatan sensitif tidak disimpan di form publik ini.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Dana / Tahun</label>
+                            <select id="donationCaseProgram" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Staff Penerima</label>
+                            <select id="donationCaseStaff" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Judul Kasus</label>
+                            <input type="text" id="donationCaseTitle" class="form-control" required placeholder="Contoh: Bantuan perawatan keluarga">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Kategori</label>
+                            <select id="donationCaseCategory" class="form-select">
+                                <option value="HEALTH">Kesehatan</option>
+                                <option value="ACCIDENT">Kecelakaan</option>
+                                <option value="DEATH_FAMILY">Kedukaan Keluarga</option>
+                                <option value="NATURAL_DISASTER">Bencana Alam</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Tanggal Kejadian</label>
+                            <input type="date" id="donationCaseDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Nominal yang Diajukan</label>
+                            <input type="number" id="donationCaseAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Ringkasan yang Boleh Dilihat Donatur</label>
+                            <textarea id="donationCaseSummary" class="form-control" rows="3" required placeholder="Tuliskan ringkasan yang sudah disetujui untuk dibaca donatur."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Kasus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationFoundation" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-building me-2"></i>Yayasan Fallback</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationFoundation" onsubmit="saveDonationFoundation(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-4">
+                            <label class="form-label small fw-semibold">Kode</label>
+                            <input type="text" id="donationFoundationCode" class="form-control" required placeholder="YYS-001">
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small fw-semibold">Nama Yayasan</label>
+                            <input type="text" id="donationFoundationName" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Kontak</label>
+                            <input type="text" id="donationFoundationContact" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Telepon</label>
+                            <input type="tel" id="donationFoundationPhone" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Deskripsi</label>
+                            <textarea id="donationFoundationDescription" class="form-control" rows="2" placeholder="Keterangan yang boleh tampil di laporan donatur"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-save me-1"></i>Simpan Yayasan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationAllocation" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Catat Penyaluran ke Staff</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationAllocation" onsubmit="saveDonationAllocation(event)">
+                <input type="hidden" id="donationAllocationCaseId">
+                <div class="modal-body">
+                    <div class="alert alert-success py-2 small" id="donationAllocationCaseLabel">Kasus sudah disetujui Admin.</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Dibayar</label>
+                            <input type="number" id="donationAllocationAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Bayar</label>
+                            <input type="date" id="donationAllocationDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Metode</label>
+                            <select id="donationAllocationMethod" class="form-select">
+                                <option value="TRANSFER">Transfer</option>
+                                <option value="CASH">Cash</option>
+                                <option value="E_WALLET">E-Wallet</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Referensi / Bukti</label>
+                            <input type="text" id="donationAllocationReference" class="form-control" placeholder="Nomor bukti transfer / kuitansi">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationAllocationNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-circle me-1"></i>Simpan Pembayaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationClosure" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-calendar-check me-2"></i>Closing Dana Tahunan</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationClosure" onsubmit="prepareDonationYearClosure(event)">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small">Closing dilakukan manual oleh Admin. Sistem akan menolak closing jika masih ada kasus staff yang belum selesai.</div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Dana yang Ditutup</label>
+                        <select id="donationClosureProgram" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Yayasan Fallback</label>
+                        <select id="donationClosureFoundation" class="form-select" required></select>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-semibold">Catatan Closing</label>
+                        <textarea id="donationClosureNotes" class="form-control" rows="2" placeholder="Contoh: Tidak ada kasus staff approved pada tahun berjalan."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-lock me-1"></i>Siapkan Closing</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- =====================================================
      JAVASCRIPT LOGIC
 ===================================================== -->
@@ -2796,9 +3001,14 @@ let activeTaskFilter = 'ALL';
 let donationState = {
     programs: [],
     beneficiaries: [],
+    foundations: [],
     memberships: [],
     transactions: [],
     reminders: [],
+    cases: [],
+    allocations: [],
+    closures: [],
+    disbursements: [],
     settings: null,
     users: []
 };
@@ -6615,6 +6825,10 @@ function donationStatusBadge(status) {
         QUEUED: 'warning text-dark',
         PROCESSING: 'info',
         PAUSED: 'warning text-dark',
+        SUBMITTED: 'warning text-dark',
+        UNDER_REVIEW: 'info',
+        REJECTED: 'danger',
+        PENDING_TRANSFER: 'warning text-dark',
         FAILED: 'danger',
         CANCELLED: 'dark',
         CLOSED: 'dark',
@@ -6663,7 +6877,7 @@ function renderDonationPrograms() {
                 <div><strong>${escapeHtml(program.name)}</strong><div class="small text-muted">${escapeHtml(program.code)} · Reminder tanggal ${program.reminder_day}</div></div>
                 ${donationStatusBadge(program.status)}
             </div>
-            <div class="small text-secondary mt-1">Nominal default: ${program.default_amount ? formatRupiah(program.default_amount) : 'Bebas'} · ${program.allow_variable_amount ? 'Bisa nominal bebas' : 'Nominal tetap'}</div>
+            <div class="small text-secondary mt-1">Tahun ${escapeHtml(String(program.fund_year || '-'))} · Nominal default: ${program.default_amount ? formatRupiah(program.default_amount) : 'Bebas'} · Prioritas staff, fallback yayasan</div>
         </div>
     `).join('');
 }
@@ -6686,6 +6900,53 @@ function renderDonationBeneficiaries() {
             <div class="small text-muted">${escapeHtml(item.beneficiary_type || 'PERSON')}${item.organization ? ` · ${escapeHtml(item.organization)}` : ''}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}</div>
         </div>
     `).join('');
+}
+
+function renderDonationCases() {
+    const target = document.getElementById('donationCasesList');
+    if (!target) return;
+    const cases = donationState.cases || [];
+    if (!cases.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-bandaid"></i><div>Belum ada kasus musibah staff.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Staff</th><th>Kasus</th><th>Dana</th><th>Nominal</th><th>Status</th>${canManageDonation() ? '<th>Aksi</th>' : ''}</tr></thead>
+        <tbody>${cases.map(item => {
+            const actions = [];
+            if (canManageDonation() && ['SUBMITTED', 'UNDER_REVIEW'].includes(item.status)) {
+                actions.push(`<button class="btn btn-sm btn-outline-success" onclick="approveDonationCase('${item.id}')">Setujui</button>`);
+                actions.push(`<button class="btn btn-sm btn-outline-danger" onclick="rejectDonationCase('${item.id}')">Tolak</button>`);
+            }
+            if (canManageDonation() && item.status === 'APPROVED') {
+                actions.push(`<button class="btn btn-sm btn-success" onclick="openDonationAllocationModal('${item.id}')">Catat Bayar</button>`);
+            }
+            return `<tr>
+                <td><strong>${escapeHtml(item.staff_name_snapshot || '-')}</strong><div class="small text-muted">${escapeHtml(item.incident_category || '')}</div></td>
+                <td><strong>${escapeHtml(item.case_title)}</strong><div class="small text-muted">${escapeHtml(item.public_summary || '')}</div></td>
+                <td>${escapeHtml(donationProgramName(item.program_id))}</td>
+                <td>${formatRupiah(item.approved_amount || item.requested_amount)}</td>
+                <td>${donationStatusBadge(item.status)}${item.incident_date ? `<div class="small text-muted mt-1">${escapeHtml(item.incident_date)}</div>` : ''}</td>
+                ${canManageDonation() ? `<td class="text-nowrap">${actions.join(' ') || '<span class="text-muted small">Selesai</span>'}</td>` : ''}
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+function renderDonationFoundations() {
+    const target = document.getElementById('donationFoundationsList');
+    if (!target) return;
+    const foundations = donationState.foundations || [];
+    const disbursements = donationState.disbursements || [];
+    const closures = donationState.closures || [];
+    const foundationHtml = foundations.length ? foundations.map(item => `<div class="border rounded-3 bg-white p-2 mb-2">
+        <div class="d-flex justify-content-between gap-2"><strong>${escapeHtml(item.name)}</strong>${item.is_active ? donationStatusBadge('ACTIVE') : donationStatusBadge('PAUSED')}</div>
+        <div class="small text-muted">${escapeHtml(item.code)}${item.contact_name ? ` · ${escapeHtml(item.contact_name)}` : ''}</div>
+        ${item.public_description ? `<div class="small text-secondary mt-1">${escapeHtml(item.public_description)}</div>` : ''}
+    </div>`).join('') : '<div class="empty-state py-3"><i class="bi bi-building"></i><div>Belum ada yayasan fallback.</div></div>';
+    const closureHtml = closures.length ? `<div class="border-top mt-3 pt-2"><div class="small fw-semibold mb-2">Riwayat Closing</div>${closures.map(item => `<div class="small border-bottom py-1"><div class="d-flex justify-content-between"><span>${escapeHtml(donationProgramName(item.program_id))} / ${escapeHtml(String(item.fund_year))}</span>${donationStatusBadge(item.status)}</div><div class="text-muted">Fallback: ${formatRupiah(item.fallback_amount)}</div></div>`).join('')}</div>` : '';
+    const disbursementHtml = disbursements.length ? `<div class="border-top mt-3 pt-2"><div class="small fw-semibold mb-2">Penyaluran Yayasan</div>${disbursements.map(item => `<div class="small border-bottom py-1"><div class="d-flex justify-content-between"><span>${escapeHtml(item.foundation_name_snapshot)}</span>${donationStatusBadge(item.status)}</div><div class="text-muted">${formatRupiah(item.amount)}${item.transfer_date ? ` · ${escapeHtml(item.transfer_date)}` : ''}</div>${canManageDonation() && item.status === 'PENDING' ? `<button class="btn btn-sm btn-outline-success mt-1" onclick="markDonationFoundationPaid('${item.id}')">Catat Transfer</button>` : ''}</div>`).join('')}</div>` : '';
+    target.innerHTML = foundationHtml + closureHtml + disbursementHtml;
 }
 
 function renderDonationMemberships() {
@@ -6782,6 +7043,22 @@ function populateDonationSelects() {
     if (transactionSelect) {
         transactionSelect.innerHTML = donationState.memberships.map(item => `<option value="${item.id}">${escapeHtml(donationMembershipLabel(item))}</option>`).join('');
     }
+    const caseProgramSelect = document.getElementById('donationCaseProgram');
+    if (caseProgramSelect) {
+        caseProgramSelect.innerHTML = donationState.programs.filter(item => item.status !== 'CLOSED').map(item => `<option value="${item.id}">${escapeHtml(item.name)} / ${escapeHtml(String(item.fund_year || ''))}</option>`).join('');
+    }
+    const caseStaffSelect = document.getElementById('donationCaseStaff');
+    if (caseStaffSelect) {
+        caseStaffSelect.innerHTML = donationState.users.filter(item => item.approval_status === 'APPROVED').map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})</option>`).join('');
+    }
+    const closureProgramSelect = document.getElementById('donationClosureProgram');
+    if (closureProgramSelect) {
+        closureProgramSelect.innerHTML = donationState.programs.filter(item => item.status !== 'CLOSED').map(item => `<option value="${item.id}">${escapeHtml(item.name)} / ${escapeHtml(String(item.fund_year || ''))}</option>`).join('');
+    }
+    const closureFoundationSelect = document.getElementById('donationClosureFoundation');
+    if (closureFoundationSelect) {
+        closureFoundationSelect.innerHTML = donationState.foundations.filter(item => item.is_active).map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.code)})</option>`).join('');
+    }
 }
 
 function renderDonationSettings() {
@@ -6804,22 +7081,38 @@ async function loadDonations() {
     const controls = document.getElementById('donationAdminControls');
     if (controls) controls.classList.toggle('d-none', !canManageDonation());
     try {
-        const [programs, beneficiaries, memberships, transactions, reminders, settings] = await Promise.all([
-            supabaseClient.from('donation_programs').select('*').order('created_at', { ascending: false }),
+        const caseQuery = canManageDonation()
+            ? supabaseClient.from('donation_incident_cases').select('*').order('created_at', { ascending: false }).limit(100)
+            : supabaseClient.from('v_donation_public_cases').select('*').order('created_at', { ascending: false }).limit(100);
+        const allocationQuery = canManageDonation()
+            ? supabaseClient.from('donation_staff_allocations').select('*').order('created_at', { ascending: false }).limit(100)
+            : supabaseClient.from('v_donation_public_allocations').select('*').order('created_at', { ascending: false }).limit(100);
+        const [programs, beneficiaries, foundations, memberships, transactions, reminders, cases, allocations, closures, disbursements, settings] = await Promise.all([
+            supabaseClient.from('donation_programs').select('*').order('fund_year', { ascending: false }).order('created_at', { ascending: false }),
             supabaseClient.from('donation_beneficiaries').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_foundations').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('donation_memberships').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('donation_transactions').select('*').order('period_start', { ascending: false }).limit(100),
             supabaseClient.from('donation_reminders').select('*').order('scheduled_for', { ascending: false }).limit(100),
+            caseQuery,
+            allocationQuery,
+            supabaseClient.from('donation_year_closures').select('*').order('fund_year', { ascending: false }),
+            supabaseClient.from('v_donation_public_foundation_disbursements').select('*').order('created_at', { ascending: false }),
             supabaseClient.from('donation_settings').select('*').eq('id', true).maybeSingle()
         ]);
-        const responses = [programs, beneficiaries, memberships, transactions, reminders, settings];
+        const responses = [programs, beneficiaries, foundations, memberships, transactions, reminders, cases, allocations, closures, disbursements, settings];
         const failed = responses.find(response => response.error);
         if (failed?.error) throw failed.error;
         donationState.programs = programs.data || [];
         donationState.beneficiaries = beneficiaries.data || [];
+        donationState.foundations = foundations.data || [];
         donationState.memberships = memberships.data || [];
         donationState.transactions = transactions.data || [];
         donationState.reminders = reminders.data || [];
+        donationState.cases = cases.data || [];
+        donationState.allocations = allocations.data || [];
+        donationState.closures = closures.data || [];
+        donationState.disbursements = disbursements.data || [];
         donationState.settings = settings.data || null;
         if (canManageDonation()) {
             const { data, error } = await supabaseClient.from('users').select('id,username,full_name,phone,approval_status').order('full_name');
@@ -6830,6 +7123,8 @@ async function loadDonations() {
         }
         renderDonationPrograms();
         renderDonationBeneficiaries();
+        renderDonationCases();
+        renderDonationFoundations();
         renderDonationMemberships();
         renderDonationTransactions();
         renderDonationSettings();
@@ -6838,7 +7133,7 @@ async function loadDonations() {
     } catch (error) {
         console.warn('loadDonations error:', error);
         const message = String(error?.message || 'Tabel Donasi belum tersedia di Supabase.');
-        ['donationProgramsList', 'donationBeneficiariesList', 'donationMembershipsList', 'donationTransactionsList'].forEach(id => {
+        ['donationProgramsList', 'donationBeneficiariesList', 'donationCasesList', 'donationFoundationsList', 'donationMembershipsList', 'donationTransactionsList'].forEach(id => {
             const element = document.getElementById(id);
             if (element) element.innerHTML = `<div class="empty-state py-4"><i class="bi bi-database-exclamation"></i><div>Data Donasi belum dapat dimuat.</div><small class="text-muted">${escapeHtml(message)}</small></div>`;
         });
@@ -6849,6 +7144,7 @@ function openDonationProgramModal() {
     if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur program donasi.');
     document.getElementById('formDonationProgram')?.reset();
     document.getElementById('donationProgramStatus').value = 'ACTIVE';
+    document.getElementById('donationProgramFundYear').value = new Date().getFullYear();
     document.getElementById('donationProgramReminderDay').value = '1';
     document.getElementById('donationProgramAllowVariable').checked = true;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationProgram')).show();
@@ -6887,6 +7183,8 @@ async function saveDonationProgram(event) {
             code,
             name: document.getElementById('donationProgramName').value.trim(),
             status: document.getElementById('donationProgramStatus').value,
+            fund_year: Number(document.getElementById('donationProgramFundYear').value),
+            allocation_policy: 'STAFF_FIRST_FOUNDATION_FALLBACK',
             reminder_day: Number(document.getElementById('donationProgramReminderDay').value),
             default_amount: Number(document.getElementById('donationProgramDefaultAmount').value || 0) || null,
             allow_variable_amount: document.getElementById('donationProgramAllowVariable').checked,
@@ -7005,6 +7303,212 @@ async function toggleDonationMembership(id, status) {
     }
 }
 
+function openDonationCaseModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat kasus staff.');
+    populateDonationSelects();
+    document.getElementById('formDonationCase')?.reset();
+    document.getElementById('donationCaseDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationCase')).show();
+}
+
+async function saveDonationCase(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const staffId = document.getElementById('donationCaseStaff').value;
+        const staff = donationState.users.find(item => item.id === staffId);
+        const requestedAmount = Number(document.getElementById('donationCaseAmount').value || 0);
+        const payload = {
+            program_id: document.getElementById('donationCaseProgram').value,
+            staff_user_id: staffId,
+            staff_name_snapshot: staff?.full_name || staff?.username || 'Staff',
+            case_title: document.getElementById('donationCaseTitle').value.trim(),
+            public_summary: document.getElementById('donationCaseSummary').value.trim(),
+            incident_category: document.getElementById('donationCaseCategory').value,
+            incident_date: document.getElementById('donationCaseDate').value,
+            requested_amount: requestedAmount,
+            status: 'SUBMITTED',
+            created_by: currentProfile.id
+        };
+        if (!payload.program_id || !payload.staff_user_id || !payload.case_title || !payload.public_summary || requestedAmount <= 0) {
+            throw new Error('Dana, staff, judul, ringkasan, dan nominal wajib diisi.');
+        }
+        const { error } = await supabaseClient.from('donation_incident_cases').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationCase'))?.hide();
+        donationMessage('Kasus staff berhasil dicatat dan menunggu review Admin.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function approveDonationCase(id) {
+    if (!canManageDonation()) return;
+    const item = donationState.cases.find(caseItem => caseItem.id === id);
+    if (!item || !confirm(`Setujui kasus ${item.staff_name_snapshot} dengan nominal ${formatRupiah(item.requested_amount)}?`)) return;
+    try {
+        const { error } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'APPROVED',
+            approved_amount: item.requested_amount,
+            approved_by: currentProfile.id,
+            approved_at: new Date().toISOString(),
+            rejection_reason: null,
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
+        if (error) throw error;
+        donationMessage('Kasus berhasil disetujui. Admin dapat mencatat pembayaran berikutnya.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyetujui kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function rejectDonationCase(id) {
+    if (!canManageDonation()) return;
+    const reason = prompt('Alasan penolakan kasus:');
+    if (reason === null) return;
+    try {
+        const { error } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'REJECTED',
+            rejection_reason: reason.trim() || 'Tidak memenuhi kriteria',
+            approved_by: currentProfile.id,
+            approved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
+        if (error) throw error;
+        donationMessage('Kasus ditolak dan tercatat di riwayat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menolak kasus: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+function openDonationAllocationModal(caseId) {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat pencairan.');
+    const item = donationState.cases.find(caseItem => caseItem.id === caseId);
+    if (!item || item.status !== 'APPROVED') return alert('Kasus belum berstatus APPROVED.');
+    document.getElementById('formDonationAllocation')?.reset();
+    document.getElementById('donationAllocationCaseId').value = item.id;
+    document.getElementById('donationAllocationCaseLabel').innerHTML = `<strong>${escapeHtml(item.staff_name_snapshot)}</strong> · ${escapeHtml(item.case_title)} · Disetujui ${formatRupiah(item.approved_amount || item.requested_amount)}`;
+    document.getElementById('donationAllocationAmount').value = item.approved_amount || item.requested_amount;
+    document.getElementById('donationAllocationDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationAllocation')).show();
+}
+
+async function saveDonationAllocation(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const caseId = document.getElementById('donationAllocationCaseId').value;
+        const item = donationState.cases.find(caseItem => caseItem.id === caseId);
+        const amount = Number(document.getElementById('donationAllocationAmount').value || 0);
+        if (!item || item.status !== 'APPROVED' || amount <= 0) throw new Error('Kasus harus APPROVED dan nominal pembayaran valid.');
+        const payload = {
+            case_id: item.id,
+            program_id: item.program_id,
+            recipient_user_id: item.staff_user_id,
+            recipient_name_snapshot: item.staff_name_snapshot,
+            amount,
+            status: 'PAID',
+            payment_date: document.getElementById('donationAllocationDate').value,
+            payment_method: document.getElementById('donationAllocationMethod').value,
+            reference: document.getElementById('donationAllocationReference').value.trim() || null,
+            notes: document.getElementById('donationAllocationNotes').value.trim() || null,
+            recorded_by: currentProfile.id
+        };
+        const { error: allocationError } = await supabaseClient.from('donation_staff_allocations').insert(payload);
+        if (allocationError) throw allocationError;
+        const { error: caseError } = await supabaseClient.from('donation_incident_cases').update({
+            status: 'PAID',
+            approved_amount: amount,
+            closed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('id', item.id);
+        if (caseError) throw caseError;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationAllocation'))?.hide();
+        donationMessage('Penyaluran kepada staff berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mencatat penyaluran: ${escapeHtml(error.message || 'Pastikan kasus belum pernah dibayar.')}`, 'danger');
+    }
+}
+
+function openDonationFoundationModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur yayasan.');
+    document.getElementById('formDonationFoundation')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationFoundation')).show();
+}
+
+async function saveDonationFoundation(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            code: document.getElementById('donationFoundationCode').value.trim().toUpperCase(),
+            name: document.getElementById('donationFoundationName').value.trim(),
+            contact_name: document.getElementById('donationFoundationContact').value.trim() || null,
+            phone: formatPhone(document.getElementById('donationFoundationPhone').value) || null,
+            public_description: document.getElementById('donationFoundationDescription').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.code || !payload.name) throw new Error('Kode dan nama yayasan wajib diisi.');
+        const { error } = await supabaseClient.from('donation_foundations').upsert(payload, { onConflict: 'code' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationFoundation'))?.hide();
+        donationMessage('Yayasan fallback berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan yayasan: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+function openDonationClosureModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat melakukan closing tahunan.');
+    populateDonationSelects();
+    document.getElementById('formDonationClosure')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationClosure')).show();
+}
+
+async function prepareDonationYearClosure(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_prepare_donation_year_closure', {
+            p_program_id: document.getElementById('donationClosureProgram').value,
+            p_foundation_id: document.getElementById('donationClosureFoundation').value,
+            p_notes: document.getElementById('donationClosureNotes').value.trim() || null
+        });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationClosure'))?.hide();
+        donationMessage(`Closing berhasil disiapkan. Saldo fallback yayasan: <strong>${formatRupiah(data?.fallback_amount || 0)}</strong>. ${data?.status === 'PENDING_TRANSFER' ? 'Silakan catat transfer setelah pembayaran dilakukan.' : 'Periode sudah ditutup.'}`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Closing belum dapat dilakukan: ${escapeHtml(error.message || 'Pastikan semua kasus staff sudah selesai.')}`, 'danger');
+    }
+}
+
+async function markDonationFoundationPaid(id) {
+    if (!canManageDonation()) return;
+    const reference = prompt('Nomor referensi transfer yayasan:');
+    if (reference === null) return;
+    const method = prompt('Metode pembayaran:', 'TRANSFER') || 'TRANSFER';
+    try {
+        const { error } = await supabaseClient.rpc('admin_mark_foundation_disbursement_paid', {
+            p_disbursement_id: id,
+            p_transfer_date: new Date().toISOString().slice(0, 10),
+            p_payment_method: method,
+            p_reference: reference,
+            p_notes: null
+        });
+        if (error) throw error;
+        donationMessage('Transfer fallback ke yayasan berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mencatat transfer yayasan: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
 async function saveDonationSettings(event) {
     event.preventDefault();
     if (!canManageDonation()) return;
@@ -7061,13 +7565,17 @@ function setupManagementMenu() {
         action: "showPage('participants')"
     });
 
-    // DONASI (domain terpisah dari outing)
-    menus.push({
-        icon: 'bi-heart-fill',
-        title: 'Donasi',
-        desc: isTrustedAdmin() ? 'Kelola program, donatur, penerima & reminder WhatsApp' : 'Lihat komitmen dan riwayat donasi Anda',
-        action: "showPage('donations')"
-    });
+    // DONASI (domain terpisah dari outing). Non-donatur tidak diberi menu
+    // laporan kasus; RLS tetap menjadi pengaman utama di database.
+    const hasDonationAccess = isTrustedAdmin() || donationState.memberships.some(item => item.status === 'ACTIVE');
+    if (hasDonationAccess) {
+        menus.push({
+            icon: 'bi-heart-fill',
+            title: 'Donasi',
+            desc: isTrustedAdmin() ? 'Kelola dana, kasus staff, yayasan & reminder WhatsApp' : 'Lihat komitmen, kasus, dan riwayat donasi',
+            action: "showPage('donations')"
+        });
+    }
 
     // APPROVAL USER BARU (khusus Admin yang login secara nyata)
     if (isTrustedAdmin()) {
@@ -7168,6 +7676,10 @@ function setupManagementMenu() {
    PAGE NAVIGATION SWITCHER
 ===================================================== */
 function showPage(page) {
+    if (page === 'donations' && !isTrustedAdmin() && !donationState.memberships.some(item => item.status === 'ACTIVE')) {
+        alert('Menu Donasi hanya tersedia untuk donatur aktif. Hubungi Admin jika perlu diaktifkan.');
+        page = 'management';
+    }
     if (page === 'user_approvals' && !isTrustedAdmin()) {
         alert('Akses Ditolak: hanya Admin yang dapat melakukan approval user.');
         page = 'management';
