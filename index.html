@@ -3499,10 +3499,20 @@ async function resolveLoginIdentifier(identifier) {
     if (withoutAt.includes('@')) {
         return { email: withoutAt, username: withoutAt.split('@')[0] };
     }
+    // Username login does not need a database lookup: the Auth email is
+    // deterministic. This keeps the primary login path usable when the
+    // optional phone resolver RPC is temporarily unavailable. Phone login
+    // still uses the server-side resolver and never guesses an email.
+    if (/^[a-z0-9._-]{3,100}$/.test(withoutAt)) {
+        return { email: authEmailForUsername(withoutAt), username: withoutAt };
+    }
     const { data, error } = await supabaseClient.rpc('resolve_login_username', {
         p_identifier: raw
     });
-    if (error) throw new Error('Tidak dapat memeriksa User ID ke Supabase. Periksa koneksi lalu coba lagi.');
+    if (error) {
+        console.warn('Phone login resolver unavailable:', error);
+        throw new Error('Tidak dapat memeriksa nomor WhatsApp ke Supabase. Gunakan User ID atau periksa koneksi.');
+    }
     if (!data) throw new Error('User ID atau Nomor WhatsApp tidak ditemukan.');
     return { email: authEmailForUsername(data), username: String(data).toLowerCase() };
 }
