@@ -891,6 +891,7 @@
                 <span class="nav-link" id="dnavHome" onclick="showPage('home')"><i class="bi bi-house me-1"></i>Home</span>
                 <span class="nav-link" id="dnavRundown" onclick="showPage('rundown')"><i class="bi bi-calendar-event me-1"></i>Rundown</span>
                 <span class="nav-link" id="dnavFinance" onclick="showPage('finance')"><i class="bi bi-wallet2 me-1"></i>Keuangan</span>
+                <span class="nav-link" id="dnavDonations" onclick="showPage('donations')"><i class="bi bi-heart-fill me-1"></i>Donasi</span>
                 <span class="nav-link" id="dnavPurchasing" onclick="showPage('purchasing')"><i class="bi bi-cart-check me-1"></i>Purchasing</span>
                 <span class="nav-link" id="dnavLogistic" onclick="showPage('logistic')"><i class="bi bi-box-seam me-1"></i>Logistic</span>
                 <span class="nav-link" id="dnavKonsumsi" onclick="showPage('konsumsi')"><i class="bi bi-cup-hot me-1"></i>Konsumsi</span>
@@ -1676,6 +1677,147 @@
         </div>
 
         <!-- =============================================
+             PAGE: DONATION MANAGEMENT
+        ============================================== -->
+        <div id="pageDonations" class="page">
+            <div class="content-card">
+                <div class="content-header">
+                    <div>
+                        <h5><i class="bi bi-heart-fill me-2 text-danger"></i>Donasi</h5>
+                        <small class="text-muted">Program, donatur aktif, penerima, transaksi, dan reminder WhatsApp</small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadDonations()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('management')">
+                            <i class="bi bi-arrow-left me-1"></i> Menu
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-shield-check me-1"></i>
+                        Pengaturan Donasi berdiri sendiri dari aturan Outing. Hanya Admin yang dapat mengaktifkan donatur,
+                        mengatur penerima, mencatat transaksi, dan membuat antrean reminder bulanan.
+                    </div>
+                    <div id="donationMessage" class="mb-3"></div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-danger border-4">
+                                <div class="stat-title">Donatur Aktif</div>
+                                <div class="stat-value text-danger" id="donationStatDonors">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-primary border-4">
+                                <div class="stat-title">Program Aktif</div>
+                                <div class="stat-value text-primary" id="donationStatPrograms">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-warning border-4">
+                                <div class="stat-title">Antrean Reminder</div>
+                                <div class="stat-value text-warning" id="donationStatReminders">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card border-start border-success border-4">
+                                <div class="stat-title">Donasi Bulan Ini</div>
+                                <div class="stat-value text-success" id="donationStatPaid">Rp 0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="donationAdminControls" class="card border-danger border-opacity-25 bg-danger bg-opacity-10 p-3 mb-4 d-none">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div>
+                                <h6 class="fw-bold text-danger mb-1"><i class="bi bi-shield-lock me-1"></i>Kontrol Admin Donasi</h6>
+                                <small class="text-muted">Aktivasi donatur dilakukan dari daftar user approved, bukan dari role simulator.</small>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-sm btn-danger" onclick="openDonationProgramModal()"><i class="bi bi-plus-lg me-1"></i>Program</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationBeneficiaryModal()"><i class="bi bi-person-heart me-1"></i>Penerima</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="openDonationMembershipModal()"><i class="bi bi-person-plus me-1"></i>Aktifkan Donatur</button>
+                                <button class="btn btn-sm btn-outline-dark" onclick="openDonationTransactionModal()"><i class="bi bi-receipt me-1"></i>Catat Donasi</button>
+                                <button class="btn btn-sm btn-outline-success" onclick="enqueueDonationReminders()"><i class="bi bi-whatsapp me-1"></i>Queue Reminder</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="donationAdminSettings" class="card border-0 bg-light p-3 mb-4 d-none">
+                        <form id="formDonationSettings" onsubmit="saveDonationSettings(event)">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-sliders me-1 text-danger"></i>Pengaturan Reminder Donasi</h6>
+                                <small class="text-muted">Terpisah dari Pengaturan Outing</small>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-semibold">Status Worker</label>
+                                    <select id="donationSettingsEnabled" class="form-select form-select-sm"><option value="true">Aktif</option><option value="false">Nonaktif</option></select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-semibold">Tanggal Default</label>
+                                    <input type="number" id="donationSettingsDay" class="form-control form-control-sm" min="1" max="28" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold">Timezone</label>
+                                    <input type="text" id="donationSettingsTimezone" class="form-control form-control-sm" value="Asia/Jakarta" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-semibold">Template Default WhatsApp</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="donationSettingsTemplate" class="form-control" required>
+                                        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-save"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 bg-light p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-megaphone me-1 text-primary"></i>Program Donasi</h6>
+                                    <span class="small text-muted" id="donationProgramCount">0 program</span>
+                                </div>
+                                <div id="donationProgramsList"><div class="empty-state py-3">Memuat program...</div></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 bg-light p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0"><i class="bi bi-person-heart me-1 text-danger"></i>Penerima Donasi</h6>
+                                    <span class="small text-muted" id="donationBeneficiaryCount">0 penerima</span>
+                                </div>
+                                <div id="donationBeneficiariesList"><div class="empty-state py-3">Memuat penerima...</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-people me-1 text-danger"></i>Donatur Aktif & Komitmen Bulanan</h6>
+                            <small class="text-muted">User ID sebelumnya yang diaktifkan Admin</small>
+                        </div>
+                        <div id="donationMembershipsList" class="table-responsive"><div class="empty-state py-4">Memuat donatur...</div></div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-journal-check me-1 text-success"></i>Riwayat Donasi</h6>
+                            <small class="text-muted">Transaksi terpisah dari kas outing</small>
+                        </div>
+                        <div id="donationTransactionsList" class="table-responsive"><div class="empty-state py-4">Memuat transaksi...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================
              PAGE: PROFILE
         ============================================== -->
         <div id="pageProfile" class="page">
@@ -2391,6 +2533,246 @@
 </div>
 
 <!-- =====================================================
+     DONATION MODALS
+===================================================== -->
+<div class="modal fade" id="modalDonationProgram" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-megaphone me-2"></i>Program Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationProgram" onsubmit="saveDonationProgram(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Kode Program</label>
+                            <input type="text" id="donationProgramCode" class="form-control" required placeholder="DONASI-BULANAN">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Nama Program</label>
+                            <input type="text" id="donationProgramName" class="form-control" required placeholder="Donasi Pendidikan Anak">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select id="donationProgramStatus" class="form-select">
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="PAUSED">PAUSED</option>
+                                <option value="CLOSED">CLOSED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Reminder</label>
+                            <input type="number" id="donationProgramReminderDay" class="form-control" min="1" max="28" value="1" required>
+                            <small class="text-muted">Tanggal 1–28 setiap bulan</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Default</label>
+                            <input type="number" id="donationProgramDefaultAmount" class="form-control" min="0" step="1000" placeholder="50000">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Template WhatsApp</label>
+                            <textarea id="donationProgramTemplate" class="form-control" rows="2" placeholder="Halo {donor_name}, ini pengingat donasi {program_name}. Nominal: {amount}."></textarea>
+                            <small class="text-muted">Placeholder: <code>{donor_name}</code>, <code>{program_name}</code>, <code>{period}</code>, <code>{amount}</code></small>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="donationProgramAllowVariable" checked>
+                                <label class="form-check-label small" for="donationProgramAllowVariable">Izinkan nominal bebas untuk program ini</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationBeneficiary" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-person-heart me-2"></i>Penerima Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationBeneficiary" onsubmit="saveDonationBeneficiary(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Jenis Penerima</label>
+                        <select id="donationBeneficiaryType" class="form-select">
+                            <option value="PERSON">Orang</option>
+                            <option value="FOUNDATION">Yayasan / Lembaga</option>
+                            <option value="USER">User Aplikasi</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="donationBeneficiaryUserWrap">
+                        <label class="form-label small fw-semibold">Hubungkan ke User (opsional)</label>
+                        <select id="donationBeneficiaryUser" class="form-select"><option value="">— Tidak dihubungkan —</option></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nama Penerima</label>
+                        <input type="text" id="donationBeneficiaryName" class="form-control" required placeholder="Nama orang / yayasan">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Organisasi</label>
+                            <input type="text" id="donationBeneficiaryOrganization" class="form-control" placeholder="Opsional">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Nomor Telepon</label>
+                            <input type="tel" id="donationBeneficiaryPhone" class="form-control" placeholder="08xxxxxxxx">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label small fw-semibold">Catatan</label>
+                        <textarea id="donationBeneficiaryNotes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-save me-1"></i>Simpan Penerima</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationMembership" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Aktifkan Donatur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationMembership" onsubmit="saveDonationMembership(event)">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small"><i class="bi bi-info-circle me-1"></i>Hanya user dengan status <strong>APPROVED</strong> yang dapat diaktifkan sebagai donatur.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Program Donasi</label>
+                            <select id="donationMembershipProgram" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Donatur dari User ID</label>
+                            <select id="donationMembershipDonor" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Penerima</label>
+                            <select id="donationMembershipBeneficiary" class="form-select"><option value="">— Dana program umum —</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Model Nominal</label>
+                            <select id="donationMembershipAmountMode" class="form-select">
+                                <option value="FIXED">Tetap</option>
+                                <option value="VARIABLE">Bebas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Nominal / Bulan</label>
+                            <input type="number" id="donationMembershipAmount" class="form-control" min="1" step="1000" placeholder="50000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Reminder Khusus</label>
+                            <input type="number" id="donationMembershipReminderDay" class="form-control" min="1" max="28" placeholder="Ikuti program">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Mulai</label>
+                            <input type="date" id="donationMembershipStartDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Berakhir</label>
+                            <input type="date" id="donationMembershipEndDate" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="donationMembershipWhatsapp" checked>
+                                <label class="form-check-label small" for="donationMembershipWhatsapp">Aktifkan reminder WhatsApp untuk donatur ini</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationMembershipNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-person-check me-1"></i>Simpan Aktivasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDonationTransaction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Catat Transaksi Donasi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDonationTransaction" onsubmit="saveDonationTransaction(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Komitmen Donatur</label>
+                            <select id="donationTransactionMembership" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Periode Bulan</label>
+                            <input type="month" id="donationTransactionPeriod" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Nominal Dibayar</label>
+                            <input type="number" id="donationTransactionAmount" class="form-control" min="1" step="1000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select id="donationTransactionStatus" class="form-select">
+                                <option value="PAID">PAID</option>
+                                <option value="PENDING">PENDING</option>
+                                <option value="FAILED">FAILED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tanggal Bayar</label>
+                            <input type="date" id="donationTransactionPaymentDate" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Metode</label>
+                            <select id="donationTransactionMethod" class="form-select">
+                                <option value="TRANSFER">Transfer</option>
+                                <option value="CASH">Cash</option>
+                                <option value="E_WALLET">E-Wallet</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Referensi</label>
+                            <input type="text" id="donationTransactionReference" class="form-control" placeholder="No. bukti / catatan bank">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Catatan</label>
+                            <textarea id="donationTransactionNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save me-1"></i>Simpan Transaksi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================
      JAVASCRIPT LOGIC
 ===================================================== -->
 <script>
@@ -2411,6 +2793,15 @@ let currentOuting = null;
 let roleSimulationActive = false;
 let activePurchasingFilter = 'ALL';
 let activeTaskFilter = 'ALL';
+let donationState = {
+    programs: [],
+    beneficiaries: [],
+    memberships: [],
+    transactions: [],
+    reminders: [],
+    settings: null,
+    users: []
+};
 
 /* =====================================================
    LOCAL DATA STORAGE & SEEDING (HYBRID ENGINE)
@@ -2847,6 +3238,9 @@ function canManage(module) {
             return role === 'ADMIN' || role === 'INITIATOR' || section.includes('ACARA');
         case 'participants':
             return role === 'ADMIN' || role === 'INITIATOR';
+        case 'donation':
+        case 'donations':
+            return isTrustedAdmin();
         case 'settings':
             return role === 'ADMIN' || role === 'INITIATOR';
         default:
@@ -3138,7 +3532,8 @@ async function loadDashboard() {
             loadFinance(),
             loadAnnouncements(),
             loadParticipants(),
-            loadTasks()
+            loadTasks(),
+            loadDonations()
         ]);
 
         setupManagementMenu();
@@ -6196,6 +6591,455 @@ async function setUserApprovalStatus(userId, nextStatus, rejectionReason = '') {
 }
 
 /* =====================================================
+   DONATION MODULE
+===================================================== */
+function canManageDonation() {
+    // Donation activation and reminder control are Admin-only. Role simulation
+    // deliberately cannot grant access to this module's write operations.
+    return isTrustedAdmin();
+}
+
+function donationMessage(message, type = 'success') {
+    const target = document.getElementById('donationMessage');
+    if (!target) return;
+    target.innerHTML = `<div class="alert alert-${type} py-2 small"><i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-1"></i>${message}</div>`;
+}
+
+function donationStatusBadge(status) {
+    const normalized = String(status || '').toUpperCase();
+    const styles = {
+        ACTIVE: 'success',
+        PAID: 'success',
+        DRAFT: 'secondary',
+        PENDING: 'warning text-dark',
+        QUEUED: 'warning text-dark',
+        PROCESSING: 'info',
+        PAUSED: 'warning text-dark',
+        FAILED: 'danger',
+        CANCELLED: 'dark',
+        CLOSED: 'dark',
+        COMPLETED: 'primary'
+    };
+    return `<span class="badge bg-${styles[normalized] || 'secondary'}">${escapeHtml(normalized || '-')}</span>`;
+}
+
+function donationUserName(userId) {
+    const user = donationState.users.find(item => item.id === userId);
+    if (user) return `${user.full_name || user.username || '-'} (@${user.username || '-'})`;
+    if (currentProfile && (currentProfile.id === userId || currentProfile.auth_user_id === userId)) {
+        return `${currentProfile.full_name || currentProfile.username || '-'} (@${currentProfile.username || '-'})`;
+    }
+    return userId ? String(userId).slice(0, 8) : '-';
+}
+
+function donationProgramName(programId) {
+    return donationState.programs.find(item => item.id === programId)?.name || '-';
+}
+
+function donationBeneficiaryName(beneficiaryId) {
+    return donationState.beneficiaries.find(item => item.id === beneficiaryId)?.name || 'Program umum';
+}
+
+function donationMembershipLabel(membership) {
+    const donor = donationUserName(membership.donor_user_id);
+    const program = donationProgramName(membership.program_id);
+    const amount = membership.amount_mode === 'FIXED' ? formatRupiah(membership.fixed_amount) : 'Nominal bebas';
+    return `${donor} — ${program} — ${amount}`;
+}
+
+function renderDonationPrograms() {
+    const target = document.getElementById('donationProgramsList');
+    const count = document.getElementById('donationProgramCount');
+    if (!target) return;
+    const programs = donationState.programs || [];
+    if (count) count.textContent = `${programs.length} program`;
+    if (!programs.length) {
+        target.innerHTML = '<div class="empty-state py-3"><i class="bi bi-megaphone"></i><div>Belum ada program donasi.</div></div>';
+        return;
+    }
+    target.innerHTML = programs.map(program => `
+        <div class="border rounded-3 bg-white p-2 mb-2">
+            <div class="d-flex justify-content-between gap-2">
+                <div><strong>${escapeHtml(program.name)}</strong><div class="small text-muted">${escapeHtml(program.code)} · Reminder tanggal ${program.reminder_day}</div></div>
+                ${donationStatusBadge(program.status)}
+            </div>
+            <div class="small text-secondary mt-1">Nominal default: ${program.default_amount ? formatRupiah(program.default_amount) : 'Bebas'} · ${program.allow_variable_amount ? 'Bisa nominal bebas' : 'Nominal tetap'}</div>
+        </div>
+    `).join('');
+}
+
+function renderDonationBeneficiaries() {
+    const target = document.getElementById('donationBeneficiariesList');
+    const count = document.getElementById('donationBeneficiaryCount');
+    if (!target) return;
+    const beneficiaries = donationState.beneficiaries || [];
+    if (count) count.textContent = `${beneficiaries.length} penerima`;
+    if (!beneficiaries.length) {
+        target.innerHTML = '<div class="empty-state py-3"><i class="bi bi-person-heart"></i><div>Belum ada penerima.</div></div>';
+        return;
+    }
+    target.innerHTML = beneficiaries.map(item => `
+        <div class="border rounded-3 bg-white p-2 mb-2">
+            <div class="d-flex justify-content-between gap-2">
+                <strong>${escapeHtml(item.name)}</strong>${item.is_active ? donationStatusBadge('ACTIVE') : donationStatusBadge('PAUSED')}
+            </div>
+            <div class="small text-muted">${escapeHtml(item.beneficiary_type || 'PERSON')}${item.organization ? ` · ${escapeHtml(item.organization)}` : ''}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}</div>
+        </div>
+    `).join('');
+}
+
+function renderDonationMemberships() {
+    const target = document.getElementById('donationMembershipsList');
+    if (!target) return;
+    const memberships = donationState.memberships || [];
+    if (!memberships.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-people"></i><div>Belum ada donatur aktif.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Donatur</th><th>Program / Penerima</th><th>Nominal</th><th>Periode</th><th>Status</th>${canManageDonation() ? '<th>Aksi</th>' : ''}</tr></thead>
+        <tbody>${memberships.map(item => {
+            const donor = donationState.users.find(user => user.id === item.donor_user_id);
+            const phone = canManageDonation() && donor?.phone ? `<div class="small text-muted">${escapeHtml(donor.phone)}</div>` : '';
+            const nextStatus = item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+            return `<tr>
+                <td><strong>${escapeHtml(donor?.full_name || donor?.username || donationUserName(item.donor_user_id))}</strong>${phone}<div class="small text-muted">@${escapeHtml(donor?.username || '-')}</div></td>
+                <td>${escapeHtml(donationProgramName(item.program_id))}<div class="small text-muted">${escapeHtml(donationBeneficiaryName(item.beneficiary_id))}</div></td>
+                <td>${item.amount_mode === 'FIXED' ? formatRupiah(item.fixed_amount) : 'Bebas'}</td>
+                <td>${escapeHtml(item.start_date || '-')}<div class="small text-muted">${item.end_date ? `s/d ${escapeHtml(item.end_date)}` : 'berjalan'}</div></td>
+                <td>${donationStatusBadge(item.status)}${item.whatsapp_opt_in ? '<div class="small text-success mt-1"><i class="bi bi-whatsapp"></i> WA</div>' : ''}</td>
+                ${canManageDonation() ? `<td><button class="btn btn-sm btn-outline-secondary" onclick="toggleDonationMembership('${item.id}','${nextStatus}')">${nextStatus === 'PAUSED' ? 'Pause' : 'Aktifkan'}</button></td>` : ''}
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+function renderDonationTransactions() {
+    const target = document.getElementById('donationTransactionsList');
+    if (!target) return;
+    const transactions = donationState.transactions || [];
+    if (!transactions.length) {
+        target.innerHTML = '<div class="empty-state py-4"><i class="bi bi-receipt"></i><div>Belum ada transaksi donasi.</div></div>';
+        return;
+    }
+    target.innerHTML = `<table class="table table-sm table-hover align-middle mb-0" style="font-size: 12px;">
+        <thead class="table-light"><tr><th>Periode</th><th>Donatur</th><th>Penerima</th><th class="text-end">Nominal</th><th>Status</th><th>Metode</th></tr></thead>
+        <tbody>${transactions.map(item => `<tr>
+            <td>${escapeHtml(String(item.period_start || '-').slice(0, 7))}</td>
+            <td>${escapeHtml(donationUserName(item.donor_user_id))}</td>
+            <td>${escapeHtml(donationBeneficiaryName(item.beneficiary_id))}</td>
+            <td class="text-end fw-semibold">${formatRupiah(item.amount)}</td>
+            <td>${donationStatusBadge(item.status)}</td>
+            <td>${escapeHtml(item.payment_method || '-')}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function updateDonationSummary() {
+    const activeDonors = donationState.memberships.filter(item => item.status === 'ACTIVE').length;
+    const activePrograms = donationState.programs.filter(item => item.status === 'ACTIVE').length;
+    const queued = donationState.reminders.filter(item => ['QUEUED', 'PROCESSING'].includes(item.status)).length;
+    const month = new Date().toISOString().slice(0, 7);
+    const paid = donationState.transactions
+        .filter(item => item.status === 'PAID' && String(item.period_start || '').slice(0, 7) === month)
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const values = {
+        donationStatDonors: activeDonors,
+        donationStatPrograms: activePrograms,
+        donationStatReminders: queued,
+        donationStatPaid: formatRupiah(paid)
+    };
+    Object.entries(values).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+}
+
+function populateDonationSelects() {
+    const activePrograms = donationState.programs.filter(item => item.status === 'ACTIVE' || canManageDonation());
+    const programSelect = document.getElementById('donationMembershipProgram');
+    if (programSelect) {
+        programSelect.innerHTML = activePrograms.length
+            ? activePrograms.map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.code)})</option>`).join('')
+            : '<option value="">Belum ada program ACTIVE</option>';
+    }
+    const donorSelect = document.getElementById('donationMembershipDonor');
+    if (donorSelect) {
+        const users = donationState.users.filter(item => item.approval_status === 'APPROVED');
+        donorSelect.innerHTML = users.length
+            ? users.map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})${item.phone ? ` · ${escapeHtml(item.phone)}` : ' · tanpa nomor WA'}</option>`).join('')
+            : '<option value="">Belum ada user approved</option>';
+    }
+    const beneficiarySelect = document.getElementById('donationMembershipBeneficiary');
+    if (beneficiarySelect) {
+        beneficiarySelect.innerHTML = '<option value="">— Dana program umum —</option>' + donationState.beneficiaries.filter(item => item.is_active).map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.beneficiary_type || 'PERSON')})</option>`).join('');
+    }
+    const userBeneficiarySelect = document.getElementById('donationBeneficiaryUser');
+    if (userBeneficiarySelect) {
+        userBeneficiarySelect.innerHTML = '<option value="">— Tidak dihubungkan —</option>' + donationState.users.filter(item => item.approval_status === 'APPROVED').map(item => `<option value="${item.id}">${escapeHtml(item.full_name || item.username)} (@${escapeHtml(item.username || '-')})</option>`).join('');
+    }
+    const transactionSelect = document.getElementById('donationTransactionMembership');
+    if (transactionSelect) {
+        transactionSelect.innerHTML = donationState.memberships.map(item => `<option value="${item.id}">${escapeHtml(donationMembershipLabel(item))}</option>`).join('');
+    }
+}
+
+function renderDonationSettings() {
+    const panel = document.getElementById('donationAdminSettings');
+    if (panel) panel.classList.toggle('d-none', !canManageDonation());
+    if (!canManageDonation() || !donationState.settings) return;
+    const settings = donationState.settings;
+    const enabled = document.getElementById('donationSettingsEnabled');
+    const day = document.getElementById('donationSettingsDay');
+    const timezone = document.getElementById('donationSettingsTimezone');
+    const template = document.getElementById('donationSettingsTemplate');
+    if (enabled) enabled.value = settings.enabled ? 'true' : 'false';
+    if (day) day.value = settings.default_reminder_day || 1;
+    if (timezone) timezone.value = settings.timezone || 'Asia/Jakarta';
+    if (template) template.value = settings.message_template || '';
+}
+
+async function loadDonations() {
+    if (!currentUser) return;
+    const controls = document.getElementById('donationAdminControls');
+    if (controls) controls.classList.toggle('d-none', !canManageDonation());
+    try {
+        const [programs, beneficiaries, memberships, transactions, reminders, settings] = await Promise.all([
+            supabaseClient.from('donation_programs').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_beneficiaries').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_memberships').select('*').order('created_at', { ascending: false }),
+            supabaseClient.from('donation_transactions').select('*').order('period_start', { ascending: false }).limit(100),
+            supabaseClient.from('donation_reminders').select('*').order('scheduled_for', { ascending: false }).limit(100),
+            supabaseClient.from('donation_settings').select('*').eq('id', true).maybeSingle()
+        ]);
+        const responses = [programs, beneficiaries, memberships, transactions, reminders, settings];
+        const failed = responses.find(response => response.error);
+        if (failed?.error) throw failed.error;
+        donationState.programs = programs.data || [];
+        donationState.beneficiaries = beneficiaries.data || [];
+        donationState.memberships = memberships.data || [];
+        donationState.transactions = transactions.data || [];
+        donationState.reminders = reminders.data || [];
+        donationState.settings = settings.data || null;
+        if (canManageDonation()) {
+            const { data, error } = await supabaseClient.from('users').select('id,username,full_name,phone,approval_status').order('full_name');
+            if (error) throw error;
+            donationState.users = data || [];
+        } else if (currentProfile) {
+            donationState.users = [currentProfile];
+        }
+        renderDonationPrograms();
+        renderDonationBeneficiaries();
+        renderDonationMemberships();
+        renderDonationTransactions();
+        renderDonationSettings();
+        populateDonationSelects();
+        updateDonationSummary();
+    } catch (error) {
+        console.warn('loadDonations error:', error);
+        const message = String(error?.message || 'Tabel Donasi belum tersedia di Supabase.');
+        ['donationProgramsList', 'donationBeneficiariesList', 'donationMembershipsList', 'donationTransactionsList'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.innerHTML = `<div class="empty-state py-4"><i class="bi bi-database-exclamation"></i><div>Data Donasi belum dapat dimuat.</div><small class="text-muted">${escapeHtml(message)}</small></div>`;
+        });
+    }
+}
+
+function openDonationProgramModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur program donasi.');
+    document.getElementById('formDonationProgram')?.reset();
+    document.getElementById('donationProgramStatus').value = 'ACTIVE';
+    document.getElementById('donationProgramReminderDay').value = '1';
+    document.getElementById('donationProgramAllowVariable').checked = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationProgram')).show();
+}
+
+function openDonationBeneficiaryModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengatur penerima donasi.');
+    document.getElementById('formDonationBeneficiary')?.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationBeneficiary')).show();
+}
+
+function openDonationMembershipModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mengaktifkan donatur.');
+    populateDonationSelects();
+    document.getElementById('formDonationMembership')?.reset();
+    document.getElementById('donationMembershipStartDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('donationMembershipWhatsapp').checked = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationMembership')).show();
+}
+
+function openDonationTransactionModal() {
+    if (!canManageDonation()) return alert('Akses Ditolak: hanya Admin yang dapat mencatat transaksi donasi.');
+    populateDonationSelects();
+    document.getElementById('formDonationTransaction')?.reset();
+    document.getElementById('donationTransactionPeriod').value = new Date().toISOString().slice(0, 7);
+    document.getElementById('donationTransactionPaymentDate').value = new Date().toISOString().slice(0, 10);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDonationTransaction')).show();
+}
+
+async function saveDonationProgram(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const code = document.getElementById('donationProgramCode').value.trim().toUpperCase();
+        const payload = {
+            code,
+            name: document.getElementById('donationProgramName').value.trim(),
+            status: document.getElementById('donationProgramStatus').value,
+            reminder_day: Number(document.getElementById('donationProgramReminderDay').value),
+            default_amount: Number(document.getElementById('donationProgramDefaultAmount').value || 0) || null,
+            allow_variable_amount: document.getElementById('donationProgramAllowVariable').checked,
+            whatsapp_template: document.getElementById('donationProgramTemplate').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!code || !payload.name) throw new Error('Kode dan nama program wajib diisi.');
+        const { error } = await supabaseClient.from('donation_programs').upsert(payload, { onConflict: 'code' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationProgram'))?.hide();
+        donationMessage('Program donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan program: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationBeneficiary(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            beneficiary_type: document.getElementById('donationBeneficiaryType').value,
+            user_id: document.getElementById('donationBeneficiaryUser').value || null,
+            name: document.getElementById('donationBeneficiaryName').value.trim(),
+            organization: document.getElementById('donationBeneficiaryOrganization').value.trim() || null,
+            phone: formatPhone(document.getElementById('donationBeneficiaryPhone').value) || null,
+            notes: document.getElementById('donationBeneficiaryNotes').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.name) throw new Error('Nama penerima wajib diisi.');
+        const { error } = await supabaseClient.from('donation_beneficiaries').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationBeneficiary'))?.hide();
+        donationMessage('Penerima donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan penerima: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationMembership(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const amountMode = document.getElementById('donationMembershipAmountMode').value;
+        const fixedAmount = Number(document.getElementById('donationMembershipAmount').value || 0) || null;
+        if (amountMode === 'FIXED' && (!fixedAmount || fixedAmount <= 0)) throw new Error('Nominal tetap wajib lebih besar dari nol.');
+        const payload = {
+            program_id: document.getElementById('donationMembershipProgram').value,
+            donor_user_id: document.getElementById('donationMembershipDonor').value,
+            beneficiary_id: document.getElementById('donationMembershipBeneficiary').value || null,
+            amount_mode: amountMode,
+            fixed_amount: amountMode === 'FIXED' ? fixedAmount : null,
+            frequency: 'MONTHLY',
+            reminder_day: Number(document.getElementById('donationMembershipReminderDay').value || 0) || null,
+            whatsapp_opt_in: document.getElementById('donationMembershipWhatsapp').checked,
+            start_date: document.getElementById('donationMembershipStartDate').value,
+            end_date: document.getElementById('donationMembershipEndDate').value || null,
+            status: 'ACTIVE',
+            notes: document.getElementById('donationMembershipNotes').value.trim() || null,
+            created_by: currentProfile.id
+        };
+        if (!payload.program_id || !payload.donor_user_id || !payload.start_date) throw new Error('Program, donor, dan tanggal mulai wajib diisi.');
+        const { error } = await supabaseClient.from('donation_memberships').insert(payload);
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationMembership'))?.hide();
+        donationMessage('Donatur berhasil diaktifkan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mengaktifkan donatur: ${escapeHtml(error.message || 'User mungkin sudah memiliki komitmen yang sama.')}`, 'danger');
+    }
+}
+
+async function saveDonationTransaction(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const membershipId = document.getElementById('donationTransactionMembership').value;
+        const membership = donationState.memberships.find(item => item.id === membershipId);
+        const period = document.getElementById('donationTransactionPeriod').value;
+        const amount = Number(document.getElementById('donationTransactionAmount').value || 0);
+        if (!membership || !/^\d{4}-\d{2}$/.test(period) || amount <= 0) throw new Error('Komitmen, periode, dan nominal transaksi wajib valid.');
+        const payload = {
+            membership_id: membership.id,
+            donor_user_id: membership.donor_user_id,
+            beneficiary_id: membership.beneficiary_id || null,
+            period_start: `${period}-01`,
+            amount,
+            status: document.getElementById('donationTransactionStatus').value,
+            payment_date: document.getElementById('donationTransactionPaymentDate').value || null,
+            payment_method: document.getElementById('donationTransactionMethod').value,
+            reference: document.getElementById('donationTransactionReference').value.trim() || null,
+            notes: document.getElementById('donationTransactionNotes').value.trim() || null,
+            recorded_by: currentProfile.id
+        };
+        const { error } = await supabaseClient.from('donation_transactions').upsert(payload, { onConflict: 'membership_id,period_start' });
+        if (error) throw error;
+        bootstrap.Modal.getInstance(document.getElementById('modalDonationTransaction'))?.hide();
+        donationMessage('Transaksi donasi berhasil dicatat.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan transaksi: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function toggleDonationMembership(id, status) {
+    if (!canManageDonation()) return;
+    try {
+        const { error } = await supabaseClient.from('donation_memberships').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+        if (error) throw error;
+        donationMessage(`Status donatur berhasil diubah menjadi ${escapeHtml(status)}.`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal mengubah status donatur: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function saveDonationSettings(event) {
+    event.preventDefault();
+    if (!canManageDonation()) return;
+    try {
+        const payload = {
+            enabled: document.getElementById('donationSettingsEnabled').value === 'true',
+            default_reminder_day: Number(document.getElementById('donationSettingsDay').value),
+            timezone: document.getElementById('donationSettingsTimezone').value.trim(),
+            message_template: document.getElementById('donationSettingsTemplate').value.trim(),
+            updated_by: currentProfile.id,
+            updated_at: new Date().toISOString()
+        };
+        if (!payload.timezone || !payload.message_template) throw new Error('Timezone dan template wajib diisi.');
+        const { error } = await supabaseClient.from('donation_settings').update(payload).eq('id', true);
+        if (error) throw error;
+        donationMessage('Pengaturan reminder donasi berhasil disimpan.');
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal menyimpan pengaturan reminder: ${escapeHtml(error.message || 'Unknown error')}`, 'danger');
+    }
+}
+
+async function enqueueDonationReminders() {
+    if (!canManageDonation()) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_enqueue_donation_reminders');
+        if (error) throw error;
+        donationMessage(`Antrean reminder berhasil dibuat: ${Number(data || 0)} donatur. Worker WhatsApp akan memproses antrean sesuai jadwal.`);
+        await loadDonations();
+    } catch (error) {
+        donationMessage(`Gagal membuat antrean reminder: ${escapeHtml(error.message || 'Pastikan schema Donasi sudah dijalankan.')}`, 'danger');
+    }
+}
+
+/* =====================================================
    MANAGEMENT MENU TILES SETUP
 ===================================================== */
 function setupManagementMenu() {
@@ -6215,6 +7059,14 @@ function setupManagementMenu() {
         title: 'Data Peserta',
         desc: 'Lihat daftar peserta, departemen, kamar & bus',
         action: "showPage('participants')"
+    });
+
+    // DONASI (domain terpisah dari outing)
+    menus.push({
+        icon: 'bi-heart-fill',
+        title: 'Donasi',
+        desc: isTrustedAdmin() ? 'Kelola program, donatur, penerima & reminder WhatsApp' : 'Lihat komitmen dan riwayat donasi Anda',
+        action: "showPage('donations')"
     });
 
     // APPROVAL USER BARU (khusus Admin yang login secara nyata)
@@ -6327,6 +7179,7 @@ function showPage(page) {
         home: 'pageHome',
         rundown: 'pageRundown',
         finance: 'pageFinance',
+        donations: 'pageDonations',
         management: 'pageManagement',
         profile: 'pageProfile',
         participants: 'pageParticipants',
@@ -6362,6 +7215,7 @@ function showPage(page) {
     if (page === 'user_approvals') loadUserApprovals();
     if (page === 'rundown') loadRundown();
     if (page === 'finance') loadFinance();
+    if (page === 'donations') loadDonations();
 
     updateViewOnlyNotices();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6375,6 +7229,7 @@ function showModule(moduleName) {
         'Public Area': 'public_area',
         'Pengaturan': 'settings',
         'Keuangan': 'finance',
+        'Donasi': 'donations',
         'Data Peserta': 'participants'
     };
     showPage(map[moduleName] || 'management');

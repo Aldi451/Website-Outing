@@ -338,11 +338,353 @@ CREATE TABLE IF NOT EXISTS public.announcements (
 );
 
 -- ====================================================================
--- 11. SUPABASE AUTH HELPERS & ROW LEVEL SECURITY (RLS)
+-- 11. DONATION PROGRAMS, DONORS, BENEFICIARIES & REMINDERS
+-- ====================================================================
+-- Donation deliberately has its own domain tables. It never reuses outing
+-- rules or outing_id: an outing is an event, while a donation is a donor,
+-- beneficiary, program, contribution period, and reminder relationship.
+
+CREATE TABLE IF NOT EXISTS public.donation_programs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT', -- DRAFT, ACTIVE, PAUSED, CLOSED
+    reminder_day SMALLINT NOT NULL DEFAULT 1 CHECK (reminder_day BETWEEN 1 AND 28),
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Jakarta',
+    default_amount NUMERIC(15,2) CHECK (default_amount IS NULL OR default_amount > 0),
+    allow_variable_amount BOOLEAN NOT NULL DEFAULT TRUE,
+    whatsapp_template TEXT,
+    start_date DATE,
+    end_date DATE,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_programs_status_check CHECK (status IN ('DRAFT', 'ACTIVE', 'PAUSED', 'CLOSED')),
+    CONSTRAINT donation_programs_date_check CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.donation_beneficiaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    beneficiary_type VARCHAR(20) NOT NULL DEFAULT 'PERSON', -- USER, PERSON, FOUNDATION
+    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    organization VARCHAR(255),
+    phone VARCHAR(30),
+    notes TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_beneficiaries_type_check CHECK (beneficiary_type IN ('USER', 'PERSON', 'FOUNDATION'))
+);
+
+CREATE TABLE IF NOT EXISTS public.donation_memberships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    program_id UUID NOT NULL REFERENCES public.donation_programs(id) ON DELETE CASCADE,
+    donor_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    beneficiary_id UUID REFERENCES public.donation_beneficiaries(id) ON DELETE SET NULL,
+    amount_mode VARCHAR(10) NOT NULL DEFAULT 'FIXED', -- FIXED or VARIABLE
+    fixed_amount NUMERIC(15,2),
+    frequency VARCHAR(20) NOT NULL DEFAULT 'MONTHLY',
+    reminder_day SMALLINT CHECK (reminder_day IS NULL OR reminder_day BETWEEN 1 AND 28),
+    whatsapp_opt_in BOOLEAN NOT NULL DEFAULT TRUE,
+    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    end_date DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, CANCELLED, COMPLETED
+    notes TEXT,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_memberships_amount_mode_check CHECK (amount_mode IN ('FIXED', 'VARIABLE')),
+    CONSTRAINT donation_memberships_frequency_check CHECK (frequency IN ('MONTHLY')),
+    CONSTRAINT donation_memberships_status_check CHECK (status IN ('ACTIVE', 'PAUSED', 'CANCELLED', 'COMPLETED')),
+    CONSTRAINT donation_memberships_fixed_amount_check CHECK (
+        amount_mode = 'VARIABLE' OR (fixed_amount IS NOT NULL AND fixed_amount > 0)
+    ),
+    CONSTRAINT donation_memberships_date_check CHECK (end_date IS NULL OR end_date >= start_date)
+);
+
+-- A donor may support multiple beneficiaries, but the same donor/program/
+-- beneficiary combination must only have one active membership record.
+CREATE UNIQUE INDEX IF NOT EXISTS donation_memberships_identity_idx
+    ON public.donation_memberships (
+        program_id,
+        donor_user_id,
+        (COALESCE(beneficiary_id, '00000000-0000-0000-0000-000000000000'::UUID))
+    );
+CREATE INDEX IF NOT EXISTS donation_memberships_donor_idx ON public.donation_memberships (donor_user_id, status);
+CREATE INDEX IF NOT EXISTS donation_memberships_program_idx ON public.donation_memberships (program_id, status);
+
+CREATE TABLE IF NOT EXISTS public.donation_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    membership_id UUID NOT NULL REFERENCES public.donation_memberships(id) ON DELETE CASCADE,
+    donor_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    beneficiary_id UUID REFERENCES public.donation_beneficiaries(id) ON DELETE SET NULL,
+    period_start DATE NOT NULL,
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PAID, FAILED, CANCELLED
+    payment_date DATE,
+    payment_method VARCHAR(30), -- TRANSFER, CASH, E_WALLET, OTHER
+    reference VARCHAR(255),
+    proof_path TEXT,
+    notes TEXT,
+    recorded_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_transactions_status_check CHECK (status IN ('PENDING', 'PAID', 'FAILED', 'CANCELLED')),
+    CONSTRAINT donation_transactions_period_check CHECK (period_start = date_trunc('month', period_start)::DATE)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS donation_transactions_period_idx
+    ON public.donation_transactions (membership_id, period_start);
+CREATE INDEX IF NOT EXISTS donation_transactions_donor_idx ON public.donation_transactions (donor_user_id, period_start DESC);
+
+CREATE TABLE IF NOT EXISTS public.donation_settings (
+    id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id = TRUE),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    default_reminder_day SMALLINT NOT NULL DEFAULT 1 CHECK (default_reminder_day BETWEEN 1 AND 28),
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Jakarta',
+    default_channel VARCHAR(20) NOT NULL DEFAULT 'WHATSAPP',
+    message_template TEXT NOT NULL DEFAULT 'Halo {donor_name}, ini pengingat donasi bulanan untuk {program_name}. Nominal: {amount}. Terima kasih.',
+    updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_settings_channel_check CHECK (default_channel IN ('WHATSAPP'))
+);
+INSERT INTO public.donation_settings (id)
+VALUES (TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.donation_reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    membership_id UUID NOT NULL REFERENCES public.donation_memberships(id) ON DELETE CASCADE,
+    period_start DATE NOT NULL,
+    channel VARCHAR(20) NOT NULL DEFAULT 'WHATSAPP',
+    scheduled_for TIMESTAMPTZ NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'QUEUED', -- QUEUED, PROCESSING, SENT, FAILED, SKIPPED
+    sent_at TIMESTAMPTZ,
+    provider_message_id VARCHAR(255),
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT donation_reminders_channel_check CHECK (channel IN ('WHATSAPP')),
+    CONSTRAINT donation_reminders_status_check CHECK (status IN ('QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'SKIPPED')),
+    CONSTRAINT donation_reminders_period_check CHECK (period_start = date_trunc('month', period_start)::DATE),
+    UNIQUE (membership_id, period_start, channel)
+);
+CREATE INDEX IF NOT EXISTS donation_reminders_queue_idx ON public.donation_reminders (status, scheduled_for);
+
+CREATE OR REPLACE FUNCTION public.enforce_donation_membership_donor()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_approval_status TEXT;
+BEGIN
+    SELECT approval_status INTO v_approval_status
+    FROM public.users
+    WHERE id = NEW.donor_user_id;
+
+    IF v_approval_status IS DISTINCT FROM 'APPROVED' THEN
+        RAISE EXCEPTION 'Donatur harus merupakan user yang sudah approved';
+    END IF;
+    IF NEW.amount_mode = 'FIXED' AND (NEW.fixed_amount IS NULL OR NEW.fixed_amount <= 0) THEN
+        RAISE EXCEPTION 'Nominal tetap donasi harus lebih besar dari nol';
+    END IF;
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_donation_membership_donor ON public.donation_memberships;
+CREATE TRIGGER trg_enforce_donation_membership_donor
+BEFORE INSERT OR UPDATE ON public.donation_memberships
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_donation_membership_donor();
+
+CREATE OR REPLACE FUNCTION public.touch_donation_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_touch_donation_programs ON public.donation_programs;
+CREATE TRIGGER trg_touch_donation_programs BEFORE UPDATE ON public.donation_programs FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_beneficiaries ON public.donation_beneficiaries;
+CREATE TRIGGER trg_touch_donation_beneficiaries BEFORE UPDATE ON public.donation_beneficiaries FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_transactions ON public.donation_transactions;
+CREATE TRIGGER trg_touch_donation_transactions BEFORE UPDATE ON public.donation_transactions FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+DROP TRIGGER IF EXISTS trg_touch_donation_reminders ON public.donation_reminders;
+CREATE TRIGGER trg_touch_donation_reminders BEFORE UPDATE ON public.donation_reminders FOR EACH ROW EXECUTE FUNCTION public.touch_donation_updated_at();
+
+-- Called by the scheduled WhatsApp worker. The unique period key makes this
+-- idempotent: a retried cron invocation cannot enqueue duplicate reminders.
+CREATE OR REPLACE FUNCTION public.enqueue_due_donation_reminders(p_run_at TIMESTAMPTZ DEFAULT NOW())
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_inserted INTEGER := 0;
+BEGIN
+    INSERT INTO public.donation_reminders (membership_id, period_start, channel, scheduled_for)
+    SELECT
+        m.id,
+        date_trunc('month', local_day)::DATE,
+        'WHATSAPP',
+        p_run_at
+    FROM public.donation_memberships m
+    JOIN public.donation_programs p ON p.id = m.program_id
+    JOIN public.users u ON u.id = m.donor_user_id
+    CROSS JOIN public.donation_settings s
+    CROSS JOIN LATERAL (
+        SELECT (p_run_at AT TIME ZONE COALESCE(NULLIF(p.timezone, ''), s.timezone))::DATE AS local_day
+    ) d
+    WHERE s.id = TRUE
+      AND s.enabled = TRUE
+      AND p.status = 'ACTIVE'
+      AND m.status = 'ACTIVE'
+      AND m.whatsapp_opt_in = TRUE
+      AND u.approval_status = 'APPROVED'
+      AND NULLIF(TRIM(u.phone), '') IS NOT NULL
+      AND (m.start_date IS NULL OR local_day >= m.start_date)
+      AND (m.end_date IS NULL OR local_day <= m.end_date)
+      AND (p.start_date IS NULL OR local_day >= p.start_date)
+      AND (p.end_date IS NULL OR local_day <= p.end_date)
+      AND EXTRACT(DAY FROM local_day) >= LEAST(COALESCE(m.reminder_day, p.reminder_day, s.default_reminder_day), 28)
+    ON CONFLICT (membership_id, period_start, channel) DO NOTHING;
+
+    GET DIAGNOSTICS v_inserted = ROW_COUNT;
+    RETURN v_inserted;
+END;
+$$;
+
+-- Claim rows with row locking so two worker instances cannot send the same
+-- WhatsApp reminder at the same time.
+CREATE OR REPLACE FUNCTION public.claim_donation_reminders(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (
+    reminder_id UUID,
+    membership_id UUID,
+    period_start DATE,
+    donor_user_id UUID,
+    donor_name TEXT,
+    donor_phone TEXT,
+    program_name TEXT,
+    amount NUMERIC,
+    amount_mode TEXT,
+    message TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH candidates AS (
+        SELECT r.id
+        FROM public.donation_reminders r
+        WHERE r.status = 'QUEUED'
+          AND r.scheduled_for <= NOW()
+        ORDER BY r.scheduled_for, r.created_at
+        FOR UPDATE SKIP LOCKED
+        LIMIT LEAST(GREATEST(COALESCE(p_limit, 100), 1), 500)
+    ), claimed AS (
+        UPDATE public.donation_reminders r
+        SET status = 'PROCESSING', updated_at = NOW()
+        FROM candidates c
+        WHERE r.id = c.id
+        RETURNING r.id, r.membership_id, r.period_start
+    )
+    SELECT
+        c.id,
+        c.membership_id,
+        c.period_start,
+        m.donor_user_id,
+        COALESCE(u.full_name, u.username)::TEXT,
+        u.phone::TEXT,
+        p.name::TEXT,
+        m.fixed_amount,
+        m.amount_mode::TEXT,
+        replace(
+            replace(
+                replace(
+                    replace(
+                        COALESCE(p.whatsapp_template, s.message_template),
+                        '{donor_name}', COALESCE(u.full_name, u.username)
+                    ),
+                    '{program_name}', p.name
+                ),
+                '{period}', to_char(c.period_start, 'TMMonth YYYY')
+            ),
+            '{amount}', CASE WHEN m.amount_mode = 'FIXED' THEN COALESCE(m.fixed_amount::TEXT, '-') ELSE 'sesuai kemampuan' END
+        )::TEXT
+    FROM claimed c
+    JOIN public.donation_memberships m ON m.id = c.membership_id
+    JOIN public.donation_programs p ON p.id = m.program_id
+    JOIN public.users u ON u.id = m.donor_user_id
+    CROSS JOIN public.donation_settings s
+    WHERE s.id = TRUE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_donation_reminder(
+    p_reminder_id UUID,
+    p_status TEXT,
+    p_provider_message_id TEXT DEFAULT NULL,
+    p_error_message TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_status TEXT := UPPER(TRIM(COALESCE(p_status, '')));
+BEGIN
+    IF v_status NOT IN ('SENT', 'FAILED', 'SKIPPED') THEN
+        RAISE EXCEPTION 'Status reminder tidak valid';
+    END IF;
+    UPDATE public.donation_reminders
+    SET status = v_status,
+        sent_at = CASE WHEN v_status = 'SENT' THEN NOW() ELSE sent_at END,
+        provider_message_id = NULLIF(TRIM(p_provider_message_id), ''),
+        error_message = NULLIF(TRIM(p_error_message), ''),
+        updated_at = NOW()
+    WHERE id = p_reminder_id
+      AND status = 'PROCESSING';
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
+    RETURN TRUE;
+END;
+$$;
+
+-- ====================================================================
+-- 12. SUPABASE AUTH HELPERS & ROW LEVEL SECURITY (RLS)
 -- ====================================================================
 -- The legacy schema used permissive policies, which allowed anyone with the
 -- public anon key to read/write/delete all data. The policies below require a
 -- real Supabase Auth session and enforce role/section permissions in Postgres.
+
+CREATE OR REPLACE FUNCTION public.current_app_user_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT id
+    FROM public.users
+    WHERE auth_user_id = auth.uid()
+    LIMIT 1;
+$$;
 
 CREATE OR REPLACE FUNCTION public.current_app_role()
 RETURNS TEXT
@@ -414,13 +756,31 @@ AS $$
     );
 $$;
 
+-- Admin can manually enqueue a test/run-now batch; the worker-only functions
+-- remain unavailable to normal browser sessions.
+CREATE OR REPLACE FUNCTION public.admin_enqueue_donation_reminders()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF NOT public.current_app_user_is_admin() THEN
+        RAISE EXCEPTION 'Hanya Admin yang dapat membuat antrean reminder donasi';
+    END IF;
+    RETURN public.enqueue_due_donation_reminders(NOW());
+END;
+$$;
+
 -- Used before login so phone-number login still works without exposing the
 -- users table or password hashes to anonymous callers.
+REVOKE ALL ON FUNCTION public.current_app_user_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_role() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_section() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_is_approved() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_is_admin() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.current_app_user_has_role(TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_app_user_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_section() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_app_user_is_approved() TO authenticated;
@@ -565,6 +925,14 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_set_user_approval(UUID, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_approval(UUID, TEXT, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_enqueue_donation_reminders() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_enqueue_donation_reminders() TO authenticated;
+REVOKE ALL ON FUNCTION public.enqueue_due_donation_reminders(TIMESTAMPTZ) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_donation_reminders(INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.complete_donation_reminder(UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.enqueue_due_donation_reminders(TIMESTAMPTZ) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_donation_reminders(INTEGER) TO service_role;
+GRANT EXECUTE ON FUNCTION public.complete_donation_reminder(UUID, TEXT, TEXT, TEXT) TO service_role;
 
 -- Secure table policies. Drop the legacy anon policies first.
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -580,6 +948,20 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.consumption_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_programs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_beneficiaries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.donation_reminders ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON public.donation_programs, public.donation_beneficiaries,
+    public.donation_memberships, public.donation_transactions,
+    public.donation_settings, public.donation_reminders FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.donation_programs,
+    public.donation_beneficiaries, public.donation_memberships,
+    public.donation_transactions, public.donation_settings,
+    public.donation_reminders TO authenticated;
 
 DO $$
 DECLARE
@@ -589,7 +971,7 @@ BEGIN
         SELECT schemaname, tablename, policyname
         FROM pg_policies
         WHERE schemaname = 'public'
-          AND tablename IN ('roles','sections','users','outings','outing_users','rundowns','cash_accounts','cash_transactions','purchase_requests','tasks','consumption_plans','announcements','participants')
+          AND tablename IN ('roles','sections','users','outings','outing_users','rundowns','cash_accounts','cash_transactions','purchase_requests','tasks','consumption_plans','announcements','participants','donation_programs','donation_beneficiaries','donation_memberships','donation_transactions','donation_settings','donation_reminders')
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', policy_row.policyname, policy_row.schemaname, policy_row.tablename);
     END LOOP;
@@ -674,8 +1056,68 @@ CREATE POLICY "admin manage participants" ON public.participants
     USING (public.current_app_user_has_role(ARRAY['ADMIN','INITIATOR']))
     WITH CHECK (public.current_app_user_has_role(ARRAY['ADMIN','INITIATOR']));
 
+-- Donation policies are intentionally separate from outing policies.
+CREATE POLICY "approved users read active donation programs" ON public.donation_programs
+    FOR SELECT TO authenticated
+    USING (public.current_app_user_is_approved() AND (status = 'ACTIVE' OR public.current_app_user_is_admin()));
+CREATE POLICY "admin manage donation programs" ON public.donation_programs
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "approved users read active beneficiaries" ON public.donation_beneficiaries
+    FOR SELECT TO authenticated
+    USING (public.current_app_user_is_approved() AND (is_active OR public.current_app_user_is_admin()));
+CREATE POLICY "admin manage donation beneficiaries" ON public.donation_beneficiaries
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "donors read own memberships" ON public.donation_memberships
+    FOR SELECT TO authenticated
+    USING (
+        public.current_app_user_is_approved()
+        AND (donor_user_id = public.current_app_user_id() OR public.current_app_user_is_admin())
+    );
+CREATE POLICY "admin manage donation memberships" ON public.donation_memberships
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "donors read own donation transactions" ON public.donation_transactions
+    FOR SELECT TO authenticated
+    USING (
+        public.current_app_user_is_approved()
+        AND (donor_user_id = public.current_app_user_id() OR public.current_app_user_is_admin())
+    );
+CREATE POLICY "admin manage donation transactions" ON public.donation_transactions
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "approved users read donation settings" ON public.donation_settings
+    FOR SELECT TO authenticated USING (public.current_app_user_is_approved());
+CREATE POLICY "admin manage donation settings" ON public.donation_settings
+    FOR ALL TO authenticated
+    USING (public.current_app_user_is_admin())
+    WITH CHECK (public.current_app_user_is_admin());
+
+CREATE POLICY "donors read own donation reminders" ON public.donation_reminders
+    FOR SELECT TO authenticated
+    USING (
+        public.current_app_user_is_approved()
+        AND (
+            public.current_app_user_is_admin()
+            OR EXISTS (
+                SELECT 1 FROM public.donation_memberships m
+                WHERE m.id = membership_id
+                  AND m.donor_user_id = public.current_app_user_id()
+            )
+        )
+    );
+
 -- ====================================================================
--- 12. STORAGE BUCKET & MIGRATIONS (PURCHASING ATTACHMENTS)
+-- 13. STORAGE BUCKET & MIGRATIONS (PURCHASING ATTACHMENTS)
 -- ====================================================================
 
 -- Migration for existing database deployments:

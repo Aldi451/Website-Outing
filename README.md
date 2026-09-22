@@ -25,6 +25,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 | 12 | **Supabase Data + UI Cache** | ✅ **Selesai** | Supabase/Postgres menjadi sumber data dan otorisasi; LocalStorage hanya cache tampilan/offline seed dan tidak pernah menjadi sumber session, password, role, atau approval. |
 | 13 | **Universal Excel Engine** | ✅ **Selesai** | Fitur **Export Excel Real-Time** (membaca data lokal terkini) dan **Import Excel Interaktif** (seperti rundown) di SELURUH modul. |
 | 14 | **Upload & Kompresi Foto Purchasing** | ✅ **Selesai** | Unggah foto/nota terkompresi ke **private Supabase Storage bucket**; tabel menyimpan object path dan UI menggunakan signed URL. |
+| 15 | **Modul Donasi & Reminder WhatsApp** | ✅ **Selesai** | Domain terpisah dari Outing: program, donatur aktif pilihan Admin, penerima internal/eksternal, transaksi bulanan, antrean reminder idempotent, dan worker WhatsApp melalui Supabase Edge Function. |
 
 ---
 
@@ -178,7 +179,22 @@ Jika menggunakan VS Code:
 2. Jalankan [`supabase/seed.sql`](supabase/seed.sql) untuk akun demo. Script ini memakai `crypt()` di database Auth, bukan `users.password_hash` atau LocalStorage. Kredensial demo adalah akun development; ganti password atau hapus seed sebelum production.
 3. Jika project sudah berisi user custom lama, password PBKDF2 lama tidak dimigrasikan. Buat/reset akun tersebut di Supabase Auth, isi metadata `username`, lalu hubungkan profile `users.auth_user_id` melalui prosedur admin/migrasi terkontrol.
 
-### Langkah 3: Jalankan frontend
+### Langkah 3: Aktifkan reminder WhatsApp Donasi
+
+Schema membuat antrean reminder bulanan yang idempotent. Pengiriman WhatsApp berjalan server-side melalui [`supabase/functions/send-donation-reminders/index.ts`](supabase/functions/send-donation-reminders/index.ts), bukan dari browser. Deploy function dengan Supabase CLI dan isi secrets berikut:
+
+```bash
+supabase functions deploy send-donation-reminders
+supabase secrets set \
+  DONATION_REMINDER_CRON_SECRET="ganti-dengan-secret-panjang" \
+  WHATSAPP_PROVIDER_KIND="fonnte" \
+  WHATSAPP_PROVIDER_URL="https://api.fonnte.com/send" \
+  WHATSAPP_PROVIDER_TOKEN="token-provider-di-dashboard"
+```
+
+Panggil endpoint function secara terjadwal minimal sekali sehari menggunakan scheduler/cron eksternal atau Supabase scheduler, dengan header `x-cron-secret`. Worker akan membuat antrean periode berjalan, mengunci antrean agar tidak duplikat, mengirim WhatsApp, lalu mencatat `SENT`/`FAILED`. Jangan pernah menaruh token provider atau service-role key di `index.html`. Untuk provider selain Fonnte, gunakan `WHATSAPP_PROVIDER_KIND=generic` dan endpoint yang menerima JSON `{ "to": "62...", "message": "..." }`.
+
+### Langkah 4: Jalankan frontend
 
 ```bash
 python -m http.server 8080
@@ -197,13 +213,15 @@ Alur autentikasi dan otorisasi production:
 3. Login memanggil `signInWithPassword()`, mengambil profile berdasarkan `auth_user_id`, memeriksa status approval, lalu menolak dan sign-out bila status `PENDING` atau `REJECTED`.
 4. **Hanya Admin asli** yang dapat memanggil `public.admin_set_user_approval(...)` melalui RPC `SECURITY DEFINER`. REST `UPDATE public.users` untuk anon maupun authenticated tidak diberi policy terbuka, sehingga role/status/approval tidak dapat diubah langsung dari client.
 5. Semua tabel modul dan Storage menggunakan RLS dengan `TO authenticated`, `auth.uid()`, status `APPROVED`, serta role. LocalStorage hanya cache data UI dan tidak dipakai sebagai session, password, role, atau sumber keputusan approval.
-6. Ganti password di Profil melakukan re-authentication lalu `supabase.auth.updateUser({ password })`; kolom `users.password_hash` dihapus oleh migration.
+6. Modul Donasi memiliki tabel, policy, dan status sendiri. Admin memilih user approved sebagai donatur aktif; data penerima dapat berupa user aplikasi maupun orang/yayasan eksternal. Donasi tidak memakai `outing_id` dan tidak bercampur dengan kas outing.
+7. Ganti password di Profil melakukan re-authentication lalu `supabase.auth.updateUser({ password })`; kolom `users.password_hash` dihapus oleh migration.
 
 Fungsi SQL penting:
 
 - `resolve_login_username(text)`: resolver User ID/nomor telepon anonim yang hanya mengembalikan username, tanpa membaca profile atau hash password.
 - `admin_set_user_approval(uuid, text, text)`: RPC approval yang memvalidasi `auth.uid()` sebagai Admin.
 - `current_app_user_is_approved()`, `current_app_role()`, dan `current_app_user_has_role(text[])`: helper `SECURITY DEFINER` yang dipakai policy RLS.
+- `admin_enqueue_donation_reminders()`: hanya Admin yang dapat membuat antrean reminder secara manual. Worker memakai `enqueue_due_donation_reminders()`, `claim_donation_reminders()`, dan `complete_donation_reminder()` dengan service role.
 
 > **Catatan migrasi:** jalankan schema pada project Supabase yang benar. Migration menghapus kolom legacy `users.password_hash` karena kolom tersebut tidak boleh lagi menjadi sumber otorisasi. Profile lama tanpa `auth_user_id` harus dipasangkan dengan user Auth melalui SQL/admin migration yang terkontrol.
 
@@ -227,6 +245,8 @@ D:\PowerPro\Tools\Web\Outing│
 ├── index.html                               # Aplikasi utama (Single Page Application - SPA)
 ├── database_schema.sql                      # DDL PostgreSQL/Supabase, Auth trigger, RPC & RLS
 ├── supabase/seed.sql                        # Seed akun demo Supabase Auth (development)
+├── supabase/config.toml                      # Konfigurasi Edge Function reminder
+├── supabase/functions/send-donation-reminders/ # Worker reminder WhatsApp server-side
 ├── README.md                                # Dokumentasi lengkap, progress, & panduan transfer akun
 ├── Rangkuman_Project_Outing_Management.docx # Dokumen spesifikasi acuan & catatan progress
 └── index.backup-20260921.html               # Backup versi sebelum update Excel Engine
@@ -246,6 +266,8 @@ D:\PowerPro\Tools\Web\Outing│
 - [x] Fitur ganti password mandiri dari halaman Profil melalui Supabase Auth (tanpa hash password di public.users).
 - [x] Skema database lengkap dengan view `v_cash_summary`, RLS policies, serta approval user baru di Supabase.
 - [x] Approval user baru: registrasi berstatus `PENDING`, approval Admin-only melalui RPC, dan validasi status login dari Supabase Auth/RLS.
+- [x] Modul Donasi terpisah dari Outing: Admin mengaktifkan donatur dari user approved, penerima internal/eksternal, transaksi bulanan, RLS, serta antrean reminder WhatsApp idempotent.
+- [x] Supabase Edge Function worker untuk memproses antrean reminder WhatsApp tanpa menyimpan token provider di frontend.
 - [x] Dokumentasi progress dan pembaruan pada `README.md` dan `Rangkuman_Project_Outing_Management.docx`.
 - [ ] *(Opsional)* Integrasi WhatsApp Click-to-Chat URL pada nomor telepon peserta untuk memudahkan koordinator bus menghubungi peserta secara instan.
 - [ ] *(Opsional)* Deployment frontend ke GitHub Pages, Vercel, atau Netlify (cukup upload file repositori ini).
