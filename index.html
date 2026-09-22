@@ -3520,7 +3520,8 @@ async function resolveLoginIdentifier(identifier) {
 async function getAuthenticatedProfile(authUserId) {
     const { data, error } = await supabaseClient
         .from('users')
-        .select('*, roles(id, name), sections(id, name)')
+        // Avoid PostgREST relationship errors on legacy Supabase schemas.
+        .select('*')
         .eq('auth_user_id', authUserId)
         .maybeSingle();
     if (error) throw error;
