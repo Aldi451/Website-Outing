@@ -57,13 +57,78 @@ CREATE TABLE IF NOT EXISTS public.users (
     full_name VARCHAR(255) NOT NULL,
     phone VARCHAR(30),
     department VARCHAR(100),
+    -- Password akun baru disimpan sebagai hash PBKDF2 dari browser, bukan plaintext.
+    password_hash TEXT,
     role VARCHAR(50) DEFAULT 'PARTICIPANT',
     section VARCHAR(50) DEFAULT 'PUBLIC',
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    approved_at TIMESTAMPTZ,
+    approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    rejection_reason TEXT,
     role_id UUID REFERENCES public.roles(id) ON DELETE SET NULL,
     section_id UUID REFERENCES public.sections(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT users_approval_status_check CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED'))
 );
+
+-- ====================================================================
+-- 3A. USER APPROVAL MIGRATION & SAFETY DEFAULTS
+-- ====================================================================
+-- Baris user lama dibuat sebelum fitur approval dianggap sudah aktif agar
+-- akun/demo existing tidak tiba-tiba terkunci. Registrasi baru mengirim
+-- approval_status = PENDING secara eksplisit.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20);
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+UPDATE public.users
+SET approval_status = 'APPROVED'
+WHERE approval_status IS NULL;
+
+ALTER TABLE public.users ALTER COLUMN approval_status SET DEFAULT 'PENDING';
+ALTER TABLE public.users ALTER COLUMN approval_status SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_approval_status_check'
+          AND conrelid = 'public.users'::regclass
+    ) THEN
+        ALTER TABLE public.users
+            ADD CONSTRAINT users_approval_status_check
+            CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED'));
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_users_approval_status ON public.users (approval_status);
+CREATE INDEX IF NOT EXISTS idx_users_username_lower ON public.users (LOWER(username));
+
+-- Jaga agar akun participant yang dibuat dari jalur lain tetap menunggu
+-- approval. Status legacy tidak diubah karena trigger hanya berjalan saat INSERT.
+CREATE OR REPLACE FUNCTION public.enforce_new_participant_pending()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF COALESCE(UPPER(NEW.role), 'PARTICIPANT') = 'PARTICIPANT' THEN
+        NEW.approval_status := 'PENDING';
+        NEW.approved_at := NULL;
+        NEW.approved_by := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_new_participant_pending ON public.users;
+CREATE TRIGGER trg_enforce_new_participant_pending
+BEFORE INSERT ON public.users
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_new_participant_pending();
 
 -- ====================================================================
 -- 4. OUTINGS & PARTICIPANTS
@@ -257,41 +322,75 @@ ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
 
 -- Public READ (Anon Key) for informational modules (All participants can read)
+DROP POLICY IF EXISTS "Allow anon read outings" ON public.outings;
 CREATE POLICY "Allow anon read outings" ON public.outings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read rundowns" ON public.rundowns;
 CREATE POLICY "Allow anon read rundowns" ON public.rundowns FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read cash_transactions" ON public.cash_transactions;
 CREATE POLICY "Allow anon read cash_transactions" ON public.cash_transactions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read purchase_requests" ON public.purchase_requests;
 CREATE POLICY "Allow anon read purchase_requests" ON public.purchase_requests FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read tasks" ON public.tasks;
 CREATE POLICY "Allow anon read tasks" ON public.tasks FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read consumption_plans" ON public.consumption_plans;
 CREATE POLICY "Allow anon read consumption_plans" ON public.consumption_plans FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read announcements" ON public.announcements;
 CREATE POLICY "Allow anon read announcements" ON public.announcements FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read participants" ON public.participants;
 CREATE POLICY "Allow anon read participants" ON public.participants FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read users" ON public.users;
 CREATE POLICY "Allow anon read users" ON public.users FOR SELECT USING (true);
 
 -- Permissive writes for demo / hybrid mode (Can be tightened for Supabase Auth in production):
+DROP POLICY IF EXISTS "Allow anon insert users" ON public.users;
 CREATE POLICY "Allow anon insert users" ON public.users FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update users" ON public.users;
 CREATE POLICY "Allow anon update users" ON public.users FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert cash_transactions" ON public.cash_transactions;
 CREATE POLICY "Allow anon insert cash_transactions" ON public.cash_transactions FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon delete cash_transactions" ON public.cash_transactions;
 CREATE POLICY "Allow anon delete cash_transactions" ON public.cash_transactions FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert rundowns" ON public.rundowns;
 CREATE POLICY "Allow anon insert rundowns" ON public.rundowns FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update rundowns" ON public.rundowns;
 CREATE POLICY "Allow anon update rundowns" ON public.rundowns FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete rundowns" ON public.rundowns;
 CREATE POLICY "Allow anon delete rundowns" ON public.rundowns FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert purchase_requests" ON public.purchase_requests;
 CREATE POLICY "Allow anon insert purchase_requests" ON public.purchase_requests FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update purchase_requests" ON public.purchase_requests;
 CREATE POLICY "Allow anon update purchase_requests" ON public.purchase_requests FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete purchase_requests" ON public.purchase_requests;
 CREATE POLICY "Allow anon delete purchase_requests" ON public.purchase_requests FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert tasks" ON public.tasks;
 CREATE POLICY "Allow anon insert tasks" ON public.tasks FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update tasks" ON public.tasks;
 CREATE POLICY "Allow anon update tasks" ON public.tasks FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete tasks" ON public.tasks;
 CREATE POLICY "Allow anon delete tasks" ON public.tasks FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert consumption_plans" ON public.consumption_plans;
 CREATE POLICY "Allow anon insert consumption_plans" ON public.consumption_plans FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update consumption_plans" ON public.consumption_plans;
 CREATE POLICY "Allow anon update consumption_plans" ON public.consumption_plans FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete consumption_plans" ON public.consumption_plans;
 CREATE POLICY "Allow anon delete consumption_plans" ON public.consumption_plans FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert announcements" ON public.announcements;
 CREATE POLICY "Allow anon insert announcements" ON public.announcements FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update announcements" ON public.announcements;
 CREATE POLICY "Allow anon update announcements" ON public.announcements FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete announcements" ON public.announcements;
 CREATE POLICY "Allow anon delete announcements" ON public.announcements FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert participants" ON public.participants;
 CREATE POLICY "Allow anon insert participants" ON public.participants FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update participants" ON public.participants;
 CREATE POLICY "Allow anon update participants" ON public.participants FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete participants" ON public.participants;
 CREATE POLICY "Allow anon delete participants" ON public.participants FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow anon insert outings" ON public.outings;
 CREATE POLICY "Allow anon insert outings" ON public.outings FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon update outings" ON public.outings;
 CREATE POLICY "Allow anon update outings" ON public.outings FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow anon delete outings" ON public.outings;
 CREATE POLICY "Allow anon delete outings" ON public.outings FOR DELETE USING (true);
 
 -- ====================================================================

@@ -11,7 +11,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 
 | No | Modul / Fitur | Status | Deskripsi & Hak Akses |
 |---|---|:---:|---|
-| 1 | **Autentikasi & Registrasi** | ✅ **Selesai** | Tampilan login minimalis & clean dengan **User ID / No. HP + Password**. Registrasi otomatis terintegrasi langsung ke dalam **Data Peserta Outing**. |
+| 1 | **Autentikasi & Registrasi** | ✅ **Selesai** | Login User ID / No. HP + Password. Akun baru tersimpan ke Supabase dengan status **PENDING** dan baru dapat login setelah disetujui Admin. |
 | 2 | **Dashboard Utama & Master Excel** | ✅ **Selesai** | Banner dinamis acara outing, counter peserta, saldo kas aktif, progress bar persiapan, quick preview, dan **tombol Unduh Master Rekap Excel (8 sheets)**. |
 | 3 | **Modul Rundown** | ✅ **Selesai** | Susunan acara, jam, lokasi, catatan. Dilengkapi tombol **Export Excel** (data lokal terkini) dan **Import Excel** interaktif dengan preview table. |
 | 4 | **Modul Keuangan (Cash)** | ✅ **Selesai** | Laporan kas masuk/keluar, saldo otomatis. Dilengkapi tombol **Export Excel** (beserta summary saldo) dan **Import Excel** transaksi kas. |
@@ -198,6 +198,24 @@ const SUPABASE_ANON_KEY = "KEY_ANON_SUPABASE_ANDA";
 
 ---
 
+## 🔐 Approval User Baru & Sinkronisasi Supabase
+
+Alur registrasi sekarang menggunakan approval berlapis:
+
+1. User mengisi form registrasi. Aplikasi membuat **hash password PBKDF2** di browser, lalu menulis data akun ke tabel `users` Supabase dengan `approval_status = 'PENDING'`.
+2. Data profil user yang sama juga ditulis ke tabel `participants` Supabase. Cache `LocalStorage` baru dibuat setelah kedua penulisan Supabase berhasil.
+3. User belum dapat login selama status masih `PENDING`. Status `REJECTED` juga diblokir dan dapat menampilkan alasan penolakan.
+4. Admin/Inisiator login menggunakan akun yang memiliki role tersebut, lalu membuka menu **Approval User Baru**. Tombol **Approve** atau **Tolak** memperbarui status langsung ke Supabase.
+5. Saat login dan saat sesi aplikasi dibuka kembali, akun hasil registrasi selalu memvalidasi status terbaru dari Supabase; status cache lokal tidak dapat melewati approval.
+
+Kolom tambahan di tabel `users` yang digunakan:
+
+- `password_hash`: hash PBKDF2 password akun baru, bukan password plaintext.
+- `approval_status`: `PENDING`, `APPROVED`, atau `REJECTED`.
+- `approved_at`, `approved_by`, dan `rejection_reason` untuk audit approval.
+
+> **Penting:** jalankan ulang `database_schema.sql` pada Supabase SQL Editor agar migration kolom approval, index, trigger, dan hash password terpasang. Data user lama otomatis diberi status `APPROVED` agar tidak mengubah perilaku akun existing; hanya registrasi baru yang berstatus `PENDING`.
+
 ## 🛠️ Detail Masalah yang Telah Diselesaikan
 
 1. **Masalah Phone Signups (`Phone signups are disabled`)**:
@@ -233,7 +251,8 @@ D:\PowerPro\Tools\Web\Outing│
 - [x] Fitur **Master Rekapitulasi Excel Multi-Sheet** (8 sheets) di Dashboard dan Pengaturan Outing.
 - [x] Pengecualian hak akses (View-Only protection) untuk akun peserta biasa (*Participant*).
 - [x] Simulasi Role Switcher di profil pengguna untuk pengujian wewenang instan tanpa logout.
-- [x] Skema database lengkap dengan view `v_cash_summary` dan RLS policies.
+- [x] Skema database lengkap dengan view `v_cash_summary`, RLS policies, serta approval user baru di Supabase.
+- [x] Approval user baru: registrasi berstatus `PENDING`, approval Admin/Inisiator, dan validasi status login dari Supabase.
 - [x] Dokumentasi progress dan pembaruan pada `README.md` dan `Rangkuman_Project_Outing_Management.docx`.
 - [ ] *(Opsional)* Integrasi WhatsApp Click-to-Chat URL pada nomor telepon peserta untuk memudahkan koordinator bus menghubungi peserta secara instan.
 - [ ] *(Opsional)* Deployment frontend ke GitHub Pages, Vercel, atau Netlify (cukup upload file repositori ini).
