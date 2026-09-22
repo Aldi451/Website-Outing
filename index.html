@@ -783,89 +783,13 @@
             </button>
         </form>
 
-        <div class="text-center mt-3 small">
-            <span class="text-muted">Belum punya akun?</span>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold" onclick="showRegister()">
-                Daftar sekarang
-            </button>
+        <div class="text-center mt-3 small text-muted">
+            <i class="bi bi-shield-lock me-1"></i>
+            Akun &amp; role (hak akses) dibuat oleh Admin / Inisiator acara.
+            <br>Hubungi Admin apabila Anda belum memiliki User ID.
         </div>
 
         <div id="loginMessage" class="mt-3"></div>
-    </div>
-</div>
-
-<!-- =====================================================
-     REGISTER PAGE
-===================================================== -->
-<div id="registerPage" class="auth-page d-none">
-    <div class="auth-card">
-        <div class="text-center mb-3">
-            <div class="auth-logo">
-                <i class="bi bi-person-plus-fill"></i>
-            </div>
-            <h3 class="fw-bold mb-1">Daftar Akun Baru</h3>
-            <p class="text-muted small mb-0">Daftarkan diri Anda untuk berpartisipasi dalam outing</p>
-        </div>
-
-        <form id="registerForm">
-            <div class="mb-2">
-                <label class="form-label small fw-semibold">Nama Lengkap</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                    <input type="text" id="registerName" class="form-control" placeholder="Nama lengkap Anda" required>
-                </div>
-            </div>
-
-            <div class="mb-2">
-                <label class="form-label small fw-semibold">User ID / Username</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-at"></i></span>
-                    <input type="text" id="registerUsername" class="form-control" placeholder="Contoh: budi_santoso" required>
-                </div>
-                <small class="text-muted" style="font-size: 11px;">Digunakan sebagai User ID saat login</small>
-            </div>
-
-            <div class="mb-2">
-                <label class="form-label small fw-semibold">Nomor Telepon (WhatsApp)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-                    <input type="tel" id="registerPhone" class="form-control" placeholder="Contoh: 08123456789" required>
-                </div>
-                <small class="text-muted" style="font-size: 11px;">Disimpan sebagai data profil peserta</small>
-            </div>
-
-            <div class="mb-2">
-                <label class="form-label small fw-semibold">Password</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" id="registerPassword" class="form-control" placeholder="Minimal 6 karakter" minlength="6" required>
-                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('registerPassword', this)">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label small fw-semibold">Konfirmasi Password</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
-                    <input type="password" id="registerPasswordConfirm" class="form-control" placeholder="Ulangi password" minlength="6" required>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="registerBtn">
-                <i class="bi bi-person-plus me-1"></i> Daftar
-            </button>
-        </form>
-
-        <div class="text-center mt-3 small">
-            <span class="text-muted">Sudah punya akun?</span>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold" onclick="showLogin()">
-                Login sekarang
-            </button>
-        </div>
-
-        <div id="registerMessage" class="mt-3"></div>
     </div>
 </div>
 
@@ -1626,6 +1550,42 @@
         </div>
 
         <!-- =============================================
+             PAGE: MANAJEMEN USER & HAK AKSES (ADMIN ONLY)
+        ============================================== -->
+        <div id="pageUserManagement" class="page">
+            <div class="content-card">
+                <div class="content-header">
+                    <div>
+                        <h5><i class="bi bi-person-gear me-2 text-primary"></i>Manajemen User &amp; Hak Akses</h5>
+                        <small class="text-muted">Pendaftaran akun mandiri dinonaktifkan — hanya Admin / Inisiator yang dapat menambah user sekaligus menentukan role-nya</small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showPage('management')">
+                            <i class="bi bi-arrow-left me-1"></i> Menu
+                        </button>
+                        <button class="btn btn-sm btn-primary" id="btnAddUserAccount" onclick="openUserAccountModal()">
+                            <i class="bi bi-person-plus me-1"></i> Tambah User
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <!-- SEARCH -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="userAccountSearchInput" class="form-control" placeholder="Cari nama, User ID, atau role..." oninput="searchUserAccounts(this.value)">
+                        </div>
+                    </div>
+
+                    <div id="userAccountsList">
+                        <div class="empty-state">Memuat daftar user...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================
              PAGE: MANAGEMENT MENU TILES
         ============================================== -->
         <div id="pageManagement" class="page">
@@ -2323,6 +2283,99 @@
     </div>
 </div>
 
+<!-- MODAL: USER ACCOUNT & ROLE (ADMIN ONLY) -->
+<div class="modal fade" id="modalUserAccount" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalUserAccountTitle">Tambah User Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formUserAccount" onsubmit="saveUserAccount(event)">
+                <input type="hidden" id="userAccountId">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        User baru otomatis masuk ke <strong>Data Peserta Outing</strong> dan langsung bisa login memakai User ID &amp; password di bawah.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nama Lengkap</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" id="userAccountName" class="form-control" placeholder="Nama lengkap user" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">User ID / Username</label>
+                            <input type="text" id="userAccountUsername" class="form-control" placeholder="Contoh: budi_santoso" required>
+                            <small class="text-muted" style="font-size: 11px;">Dipakai sebagai User ID saat login</small>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Nomor Telepon (WhatsApp)</label>
+                            <input type="tel" id="userAccountPhone" class="form-control" placeholder="Contoh: 08123456789">
+                            <small class="text-muted" style="font-size: 11px;">Bisa dipakai sebagai User ID login</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Password</label>
+                            <div class="input-group">
+                                <input type="password" id="userAccountPassword" class="form-control" placeholder="Minimal 6 karakter" minlength="6">
+                                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('userAccountPassword', this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted" style="font-size: 11px;" id="userAccountPasswordHint">Wajib diisi untuk user baru</small>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Departemen / Divisi</label>
+                            <input type="text" id="userAccountDept" class="form-control" placeholder="Contoh: IT, Marketing">
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Role / Hak Akses</label>
+                            <select id="userAccountRole" class="form-select" onchange="syncUserAccountSection()">
+                                <option value="PARTICIPANT">Peserta Biasa (View-Only)</option>
+                                <option value="ADMIN">Admin / Inisiator (Akses Penuh)</option>
+                                <option value="FINANCE">Section Keuangan (Kelola Kas)</option>
+                                <option value="PURCHASING">Section Purchasing (Kelola Belanja)</option>
+                                <option value="LOGISTIC">Section Logistic (Tugas &amp; Perlengkapan)</option>
+                                <option value="KONSUMSI">Section Konsumsi (Meal Plan)</option>
+                                <option value="PUBLIC_AREA">Section Public Area (Pengumuman)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Section / Kepanitiaan</label>
+                            <select id="userAccountSection" class="form-select">
+                                <option value="PUBLIC">PUBLIC (Peserta Umum)</option>
+                                <option value="INISIATOR">INISIATOR (Panitia Inti)</option>
+                                <option value="ACARA">ACARA (Rundown)</option>
+                                <option value="KEUANGAN">KEUANGAN</option>
+                                <option value="PURCHASING">PURCHASING</option>
+                                <option value="LOGISTIC">LOGISTIC</option>
+                                <option value="KONSUMSI">KONSUMSI</option>
+                                <option value="PUBLIC_AREA">PUBLIC_AREA</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="userAccountMessage" class="mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSaveUserAccount">Simpan User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- =====================================================
      JAVASCRIPT LOGIC
 ===================================================== -->
@@ -2697,6 +2750,10 @@ function canManage(module) {
             return role === 'ADMIN' || role === 'INITIATOR' || section.includes('ACARA');
         case 'participants':
             return role === 'ADMIN' || role === 'INITIATOR';
+        case 'user_management':
+            // Registrasi mandiri dinonaktifkan: hanya Admin/Inisiator yang boleh
+            // menambah user dan menentukan role / hak aksesnya.
+            return role === 'ADMIN' || role === 'INITIATOR';
         case 'settings':
             return role === 'ADMIN' || role === 'INITIATOR';
         default:
@@ -2709,19 +2766,11 @@ function canManage(module) {
 ===================================================== */
 function showLogin() {
     document.getElementById('loginPage').classList.remove('d-none');
-    document.getElementById('registerPage').classList.add('d-none');
-    document.getElementById('appPage').classList.add('d-none');
-}
-
-function showRegister() {
-    document.getElementById('loginPage').classList.add('d-none');
-    document.getElementById('registerPage').classList.remove('d-none');
     document.getElementById('appPage').classList.add('d-none');
 }
 
 function showApp() {
     document.getElementById('loginPage').classList.add('d-none');
-    document.getElementById('registerPage').classList.add('d-none');
     document.getElementById('appPage').classList.remove('d-none');
 }
 
@@ -2831,184 +2880,6 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="bi bi-box-arrow-in-right me-1"></i> Login`;
-    }
-});
-
-/* =====================================================
-   REGISTER HANDLER
-===================================================== */
-document.getElementById('registerForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const name = document.getElementById('registerName').value.trim();
-    const rawUsername = document.getElementById('registerUsername').value.trim();
-    const username = rawUsername.replace(/^@+/, '').toLowerCase();
-    const phoneInput = document.getElementById('registerPhone').value.trim();
-    const password = document.getElementById('registerPassword').value;
-    const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
-    const btn = document.getElementById('registerBtn');
-    const message = document.getElementById('registerMessage');
-
-    if (password !== passwordConfirm) {
-        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Password dan konfirmasi password tidak sama.</div>`;
-        return;
-    }
-    if (password.length < 6) {
-        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Password minimal 6 karakter.</div>`;
-        return;
-    }
-    if (username.length < 3) {
-        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> User ID minimal 3 karakter.</div>`;
-        return;
-    }
-    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
-        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> User ID hanya boleh huruf, angka, titik, strip, atau underscore.</div>`;
-        return;
-    }
-
-    const phone = formatPhone(phoneInput);
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan data...`;
-    message.innerHTML = '';
-
-    try {
-        // 1. Cek apakah username sudah dipakai di local storage
-        const localUsers = STORAGE.get('outing_local_users', []);
-        const alreadyExists = localUsers.some(u => {
-            const uClean = (u.username || '').replace(/^@+/, '').toLowerCase();
-            return uClean === username;
-        });
-
-        if (alreadyExists) {
-            throw new Error(`User ID / Username "${username}" sudah terdaftar. Silakan gunakan User ID lain.`);
-        }
-
-        // 2. Buat objek akun baru
-        const userId = generateUUID();
-        const newUser = {
-            id: userId,
-            username: username,
-            full_name: name,
-            name: name,
-            phone: phone,
-            password: password,
-            role: 'PARTICIPANT',
-            section: 'PUBLIC',
-            department: 'Peserta',
-            created_at: new Date().toISOString()
-        };
-
-        // Simpan ke daftar local users
-        localUsers.push(newUser);
-        STORAGE.set('outing_local_users', localUsers);
-
-        // 3. Simpan OTOMATIS ke Data Peserta Outing (outing_participants)
-        let participants = STORAGE.get('outing_participants', []);
-        if (!Array.isArray(participants)) participants = [];
-
-        const partIdx = participants.findIndex(p => {
-            const pClean = (p.username || '').replace(/^@+/, '').toLowerCase();
-            return pClean === username || (p.phone && p.phone === phone);
-        });
-
-        const newParticipant = {
-            id: generateUUID(),
-            user_id: userId,
-            username: username,
-            full_name: name,
-            name: name,
-            phone: phone,
-            department: 'Peserta',
-            gender: 'L',
-            transport: 'Bus 1',
-            room: 'Villa',
-            status: 'CONFIRMED',
-            created_at: new Date().toISOString()
-        };
-
-        if (partIdx !== -1) {
-            participants[partIdx] = { ...participants[partIdx], ...newParticipant };
-        } else {
-            participants.push(newParticipant);
-        }
-        STORAGE.set('outing_participants', participants);
-
-        // Sinkronisasi menyeluruh agar pasti muncul di data peserta
-        syncUsersToParticipants();
-
-        // Perbarui badge jumlah peserta terdaftar jika elemen ada
-        const statEl = document.getElementById('statParticipants');
-        if (statEl) {
-            statEl.textContent = STORAGE.get('outing_participants', []).length;
-        }
-
-        // 4. Background non-blocking sync ke Supabase (jika Supabase aktif)
-        try {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                supabaseClient.from('users').insert({
-                    username: username,
-                    full_name: name,
-                    phone: phone,
-                    role: 'PARTICIPANT',
-                    section: 'PUBLIC'
-                }).then(() => {}).catch(() => {});
-
-                supabaseClient.from('participants').insert({
-                    username: username,
-                    full_name: name,
-                    phone: phone,
-                    department: 'Peserta',
-                    gender: 'L',
-                    transport: 'Bus 1',
-                    room: 'Villa',
-                    status: 'CONFIRMED'
-                }).then(() => {}).catch(() => {});
-            }
-        } catch (dbErr) {
-            console.warn('Supabase sync note:', dbErr);
-        }
-
-        // Pesan Sukses
-        message.innerHTML = `
-            <div class="alert alert-success py-2 small">
-                <i class="bi bi-check-circle-fill me-1"></i>
-                <strong>Registrasi Berhasil!</strong> Akun dengan User ID <strong>@${username}</strong> telah tersimpan dan otomatis terdaftar dalam <strong>Data Peserta Outing</strong>.
-            </div>
-        `;
-        document.getElementById('registerForm').reset();
-
-        // Alihkan ke Login dalam 1 detik dengan User ID otomatis terisi
-        setTimeout(() => {
-            showLogin();
-            const loginInput = document.getElementById('loginUserId');
-            if (loginInput) {
-                loginInput.value = username;
-            }
-            const loginMsg = document.getElementById('loginMessage');
-            if (loginMsg) {
-                loginMsg.innerHTML = `
-                    <div class="alert alert-success py-2 small">
-                        <i class="bi bi-check-circle-fill me-1"></i>
-                        Registrasi berhasil untuk <strong>@${username}</strong>! Silakan masukkan password Anda untuk login.
-                    </div>
-                `;
-            }
-            const passInput = document.getElementById('loginPassword');
-            if (passInput) {
-                passInput.focus();
-            }
-        }, 1000);
-
-    } catch (error) {
-        console.error('Register error:', error);
-        message.innerHTML = `
-            <div class="alert alert-danger py-2 small">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                ${error.message || 'Gagal mendaftar. Silakan coba lagi.'}
-            </div>
-        `;
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="bi bi-person-plus me-1"></i> Daftar`;
     }
 });
 
@@ -3229,6 +3100,15 @@ function updateViewOnlyNotices() {
     } else {
         btnAddPart?.classList.add('d-none');
         btnImportPart?.classList.add('d-none');
+    }
+
+    // 8. Manajemen User & Hak Akses (khusus Admin / Inisiator)
+    const btnAddUserAcc = document.getElementById('btnAddUserAccount');
+    if (canManage('user_management')) {
+        btnAddUserAcc?.classList.remove('d-none');
+    } else {
+        btnAddUserAcc?.classList.add('d-none');
+        renderUserAccounts([]);
     }
 }
 
@@ -5781,6 +5661,376 @@ function saveParticipant(e) {
 }
 
 /* =====================================================
+   MANAJEMEN USER & HAK AKSES (ADMIN / INISIATOR ONLY)
+   - Pendaftaran mandiri dari halaman login dinonaktifkan.
+   - Hanya Admin / Inisiator yang dapat menambah user baru
+     sekaligus menentukan role (hak akses) & section-nya.
+===================================================== */
+const USER_ROLE_LABELS = {
+    ADMIN: 'Admin / Inisiator',
+    INITIATOR: 'Inisiator Acara',
+    FINANCE: 'Section Keuangan',
+    PURCHASING: 'Section Purchasing',
+    LOGISTIC: 'Section Logistic',
+    KONSUMSI: 'Section Konsumsi',
+    PUBLIC_AREA: 'Section Public Area',
+    PARTICIPANT: 'Peserta (View-Only)'
+};
+
+// Default section mengikuti role (sama seperti dropdown simulasi role di Profil)
+const USER_ROLE_SECTION_MAP = {
+    ADMIN: 'INISIATOR',
+    INITIATOR: 'INISIATOR',
+    FINANCE: 'KEUANGAN',
+    PURCHASING: 'PURCHASING',
+    LOGISTIC: 'LOGISTIC',
+    KONSUMSI: 'KONSUMSI',
+    PUBLIC_AREA: 'PUBLIC_AREA',
+    PARTICIPANT: 'PUBLIC'
+};
+
+function cleanUsernameValue(value) {
+    return String(value || '').replace(/^@+/, '').trim().toLowerCase();
+}
+
+function setSelectValueSafe(selectEl, value, fallback) {
+    if (!selectEl) return;
+    const exists = Array.from(selectEl.options || []).some(opt => opt.value === value);
+    selectEl.value = exists ? value : fallback;
+}
+
+function syncUserAccountSection() {
+    const roleSel = document.getElementById('userAccountRole');
+    const sectionSel = document.getElementById('userAccountSection');
+    if (!roleSel || !sectionSel) return;
+    const mapped = USER_ROLE_SECTION_MAP[String(roleSel.value || '').toUpperCase()];
+    if (mapped) setSelectValueSafe(sectionSel, mapped, 'PUBLIC');
+}
+
+function renderUserAccounts(list) {
+    const container = document.getElementById('userAccountsList');
+    if (!container) return;
+
+    if (!canManage('user_management')) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-shield-lock"></i><div>Hanya Admin atau Inisiator yang dapat melihat &amp; mengelola akun user.</div></div>`;
+        return;
+    }
+
+    if (!list || list.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-person-x"></i><div>Belum ada user terdaftar. Klik "Tambah User" untuk membuat akun login baru.</div></div>`;
+        return;
+    }
+
+    const currentUsername = cleanUsernameValue(currentProfile?.username || currentUser?.username || '');
+
+    container.innerHTML = list.map(item => {
+        const username = (item.username || '-').replace(/^@+/, '');
+        const name = item.full_name || item.name || username;
+        const initial = (name.charAt(0) || 'U').toUpperCase();
+        const role = String(item.role || 'PARTICIPANT').toUpperCase();
+        const section = String(item.section || USER_ROLE_SECTION_MAP[role] || 'PUBLIC').toUpperCase();
+        const isMe = currentUsername && username.toLowerCase() === currentUsername;
+        const isPrivileged = role === 'ADMIN' || role === 'INITIATOR';
+
+        return `
+            <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar" style="width: 44px; height: 44px; font-size: 18px;">${initial}</div>
+                    <div>
+                        <div class="fw-semibold">
+                            ${name}
+                            ${isMe ? '<span class="badge bg-primary ms-1">Anda</span>' : ''}
+                        </div>
+                        <div class="text-muted small">
+                            User ID: <strong class="text-dark">@${username}</strong> • ${item.phone || '-'}
+                        </div>
+                        <div class="small mt-1">
+                            <span class="badge ${isPrivileged ? 'bg-danger' : 'bg-primary'} me-1"><i class="bi bi-shield-check"></i> ${USER_ROLE_LABELS[role] || role}</span>
+                            <span class="badge bg-light text-dark border me-1"><i class="bi bi-diagram-3"></i> ${section}</span>
+                            ${item.department ? `<span class="badge bg-light text-dark border"><i class="bi bi-building"></i> ${item.department}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="openUserAccountModal('${item.id}')">Edit / Role</button>
+                    <button class="btn btn-sm btn-link p-0 text-decoration-none text-danger ms-2" onclick="deleteUserAccount('${item.id}')">Hapus</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function loadUserAccounts() {
+    if (!canManage('user_management')) {
+        renderUserAccounts([]);
+        return;
+    }
+    const searchInput = document.getElementById('userAccountSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+        searchUserAccounts(searchInput.value);
+        return;
+    }
+    renderUserAccounts(STORAGE.get('outing_local_users', []) || []);
+}
+
+function searchUserAccounts(query) {
+    const all = STORAGE.get('outing_local_users', []) || [];
+    if (!query || !query.trim()) {
+        renderUserAccounts(all);
+        return;
+    }
+    const q = query.toLowerCase().trim();
+    const qCleanUser = q.replace(/^@+/, '');
+    const qDigits = q.replace(/\D/g, '');
+    const filtered = all.filter(u => {
+        const uName = (u.full_name || u.name || '').toLowerCase();
+        const uUser = (u.username || '').toLowerCase().replace(/^@+/, '');
+        const uRole = String(u.role || '').toLowerCase();
+        const uDept = (u.department || '').toLowerCase();
+        const uPhone = (u.phone || '').replace(/\D/g, '');
+
+        return uName.includes(q) ||
+               uUser.includes(qCleanUser) ||
+               uRole.includes(q) ||
+               uDept.includes(q) ||
+               (qDigits && uPhone.includes(qDigits));
+    });
+    renderUserAccounts(filtered);
+}
+
+function openUserAccountModal(id = null) {
+    if (!canManage('user_management')) {
+        alert('Hanya Admin atau Inisiator yang dapat menambah user & mengatur role / hak akses.');
+        return;
+    }
+
+    const modalEl = document.getElementById('modalUserAccount');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.getElementById('formUserAccount').reset();
+    document.getElementById('userAccountMessage').innerHTML = '';
+
+    const roleSel = document.getElementById('userAccountRole');
+    const sectionSel = document.getElementById('userAccountSection');
+
+    if (id) {
+        const list = STORAGE.get('outing_local_users', []) || [];
+        const item = list.find(u => String(u.id) === String(id));
+        if (item) {
+            document.getElementById('modalUserAccountTitle').textContent = 'Edit User & Hak Akses';
+            document.getElementById('userAccountId').value = item.id;
+            document.getElementById('userAccountName').value = item.full_name || item.name || '';
+            document.getElementById('userAccountUsername').value = (item.username || '').replace(/^@+/, '');
+            document.getElementById('userAccountPhone').value = item.phone || '';
+            document.getElementById('userAccountDept').value = item.department || '';
+
+            const role = String(item.role || 'PARTICIPANT').toUpperCase();
+            const roleOption = role === 'INITIATOR' ? 'ADMIN' : role;
+            setSelectValueSafe(roleSel, roleOption, 'PARTICIPANT');
+
+            const section = String(item.section || USER_ROLE_SECTION_MAP[role] || 'PUBLIC').toUpperCase();
+            setSelectValueSafe(sectionSel, section, 'PUBLIC');
+
+            document.getElementById('userAccountPasswordHint').textContent = 'Kosongkan bila password tidak ingin diganti';
+        }
+    } else {
+        document.getElementById('modalUserAccountTitle').textContent = 'Tambah User Baru';
+        document.getElementById('userAccountId').value = '';
+        setSelectValueSafe(roleSel, 'PARTICIPANT', 'PARTICIPANT');
+        syncUserAccountSection();
+        document.getElementById('userAccountPasswordHint').textContent = 'Wajib diisi untuk user baru';
+    }
+
+    modal.show();
+}
+
+function saveUserAccount(e) {
+    e.preventDefault();
+    if (!canManage('user_management')) {
+        alert('Hanya Admin atau Inisiator yang dapat menambah user & mengatur role / hak akses.');
+        return;
+    }
+
+    const message = document.getElementById('userAccountMessage');
+    message.innerHTML = '';
+
+    const fail = (msg) => {
+        message.innerHTML = `
+            <div class="alert alert-danger py-2 small">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> ${msg}
+            </div>
+        `;
+        return false;
+    };
+
+    const id = document.getElementById('userAccountId').value;
+    const name = document.getElementById('userAccountName').value.trim();
+    const username = cleanUsernameValue(document.getElementById('userAccountUsername').value);
+    const phone = formatPhone(document.getElementById('userAccountPhone').value.trim());
+    const password = document.getElementById('userAccountPassword').value;
+    const role = document.getElementById('userAccountRole').value || 'PARTICIPANT';
+    const section = document.getElementById('userAccountSection').value || USER_ROLE_SECTION_MAP[role] || 'PUBLIC';
+    const department = document.getElementById('userAccountDept').value.trim() || 'Peserta';
+
+    if (!name) return fail('Nama lengkap wajib diisi.');
+    if (username.length < 3) return fail('User ID minimal 3 karakter.');
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) return fail('User ID hanya boleh huruf, angka, titik, strip, atau underscore.');
+
+    const users = STORAGE.get('outing_local_users', []) || [];
+
+    const duplicate = users.some(u =>
+        cleanUsernameValue(u.username) === username && String(u.id) !== String(id)
+    );
+    if (duplicate) return fail(`User ID "${username}" sudah dipakai oleh user lain. Silakan gunakan User ID lain.`);
+
+    if (!id && (!password || password.length < 6)) return fail('Password wajib diisi untuk user baru (minimal 6 karakter).');
+    if (id && password && password.length < 6) return fail('Password minimal 6 karakter (kosongkan bila tidak ingin mengganti password).');
+
+    const isPrivileged = role === 'ADMIN' || role === 'INITIATOR';
+    const myUsername = cleanUsernameValue(currentUser?.username || currentProfile?.username || '');
+    const editingSelf = !!id && myUsername === username;
+    if (editingSelf && !isPrivileged) {
+        return fail('Akun yang sedang Anda gunakan tidak boleh diturunkan role-nya. Gunakan akun Admin lain untuk mengubah hak akses Anda.');
+    }
+
+    const idx = id ? users.findIndex(u => String(u.id) === String(id)) : -1;
+    if (idx !== -1) {
+        const previousRole = String(users[idx].role || '').toUpperCase();
+        const adminCount = users.filter(u => String(u.role || '').toUpperCase() === 'ADMIN').length;
+        if (previousRole === 'ADMIN' && !isPrivileged && adminCount <= 1) {
+            return fail('Minimal harus ada 1 akun Admin. Tambahkan Admin lain terlebih dahulu sebelum menurunkan role akun ini.');
+        }
+    }
+
+    if (idx !== -1) {
+        users[idx] = {
+            ...users[idx],
+            full_name: name,
+            name: name,
+            username: username,
+            phone: phone,
+            role: role,
+            section: section,
+            department: department,
+            updated_at: new Date().toISOString()
+        };
+        if (password) users[idx].password = password;
+    } else {
+        users.push({
+            id: generateUUID(),
+            username: username,
+            full_name: name,
+            name: name,
+            phone: phone,
+            password: password,
+            role: role,
+            section: section,
+            department: department,
+            created_at: new Date().toISOString()
+        });
+    }
+
+    STORAGE.set('outing_local_users', users);
+
+    // Sinkron otomatis ke Data Peserta Outing (perilaku lama tetap dipertahankan)
+    syncUsersToParticipants();
+
+    // Ikutkan perubahan identitas ke data peserta yang sudah ada
+    let participants = STORAGE.get('outing_participants', []) || [];
+    const pIdx = participants.findIndex(p => cleanUsernameValue(p.username) === username);
+    if (pIdx !== -1) {
+        const existingDept = participants[pIdx].department || '';
+        participants[pIdx] = {
+            ...participants[pIdx],
+            full_name: name,
+            name: name,
+            phone: phone
+        };
+        if (!existingDept || existingDept === 'Peserta') {
+            participants[pIdx].department = department;
+        }
+        STORAGE.set('outing_participants', participants);
+    }
+
+    // Background non-blocking sync ke Supabase untuk user baru (jika Supabase aktif)
+    try {
+        if (idx === -1 && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            supabaseClient.from('users').insert({
+                username: username,
+                full_name: name,
+                phone: phone,
+                role: role,
+                section: section
+            }).then(() => {}).catch(() => {});
+        }
+    } catch (dbErr) {
+        console.warn('Supabase user sync note:', dbErr);
+    }
+
+    const modalEl = document.getElementById('modalUserAccount');
+    bootstrap.Modal.getInstance(modalEl)?.hide();
+
+    const searchInput = document.getElementById('userAccountSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+        searchUserAccounts(searchInput.value);
+    } else {
+        renderUserAccounts(users);
+    }
+
+    if (typeof renderParticipants === 'function') {
+        renderParticipants(STORAGE.get('outing_participants', []));
+    }
+
+    const statEl = document.getElementById('statParticipants');
+    if (statEl) {
+        statEl.textContent = STORAGE.get('outing_participants', []).length;
+    }
+
+    try {
+        showToast(`<i class="bi bi-check-circle-fill me-1"></i> User <strong>@${username}</strong> tersimpan dengan role <strong>${USER_ROLE_LABELS[role] || role}</strong>.`);
+    } catch (toastErr) {
+        console.warn('Toast note:', toastErr);
+    }
+
+    return true;
+}
+
+function deleteUserAccount(id) {
+    if (!canManage('user_management')) {
+        alert('Hanya Admin atau Inisiator yang dapat menghapus akun user.');
+        return;
+    }
+
+    const users = STORAGE.get('outing_local_users', []) || [];
+    const target = users.find(u => String(u.id) === String(id));
+    if (!target) return;
+
+    const myUsername = cleanUsernameValue(currentUser?.username || currentProfile?.username || '');
+    if (cleanUsernameValue(target.username) === myUsername) {
+        alert('Anda tidak dapat menghapus akun yang sedang digunakan untuk login.');
+        return;
+    }
+
+    if (String(target.role || '').toUpperCase() === 'ADMIN') {
+        const adminCount = users.filter(u => String(u.role || '').toUpperCase() === 'ADMIN').length;
+        if (adminCount <= 1) {
+            alert('Minimal harus ada 1 akun Admin. Tambahkan Admin lain terlebih dahulu.');
+            return;
+        }
+    }
+
+    if (!confirm(`Hapus akun @${target.username} (${target.full_name || target.name || '-'})? Data peserta outing yang terkait tetap tersimpan.`)) return;
+
+    STORAGE.set('outing_local_users', users.filter(u => String(u.id) !== String(id)));
+    loadUserAccounts();
+
+    try {
+        showToast(`<i class="bi bi-trash me-1"></i> Akun <strong>@${target.username}</strong> berhasil dihapus.`, 'danger');
+    } catch (toastErr) {
+        console.warn('Toast note:', toastErr);
+    }
+}
+
+/* =====================================================
    MANAGEMENT MENU TILES SETUP
 ===================================================== */
 function setupManagementMenu() {
@@ -5866,6 +6116,16 @@ function setupManagementMenu() {
         action: "openSoftcopyReportModal()"
     });
 
+    // MANAJEMEN USER & HAK AKSES (ADMIN ONLY - pendaftaran mandiri dinonaktifkan)
+    if (isAll) {
+        menus.push({
+            icon: 'bi-person-gear',
+            title: 'Manajemen User',
+            desc: 'Tambah akun login & atur role / hak akses user',
+            action: "showPage('user_management')"
+        });
+    }
+
     // INITIATOR / SETTINGS
     if (isAll) {
         menus.push({
@@ -5891,6 +6151,12 @@ function setupManagementMenu() {
    PAGE NAVIGATION SWITCHER
 ===================================================== */
 function showPage(page) {
+    // Manajemen User & Hak Akses khusus Admin / Inisiator
+    if (page === 'user_management' && !canManage('user_management')) {
+        alert('Hanya Admin atau Inisiator yang dapat mengelola akun user & hak akses.');
+        page = 'management';
+    }
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
     const pageMap = {
@@ -5904,6 +6170,7 @@ function showPage(page) {
         logistic: 'pageLogistic',
         konsumsi: 'pageKonsumsi',
         public_area: 'pagePublicArea',
+        user_management: 'pageUserManagement',
         settings: 'pageSettings'
     };
 
@@ -5928,6 +6195,7 @@ function showPage(page) {
     if (page === 'konsumsi') loadKonsumsi();
     if (page === 'public_area') loadAnnouncements();
     if (page === 'participants') loadParticipants();
+    if (page === 'user_management') loadUserAccounts();
     if (page === 'rundown') loadRundown();
     if (page === 'finance') loadFinance();
 

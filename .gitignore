@@ -1,0 +1,3 @@
+# Tooling verifikasi lokal (jsdom) — tidak ikut ter-commit
+.testtools/
+node_modules/

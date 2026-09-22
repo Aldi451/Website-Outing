@@ -11,7 +11,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 
 | No | Modul / Fitur | Status | Deskripsi & Hak Akses |
 |---|---|:---:|---|
-| 1 | **Autentikasi & Registrasi** | ✅ **Selesai** | Tampilan login minimalis & clean dengan **User ID / No. HP + Password**. Registrasi otomatis terintegrasi langsung ke dalam **Data Peserta Outing**. |
+| 1 | **Autentikasi (Login Only)** | ✅ **Selesai** | Tampilan login minimalis & clean dengan **User ID / No. HP + Password**. **Tombol Registrasi mandiri dihapus** — akun login & role hanya dapat dibuat Admin/Inisiator lewat menu **Manajemen User**, lalu otomatis terintegrasi ke **Data Peserta Outing**. |
 | 2 | **Dashboard Utama & Master Excel** | ✅ **Selesai** | Banner dinamis acara outing, counter peserta, saldo kas aktif, progress bar persiapan, quick preview, dan **tombol Unduh Master Rekap Excel (8 sheets)**. |
 | 3 | **Modul Rundown** | ✅ **Selesai** | Susunan acara, jam, lokasi, catatan. Dilengkapi tombol **Export Excel** (data lokal terkini) dan **Import Excel** interaktif dengan preview table. |
 | 4 | **Modul Keuangan (Cash)** | ✅ **Selesai** | Laporan kas masuk/keluar, saldo otomatis. Dilengkapi tombol **Export Excel** (beserta summary saldo) dan **Import Excel** transaksi kas. |
@@ -25,6 +25,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 | 12 | **Hybrid Storage Engine** | ✅ **Selesai** | Data tersimpan otomatis di LocalStorage (offline-first) dan tersinkronisasi secara asinkron dengan Supabase REST API. |
 | 13 | **Universal Excel Engine** | ✅ **Selesai** | Fitur **Export Excel Real-Time** (membaca data lokal terkini) dan **Import Excel Interaktif** (seperti rundown) di SELURUH modul. |
 | 14 | **Upload & Kompresi Foto Purchasing** | ✅ **Selesai** | Unggah foto barang/nota belanja dengan **kompresi otomatis client-side** (hemat storage > 95%), lightbox preview, dan sinkronisasi Supabase. |
+| 15 | **Manajemen User & Hak Akses (Admin)** | ✅ **Selesai** | Menu khusus Admin/Inisiator untuk **menambah user baru, menentukan Role & Section (hak akses), reset password, dan menghapus akun**. Tile & halaman ini tersembunyi dan terkunci bagi role non-admin. |
 
 ---
 
@@ -72,7 +73,24 @@ Untuk mempermudah pengujian di perangkat lain atau oleh pengguna lain, aplikasi 
 | **Section Public Area** | `public` | `public123` | Publikasi pengumuman penting, prioritas, Export & Import Excel Pengumuman |
 | **Peserta Biasa** | `peserta` | `peserta123` | View-only rundown, laporan kas, pengumuman, Export Excel dokumen jadwal/kas |
 
-> 💡 **Tips Pengujian:** Anda dapat login langsung menggunakan kredensial akun bawaan di atas (atau menggunakan Nomor WhatsApp / User ID yang telah didaftarkan pada form Registrasi). Untuk beralih perspektif antar role secara cepat, gunakan dropdown **"Simulasi Hak Akses"** pada menu Profil.
+> 💡 **Tips Pengujian:** Anda dapat login langsung menggunakan kredensial akun bawaan di atas (atau menggunakan Nomor WhatsApp / User ID dari akun yang dibuat Admin). Untuk menambah akun baru, login sebagai **`admin`** lalu buka **Menu → Manajemen User → Tambah User** dan tentukan Role / Section-nya. Untuk beralih perspektif antar role secara cepat, gunakan dropdown **"Simulasi Hak Akses"** pada menu Profil.
+
+### 🔐 Penambahan User Baru oleh Admin (Registrasi Mandiri Dinonaktifkan)
+
+Halaman login kini **tidak lagi menyediakan tombol / form Registrasi**. Seluruh akun dibuat terpusat oleh Admin:
+
+1. Login sebagai **`admin`** (atau role `ADMIN` / `INITIATOR`).
+2. Buka **Menu → Manajemen User** (tile ini hanya muncul untuk Admin / Inisiator).
+3. Klik **Tambah User**, lalu isi Nama Lengkap, User ID, No. WhatsApp, Password, Departemen, serta **Role / Section (hak akses)**.
+4. Klik **Simpan User** — akun langsung dapat login dan otomatis masuk ke **Data Peserta Outing**.
+
+Pengaman yang aktif pada fitur ini:
+
+- Menu & halaman **Manajemen User** terkunci untuk seluruh role non-admin (tile disembunyikan, akses langsung dialihkan ke halaman Menu, daftar user tidak dirender).
+- `openUserAccountModal()`, `saveUserAccount()`, dan `deleteUserAccount()` menolak eksekusi bila pemanggil bukan Admin / Inisiator.
+- User ID duplikat, User ID kurang dari 3 karakter, dan password kurang dari 6 karakter ditolak dengan pesan validasi.
+- Admin tidak dapat menghapus akun yang sedang dipakai login, dan sistem menjaga **selalu ada minimal 1 akun Admin**.
+- Role akun yang sedang dipakai login tidak dapat diturunkan dari Admin (mencegah admin terkunci dari sistem).
 
 ---
 
