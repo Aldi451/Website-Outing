@@ -1715,13 +1715,41 @@
                         </div>
                     </div>
 
-                    <!-- QUICK SIMULATOR ROLE SWITCHER (FOR EASY TESTING) -->
-                    <div class="card border border-primary border-opacity-25 p-3 mb-3 bg-white">
+                    <!-- CHANGE PASSWORD -->
+                    <div class="card border border-warning border-opacity-50 p-3 mb-3 bg-white">
+                        <label class="form-label fw-semibold text-dark small mb-1">
+                            <i class="bi bi-key-fill me-1 text-warning"></i> Ganti Password
+                        </label>
+                        <p class="text-muted mb-3" style="font-size: 11px;">
+                            Gunakan password baru minimal 6 karakter. Perubahan akan disimpan ke Supabase.
+                        </p>
+                        <form id="changePasswordForm" onsubmit="changeUserPassword(event)">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Password Saat Ini</label>
+                                <input type="password" id="currentPassword" class="form-control form-control-sm" minlength="6" required autocomplete="current-password">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Password Baru</label>
+                                <input type="password" id="newPassword" class="form-control form-control-sm" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1">Konfirmasi Password Baru</label>
+                                <input type="password" id="confirmNewPassword" class="form-control form-control-sm" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div id="changePasswordMessage" class="mb-2"></div>
+                            <button type="submit" class="btn btn-warning btn-sm" id="changePasswordBtn">
+                                <i class="bi bi-shield-lock me-1"></i> Simpan Password Baru
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- ROLE SWITCHER: ADMIN ONLY -->
+                    <div class="card border border-primary border-opacity-25 p-3 mb-3 bg-white d-none" id="roleSimulatorCard">
                         <label class="form-label fw-semibold text-primary small mb-1">
-                            <i class="bi bi-shield-check me-1"></i> Simulasi Role Pengguna (Demo Testing):
+                            <i class="bi bi-shield-check me-1"></i> Simulasi Role Pengguna (Admin Only)
                         </label>
                         <p class="text-muted" style="font-size: 11px;">
-                            Ganti hak akses secara instan untuk mencoba tampilan dan wewenang menu modul lain tanpa perlu logout.
+                            Hanya Admin yang dapat mengganti role simulasi untuk pengujian modul tanpa logout.
                         </p>
                         <div class="input-group">
                             <select class="form-select form-select-sm" id="roleSimulatorSelect">
@@ -2510,7 +2538,7 @@ function initSeedDataIfEmpty() {
     let existingUsers = STORAGE.get('outing_local_users', []);
     if (!existingUsers || existingUsers.length === 0) {
         const demoUsers = [
-            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', password: 'admin123', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
+            { id: 'u-1', username: 'admin', full_name: 'Budi Santoso (Admin)', name: 'Budi Santoso', phone: '081234567890', password: 'power88', role: 'ADMIN', section: 'INISIATOR', department: 'Management' },
             { id: 'u-2', username: 'keuangan', full_name: 'Siti Rahma (Finance)', name: 'Siti Rahma', phone: '081234567891', password: 'finance123', role: 'FINANCE', section: 'KEUANGAN', department: 'Finance' },
             { id: 'u-3', username: 'purchasing', full_name: 'Dedi Kurniawan (Purchasing)', name: 'Dedi Kurniawan', phone: '081234567892', password: 'purchase123', role: 'PURCHASING', section: 'PURCHASING', department: 'Procurement' },
             { id: 'u-4', username: 'logistic', full_name: 'Hendra Saputra (Logistik)', name: 'Hendra Saputra', phone: '081234567893', password: 'logistik123', role: 'LOGISTIC', section: 'LOGISTIC', department: 'General Affairs' },
@@ -2532,8 +2560,17 @@ function initSeedDataIfEmpty() {
             requires_remote_approval: false
         };
     });
-    if (JSON.stringify(migratedUsers) !== JSON.stringify(existingUsers || [])) {
-        STORAGE.set('outing_local_users', migratedUsers);
+    // Migrasi sekali jalan untuk browser yang masih menyimpan kredensial demo lama.
+    // Password custom yang sudah pernah diubah user tidak ditimpa.
+    const usersWithUpdatedAdminPassword = migratedUsers.map(user => {
+        const username = String(user.username || '').replace(/^@+/, '').toLowerCase();
+        if (username === 'admin' && user.password === 'admin123') {
+            return { ...user, password: 'power88' };
+        }
+        return user;
+    });
+    if (JSON.stringify(usersWithUpdatedAdminPassword) !== JSON.stringify(existingUsers || [])) {
+        STORAGE.set('outing_local_users', usersWithUpdatedAdminPassword);
     }
 
     // 3. Rundowns
@@ -2869,6 +2906,11 @@ function getUserSection() {
 // Role simulator tetap dipertahankan untuk testing modul, tetapi tidak boleh
 // dipakai untuk membuka menu persetujuan akun. Role autentikasi disimpan saat
 // login dan dibandingkan dengan role aktif sebelum approval dilakukan.
+function isAuthenticatedAdmin() {
+    const authenticatedRole = String(currentUser?.authenticated_role || currentUser?.role || '').toUpperCase();
+    return authenticatedRole === 'ADMIN';
+}
+
 function isTrustedAdmin() {
     const authenticatedRole = String(currentUser?.authenticated_role || currentUser?.role || '').toUpperCase();
     const authenticatedSection = String(currentUser?.authenticated_section || currentUser?.section || '').toUpperCase();
@@ -3384,6 +3426,14 @@ async function loadDashboard() {
     }
 }
 
+function updateRoleSimulatorVisibility() {
+    const roleCard = document.getElementById('roleSimulatorCard');
+    if (!roleCard) return;
+    // Role chooser hanya tampil untuk akun Admin asli, bukan untuk user biasa
+    // atau hasil role simulation.
+    roleCard.classList.toggle('d-none', !isAuthenticatedAdmin());
+}
+
 /* =====================================================
    LOAD PROFILE
 ===================================================== */
@@ -3424,6 +3474,7 @@ async function loadProfile() {
         document.getElementById('profileDepartment').textContent = department;
         document.getElementById('profileRoleBadge').textContent = role;
         document.getElementById('profileSection').textContent = section;
+        updateRoleSimulatorVisibility();
 
         // Set simulator dropdown value
         const simSelect = document.getElementById('roleSimulatorSelect');
@@ -3446,6 +3497,11 @@ async function loadProfile() {
    ROLE SIMULATOR (DEMO PERSPECTIVE SWITCHER)
 ===================================================== */
 function applyRoleSimulation() {
+    if (!isAuthenticatedAdmin()) {
+        alert('Akses Ditolak: hanya Admin yang dapat memilih atau mensimulasikan role pengguna.');
+        updateRoleSimulatorVisibility();
+        return;
+    }
     const simSelect = document.getElementById('roleSimulatorSelect');
     if (!simSelect) return;
     const [newRole, newSection] = simSelect.value.split('|');
@@ -3467,10 +3523,121 @@ function applyRoleSimulation() {
     STORAGE.set('outing_session', safeUserForSession(currentUser || currentProfile));
 
     loadProfile();
+    updateRoleSimulatorVisibility();
     setupManagementMenu();
     updateViewOnlyNotices();
 
     alert(`Simulasi hak akses berhasil diubah ke: ${newRole} (Section: ${newSection}). Menu & wewenang tombol telah disesuaikan!`);
+}
+
+async function changeUserPassword(e) {
+    e.preventDefault();
+    const message = document.getElementById('changePasswordMessage');
+    const button = document.getElementById('changePasswordBtn');
+    const currentPassword = document.getElementById('currentPassword')?.value || '';
+    const newPassword = document.getElementById('newPassword')?.value || '';
+    const confirmPassword = document.getElementById('confirmNewPassword')?.value || '';
+
+    if (!currentUser) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Sesi user tidak ditemukan. Silakan login ulang.</div>`;
+        return;
+    }
+    if (newPassword.length < 6) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Password baru minimal 6 karakter.</div>`;
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small">Konfirmasi password baru tidak sama.</div>`;
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...`;
+    }
+    if (message) message.innerHTML = '';
+
+    try {
+        const localUsers = STORAGE.get('outing_local_users', []);
+        const currentUsername = String(currentUser.username || '').replace(/^@+/, '').toLowerCase();
+        const localIndex = localUsers.findIndex(user =>
+            (currentUser.id && String(user.id) === String(currentUser.id)) ||
+            (currentUsername && String(user.username || '').replace(/^@+/, '').toLowerCase() === currentUsername)
+        );
+        const localUser = localIndex >= 0 ? localUsers[localIndex] : null;
+        let remoteUser = null;
+
+        // Akun hasil registrasi/akun Supabase wajib memperbarui password di DB.
+        // Demo account lokal tetap dapat mengganti password tanpa mengubah fitur lama.
+        const needsRemoteLookup = isUuid(currentUser.id) || requiresRemoteApproval(currentUser);
+        if (needsRemoteLookup) {
+            const remoteResult = await fetchRemoteUser(currentUser.username || currentUser.phone);
+            if (remoteResult.error) {
+                throw new Error('Tidak dapat terhubung ke Supabase untuk mengganti password.');
+            }
+            remoteUser = remoteResult.data;
+            if (!remoteUser) {
+                throw new Error('Data akun tidak ditemukan di Supabase.');
+            }
+            const approvalError = approvalErrorForUser(remoteUser);
+            if (approvalError) throw approvalError;
+        }
+
+        const credentialUser = remoteUser && (remoteUser.password_hash || Object.prototype.hasOwnProperty.call(remoteUser, 'password'))
+            ? remoteUser
+            : (localUser || remoteUser || currentUser);
+        if (!(await verifyUserPassword(credentialUser, currentPassword))) {
+            throw new Error('Password saat ini salah.');
+        }
+
+        const passwordHash = await hashPassword(newPassword);
+        const now = new Date().toISOString();
+
+        if (remoteUser) {
+            const { data: updatedRemote, error: updateError } = await supabaseClient
+                .from('users')
+                .update({ password_hash: passwordHash, updated_at: now })
+                .eq('id', String(remoteUser.id))
+                .select('*')
+                .maybeSingle();
+            if (updateError) throw updateError;
+            if (!updatedRemote) throw new Error('Password gagal diperbarui di Supabase.');
+        }
+
+        // Simpan hash di cache lokal agar login offline untuk demo account tetap
+        // kompatibel; plaintext password lama dihapus.
+        const targetIndex = localIndex >= 0 ? localIndex : localUsers.findIndex(user =>
+            currentUsername && String(user.username || '').replace(/^@+/, '').toLowerCase() === currentUsername
+        );
+        if (targetIndex >= 0) {
+            localUsers[targetIndex] = {
+                ...localUsers[targetIndex],
+                password_hash: passwordHash,
+                updated_at: now
+            };
+            delete localUsers[targetIndex].password;
+            STORAGE.set('outing_local_users', localUsers);
+        }
+
+        currentUser.password_hash = passwordHash;
+        delete currentUser.password;
+        if (currentProfile) {
+            currentProfile.password_hash = passwordHash;
+            delete currentProfile.password;
+        }
+        STORAGE.set('outing_session', safeUserForSession(currentUser));
+
+        document.getElementById('changePasswordForm')?.reset();
+        if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i>Password berhasil diubah.</div>`;
+    } catch (error) {
+        console.error('changeUserPassword error:', error);
+        if (message) message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(error.message || 'Gagal mengubah password.')}</div>`;
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = `<i class="bi bi-shield-lock me-1"></i> Simpan Password Baru`;
+        }
+    }
 }
 
 function updateViewOnlyNotices() {

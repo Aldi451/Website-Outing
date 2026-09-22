@@ -21,7 +21,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 | 8 | **Modul Public Area** | ✅ **Selesai** | Siaran broadcast pengumuman outing, indikator prioritas, tanggal terbit. Dilengkapi tombol **Export Excel** dan **Import Excel**. |
 | 9 | **Modul Data Peserta** | ✅ **Selesai** | Direktori seluruh peserta, live search, pembagian kamar (rooming) dan armada bus. Dilengkapi tombol **Export Excel** dan **Import Excel**. |
 | 10 | **Pengaturan Outing** | ✅ **Selesai** | Konfigurasi nama acara outing, tanggal, venue, alamat, status, dan **Master Backup Excel Multi-Sheet**. Akses Inisiator/Admin. |
-| 11 | **Simulasi Role Pengguna** | ✅ **Selesai** | Fitur pengganti role instan pada halaman Profil untuk mempermudah pengujian hak akses tanpa perlu logout. |
+| 11 | **Simulasi Role Pengguna** | ✅ **Selesai** | Fitur simulasi role pada halaman Profil sekarang hanya dapat digunakan oleh akun Admin. |
 | 12 | **Hybrid Storage Engine** | ✅ **Selesai** | Data tersimpan otomatis di LocalStorage (offline-first) dan tersinkronisasi secara asinkron dengan Supabase REST API. |
 | 13 | **Universal Excel Engine** | ✅ **Selesai** | Fitur **Export Excel Real-Time** (membaca data lokal terkini) dan **Import Excel Interaktif** (seperti rundown) di SELURUH modul. |
 | 14 | **Upload & Kompresi Foto Purchasing** | ✅ **Selesai** | Unggah foto barang/nota belanja dengan **kompresi otomatis client-side** (hemat storage > 95%), lightbox preview, dan sinkronisasi Supabase. |
@@ -64,7 +64,7 @@ Untuk mempermudah pengujian di perangkat lain atau oleh pengguna lain, aplikasi 
 
 | Role / Seksi | User ID | Password | Hak Akses Utama |
 |---|---|---|---|
-| **Admin / Inisiator** | `admin` | `admin123` | Akses penuh ke seluruh menu, Pengaturan Outing, Export & Import semua modul |
+| **Admin / Inisiator** | `admin` | `power88` | Akses penuh ke seluruh menu, approval user, Pengaturan Outing, Export & Import semua modul |
 | **Section Keuangan** | `keuangan` | `finance123` | Kelola transaksi kas masuk/keluar, saldo kas, Export & Import Excel Keuangan |
 | **Section Purchasing** | `purchasing` | `purchase123` | Buat & approve request pengadaan, vendor, Export & Import Excel Purchasing |
 | **Section Logistic** | `logistic` | `logistik123` | Kelola task persiapan, armada bus, perlengkapan, Export & Import Excel Logistik |
@@ -250,7 +250,8 @@ D:\PowerPro\Tools\Web\Outing│
 - [x] Fitur **Import Excel Interaktif** dengan tabel pratinjau yang bisa diedit di SELURUH modul (seperti Rundown).
 - [x] Fitur **Master Rekapitulasi Excel Multi-Sheet** (8 sheets) di Dashboard dan Pengaturan Outing.
 - [x] Pengecualian hak akses (View-Only protection) untuk akun peserta biasa (*Participant*).
-- [x] Simulasi Role Switcher di profil pengguna untuk pengujian wewenang instan tanpa logout.
+- [x] Simulasi Role Switcher di profil pengguna yang dibatasi hanya untuk Admin.
+- [x] Fitur ganti password mandiri dari halaman Profil dan sinkronisasi hash password ke Supabase.
 - [x] Skema database lengkap dengan view `v_cash_summary`, RLS policies, serta approval user baru di Supabase.
 - [x] Approval user baru: registrasi berstatus `PENDING`, approval Admin/Inisiator, dan validasi status login dari Supabase.
 - [x] Dokumentasi progress dan pembaruan pada `README.md` dan `Rangkuman_Project_Outing_Management.docx`.
