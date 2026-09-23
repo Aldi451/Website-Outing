@@ -1648,12 +1648,10 @@ CREATE POLICY "donors read own donation reminders" ON public.donation_reminders
 ALTER TABLE public.purchase_requests ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE public.purchase_requests ADD COLUMN IF NOT EXISTS image_path TEXT;
 
--- Keep the existing bucket and object paths for compatibility. The bucket is
--- private: existing public URLs must be displayed through a signed URL after
--- the object path is migrated to purchase_requests.image_path.
+-- Storage bucket for purchasing attachments (compressed receipts/photos)
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('purchases', 'purchases', false)
-ON CONFLICT (id) DO UPDATE SET public = false;
+VALUES ('purchases', 'purchases', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
 DO $$
 BEGIN
@@ -1666,6 +1664,8 @@ BEGIN
     DROP POLICY IF EXISTS "Purchasing users update purchases" ON storage.objects;
     DROP POLICY IF EXISTS "Purchasing users delete purchases" ON storage.objects;
 
+    CREATE POLICY "Allow public read purchases" ON storage.objects
+        FOR SELECT TO public USING (bucket_id = 'purchases');
     CREATE POLICY "Approved users read purchases" ON storage.objects
         FOR SELECT TO authenticated USING (bucket_id = 'purchases' AND public.current_app_user_is_approved());
     CREATE POLICY "Purchasing users upload purchases" ON storage.objects
