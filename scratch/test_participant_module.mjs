@@ -17,7 +17,8 @@ function grab(name) {
 }
 
 const names = ['getApprovalStatus','approvalStatusLabel','escapeHtml','isUuid','normalizeUsername','jsAttr',
-  'approvalBadgeFor','buildParticipantRow','callSupabaseRpc','purgeLocalParticipantCaches','deleteParticipant','excelSourceItems'];
+  'approvalBadgeFor','buildParticipantRow','callSupabaseRpc','purgeLocalParticipantCaches','deleteParticipant','excelSourceItems',
+  'checkParticipantFeatureReady','renderParticipantsFeatureWarning','copyParticipantSetupSteps'];
 const src = names.map(grab).join('\n\n');
 
 const store = new Map();
@@ -29,6 +30,7 @@ const STORAGE = {
 function makeCtx({ rpcResult = { data: { action: 'deleted' }, error: null }, manage = true } = {}) {
   const alerts = [];
   const calls = { rpc: [], reload: 0 };
+  const notes = { element: { className: '', innerHTML: '' }, copied: null };
   const ctx = {
     STORAGE,
     supabaseClient: { rpc: async (fn, args) => { calls.rpc.push({ fn, args }); return rpcResult; } },
@@ -39,21 +41,27 @@ function makeCtx({ rpcResult = { data: { action: 'deleted' }, error: null }, man
     confirm: () => true,
     showToast: () => {},
     bootstrap: { Modal: { getInstance: () => ({ hide: () => {} }) } },
+    document: { getElementById: (id) => (id === 'participantsSourceNote' ? notes.element : null) },
+    navigator: { clipboard: { writeText: async (text) => { notes.copied = text; } } },
+    window: { prompt: () => {} },
+    showToast: () => {},
     EXCEL_MODULE_CONFIG: { participants: { storageKey: 'outing_participants' }, rundown: { storageKey: 'outing_rundowns' } },
     loadParticipants: async () => { calls.reload++; },
     console
   };
-  return { ctx, alerts, calls };
+  return { ctx, alerts, calls, notes };
 }
 
 function build(ctx, cache) {
   const fn = new Function('ctx', `
     const { STORAGE, supabaseClient, canManage, currentProfile, currentUser, alert, confirm, showToast,
-            bootstrap, EXCEL_MODULE_CONFIG, loadParticipants, console } = ctx;
+            bootstrap, EXCEL_MODULE_CONFIG, loadParticipants, console, document, navigator, window } = ctx;
     let participantsCache = ${JSON.stringify(cache)};
+    let participantFeatureReady = null;
     ${src}
     return { buildParticipantRow, callSupabaseRpc, purgeLocalParticipantCaches, deleteParticipant,
-             excelSourceItems, normalizeUsername, jsAttr, approvalBadgeFor };
+             excelSourceItems, normalizeUsername, jsAttr, approvalBadgeFor,
+             checkParticipantFeatureReady, renderParticipantsFeatureWarning, copyParticipantSetupSteps };
   `);
   return fn(ctx);
 }
@@ -179,6 +187,32 @@ console.log('\n=== E. utilitas ===');
   const attr = api.jsAttr(`a'b"c`);
   check('jsAttr tidak memuat kutip mentah', !/["']/.test(attr) && attr.includes('&quot;'), attr);
   check('badge approval berisi label', /Disetujui/.test(api.approvalBadgeFor({ approval_status: 'APPROVED' })));
+}
+
+// ---- F. kesiapan fitur database peserta ----
+console.log('\n=== F. Pemeriksaan kesiapan fitur peserta ===');
+{
+  // fungsi belum ada -> banner tampil
+  const { ctx, notes, calls } = makeCtx({ rpcResult: { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } } });
+  const api = build(ctx, []);
+  const ready = await api.checkParticipantFeatureReady();
+  check('fungsi belum ada -> dianggap belum siap', ready === false);
+  check('probe memakai daftar baris kosong (aman)', calls.rpc[0].fn === 'admin_bulk_import_participants' && JSON.stringify(calls.rpc[0].args.p_rows) === '[]');
+  api.renderParticipantsFeatureWarning();
+  check('banner peringatan memuat langkah perbaikan', /participant_management\.sql/.test(notes.element.innerHTML) && /Cek Ulang/.test(notes.element.innerHTML));
+  check('banner memakai gaya warning', /alert-warning/.test(notes.element.className));
+  api.copyParticipantSetupSteps();
+  await new Promise(r => setTimeout(r, 5));
+  check('tombol salin langkah menghasilkan teks instruksi', /SQL Editor/.test(notes.copied || '') && /NOTIFY pgrst/.test(notes.copied || ''));
+}
+{
+  // fungsi sudah ada -> tidak ada banner, hasil di-cache
+  const { ctx, notes, calls } = makeCtx({ rpcResult: { data: { action: 'bulk_import', created: 0, updated: 0, skipped: 0 }, error: null } });
+  const api = build(ctx, []);
+  check('fungsi ada -> siap dipakai', (await api.checkParticipantFeatureReady()) === true);
+  check('pemeriksaan kedua memakai cache (tidak memanggil RPC lagi)', (await api.checkParticipantFeatureReady()) === true && calls.rpc.length === 1);
+  api.renderParticipantsFeatureWarning();
+  check('tidak ada banner saat fitur siap', notes.element.innerHTML === '');
 }
 
 console.log(fail === 0 ? '\nSEMUA TEST LULUS' : `\n${fail} TEST GAGAL`);

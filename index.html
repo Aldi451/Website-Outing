@@ -6735,6 +6735,13 @@ async function loadParticipants() {
         renderParticipants(list);
         renderParticipantsSourceNote();
 
+        // Peringatkan lebih awal bila fungsi database peserta belum ada, supaya
+        // Admin tidak terkejut saat menekan tombol simpan atau hapus.
+        if (canManage('participants')) {
+            const ready = await checkParticipantFeatureReady();
+            if (!ready) renderParticipantsFeatureWarning();
+        }
+
         // Simpan salinan ringkas ke cache lokal supaya laporan/softcopy, arsip,
         // dan mode luring memakai daftar peserta yang sama dengan tampilan.
         try {
@@ -6745,6 +6752,81 @@ async function loadParticipants() {
     } catch (error) {
         console.error('loadParticipants error:', error);
     }
+}
+
+let participantFeatureReady = null; // null = belum diperiksa
+
+// Cek ketersediaan fungsi database modul peserta sekali per sesi. Panggilan
+// memakai daftar baris kosong sehingga tidak mengubah data apa pun.
+async function checkParticipantFeatureReady(force = false) {
+    if (participantFeatureReady !== null && !force) return participantFeatureReady;
+    if (!canManage('participants')) {
+        participantFeatureReady = false;
+        return false;
+    }
+    const result = await callSupabaseRpc('admin_bulk_import_participants', {
+        p_rows: [],
+        p_mode: 'upsert'
+    }, 'memeriksa fitur peserta');
+    // Fungsi yang sudah ada mengembalikan ringkasan impor; yang belum ada
+    // menghasilkan PGRST202.
+    participantFeatureReady = result.ok === true;
+    return participantFeatureReady;
+}
+
+async function recheckParticipantFeature() {
+    const ready = await checkParticipantFeatureReady(true);
+    if (ready) {
+        showToast('<i class="bi bi-check2-circle me-1"></i> Fungsi database peserta sudah aktif.');
+        await loadParticipants();
+    } else {
+        alert('Fungsi database masih belum terdeteksi.\n\nPastikan SELURUH isi supabase/participant_management.sql sudah dijalankan di Supabase SQL Editor (klik RUN sampai muncul pesan Success), lalu coba Cek Ulang lagi.');
+    }
+}
+
+function copyParticipantSetupSteps() {
+    const steps = [
+        'Cara mengaktifkan fitur Tambah/Edit/Hapus Peserta:',
+        '1. Buka Supabase Dashboard -> SQL Editor -> New query.',
+        '2. Buka berkas supabase/participant_management.sql, lalu salin SELURUH isinya.',
+        '3. Tempel di SQL Editor dan klik RUN (harus muncul "Success. No rows returned").',
+        '4. Muat ulang halaman aplikasi, lalu klik tombol "Cek Ulang".',
+        '',
+        'Bila fungsi sudah dijalankan tetapi masih error, jalankan perintah ini:',
+        "NOTIFY pgrst, 'reload schema';",
+        '',
+        'Untuk memastikan fungsi sudah terbentuk, jalankan:',
+        "SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace",
+        "WHERE n.nspname = 'public' AND p.proname LIKE 'admin_%participant%';"
+    ].join('\n');
+
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(steps)
+            .then(() => showToast('<i class="bi bi-clipboard-check me-1"></i> Langkah perbaikan disalin ke clipboard.'))
+            .catch(() => window.prompt('Salin langkah berikut:', steps));
+        return;
+    }
+    window.prompt('Salin langkah berikut:', steps);
+}
+
+function renderParticipantsFeatureWarning() {
+    const note = document.getElementById('participantsSourceNote');
+    if (!note || participantFeatureReady !== false) return;
+    note.className = 'alert alert-warning py-2 small mb-3';
+    note.innerHTML = `
+        <i class="bi bi-tools me-1"></i>
+        <strong>Fitur Tambah / Edit / Hapus Peserta belum aktif.</strong>
+        Fungsi database modul peserta belum ada di Supabase, sehingga tombol simpan dan hapus akan gagal.
+        Jalankan berkas <code>supabase/participant_management.sql</code> di Supabase SQL Editor, lalu klik <strong>Cek Ulang</strong>.
+        <div class="mt-2 d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-dark" onclick="copyParticipantSetupSteps()">
+                <i class="bi bi-clipboard me-1"></i>Salin Langkah
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-dark" onclick="recheckParticipantFeature()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Cek Ulang
+            </button>
+        </div>
+    `;
 }
 
 function renderParticipantsSourceNote() {
@@ -7060,7 +7142,7 @@ async function callSupabaseRpc(fnName, args, label) {
         return {
             ok: false,
             message: missing
-                ? `Fungsi database ${fnName} belum ada di Supabase. Jalankan berkas supabase/participant_management.sql di Supabase SQL Editor, lalu coba lagi.`
+                ? `Fungsi database ${fnName} belum terdeteksi di Supabase.\n\nLangkah perbaikan:\n1. Buka Supabase Dashboard -> SQL Editor.\n2. Tempel seluruh isi berkas supabase/participant_management.sql lalu klik RUN.\n3. Muat ulang halaman ini dan coba lagi.\n\nBila berkas sudah dijalankan, tunggu beberapa detik agar PostgREST memuat ulang skema, atau jalankan: NOTIFY pgrst, 'reload schema';`
                 : `Gagal ${label || 'memproses data'}: ${error?.message || error}`
         };
     }
