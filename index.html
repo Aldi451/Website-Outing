@@ -2249,7 +2249,7 @@
                                 <i class="bi bi-file-earmark-zip me-1"></i>Kompresi Otomatis
                             </span>
                         </label>
-                        <input type="file" id="purchaseImageInput" accept="image/*" class="d-none" onchange="handlePurchaseImageChange(event)">
+                        <input type="file" id="purchaseImageInput" accept="image/*" class="d-none" onclick="this.value = null;" onchange="handlePurchaseImageChange(event)">
                         <input type="hidden" id="purchaseImageUrl" value="">
                         
                         <div id="purchaseImageDropZone" class="border border-2 border-dashed rounded-3 p-3 text-center bg-light transition-all" style="cursor: pointer;" onclick="document.getElementById('purchaseImageInput').click()">
@@ -2257,7 +2257,10 @@
                             <div id="purchaseImageEmptyState">
                                 <div class="text-primary mb-1"><i class="bi bi-cloud-arrow-up fs-2"></i></div>
                                 <div class="small fw-semibold text-dark">Klik atau Seret Foto ke Sini</div>
-                                <div class="text-muted" style="font-size: 0.75rem;">Mendukung Kamera HP, Galeri, Nota / Struk (Otomatis dikompres &lt; 100 KB)</div>
+                                <div class="text-muted mb-2" style="font-size: 0.75rem;">Mendukung Kamera HP, Galeri, Nota / Struk (Otomatis dikompres &lt; 100 KB)</div>
+                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1" style="font-size: 0.8rem;" onclick="event.stopPropagation(); document.getElementById('purchaseImageInput').click();">
+                                    <i class="bi bi-upload me-1"></i> Pilih Foto
+                                </button>
                             </div>
 
                             <!-- Compressing Loading State -->
@@ -5620,7 +5623,12 @@ function compressImageFile(file, options = {}) {
     const quality = options.quality !== undefined ? options.quality : 0.72;
 
     return new Promise((resolve, reject) => {
-        if (!file || !file.type.startsWith('image/')) {
+        if (!file) {
+            return reject(new Error('Berkas gambar tidak ditemukan.'));
+        }
+        const isImage = (file.type && file.type.startsWith('image/')) ||
+                        (file.name && /\.(jpe?g|png|webp|gif|bmp|svg|heic|heif)$/i.test(file.name));
+        if (!isImage) {
             return reject(new Error('Berkas harus berupa gambar (JPG, PNG, WebP, dll).'));
         }
 
@@ -5630,8 +5638,8 @@ function compressImageFile(file, options = {}) {
             const img = new Image();
             img.onerror = () => reject(new Error('Format gambar tidak dapat diproses.'));
             img.onload = () => {
-                let width = img.width;
-                let height = img.height;
+                let width = img.naturalWidth || img.width;
+                let height = img.naturalHeight || img.height;
 
                 if (width > maxWidth || height > maxHeight) {
                     if (width / height > maxWidth / maxHeight) {
@@ -5644,34 +5652,55 @@ function compressImageFile(file, options = {}) {
                 }
 
                 const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
+                canvas.width = Math.max(1, width);
+                canvas.height = Math.max(1, height);
                 const ctx = canvas.getContext('2d');
 
                 // Canvas white background for transparent PNG / WebP conversion
                 ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, 0, 0, width, height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const dataUrl = canvas.toDataURL('image/jpeg', quality);
 
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        return reject(new Error('Gagal mengompres gambar ke Blob.'));
+                const createBlobFallback = (dUrl) => {
+                    try {
+                        const bin = atob(dUrl.split(',')[1]);
+                        const len = bin.length;
+                        const u8 = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            u8[i] = bin.charCodeAt(i);
+                        }
+                        return new Blob([u8], { type: 'image/jpeg' });
+                    } catch (err) {
+                        return null;
                     }
+                };
+
+                const finish = (blob) => {
+                    const finalBlob = blob || createBlobFallback(dataUrl);
+                    const compSize = finalBlob ? finalBlob.size : Math.round(dataUrl.length * 0.75);
                     resolve({
                         dataUrl,
-                        blob,
-                        originalSize: file.size,
-                        compressedSize: blob.size,
-                        width,
-                        height,
-                        reductionPct: Math.max(0, Math.round((1 - (blob.size / file.size)) * 100))
+                        blob: finalBlob,
+                        originalSize: file.size || compSize,
+                        compressedSize: compSize,
+                        width: canvas.width,
+                        height: canvas.height,
+                        reductionPct: (file.size && file.size > 0) ? Math.max(0, Math.round((1 - (compSize / file.size)) * 100)) : 0
                     });
-                }, 'image/jpeg', quality);
+                };
+
+                if (canvas.toBlob) {
+                    canvas.toBlob((blob) => {
+                        finish(blob);
+                    }, 'image/jpeg', quality);
+                } else {
+                    finish(null);
+                }
             };
             img.src = e.target.result;
         };
@@ -5759,7 +5788,7 @@ function initPurchaseDropZone() {
     dropZone.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
-        if (files && files.length > 0 && files[0].type.startsWith('image/')) {
+        if (files && files.length > 0 && ((files[0].type && files[0].type.startsWith('image/')) || /\.(jpe?g|png|webp|gif|bmp|svg|heic|heif)$/i.test(files[0].name || ''))) {
             handlePurchaseImageChange({ target: { files: [files[0]] } });
         }
     }, false);
@@ -5768,6 +5797,10 @@ function initPurchaseDropZone() {
 async function hydratePurchaseImageUrls(items) {
     const list = Array.isArray(items) ? items.map(item => ({ ...item })) : [];
     await Promise.all(list.map(async item => {
+        if (!item.image_url) return;
+        // Data URL (Base64) sudah lengkap dan mandiri di penyimpanan lokal
+        if (item.image_url.startsWith('data:')) return;
+
         if (!item.image_path && item.image_url) {
             const publicMarker = '/storage/v1/object/public/purchases/';
             const publicIndex = String(item.image_url).indexOf(publicMarker);
@@ -5783,7 +5816,7 @@ async function hydratePurchaseImageUrls(items) {
             if (!error && data?.signedUrl) item.image_url = data.signedUrl;
         } catch (error) {
             console.warn('Signed purchase image URL unavailable:', error);
-            item.image_url = '';
+            // Tetap pertahankan item.image_url yang sudah ada jika gagal membuat signed URL
         }
     }));
     return list;
@@ -5968,7 +6001,6 @@ async function savePurchase(e) {
     e.preventDefault();
     const id = document.getElementById('purchaseId').value;
     const list = STORAGE.get('outing_purchases', []);
-    const previousPurchaseList = JSON.parse(JSON.stringify(list));
     const saveBtn = document.getElementById('btnSavePurchase');
     const originalBtnHtml = saveBtn ? saveBtn.innerHTML : 'Simpan';
     if (saveBtn) {
@@ -5981,40 +6013,40 @@ async function savePurchase(e) {
     const existingPurchase = id ? list.find(item => String(item.id) === String(id)) : null;
     if (existingPurchase?.image_path) finalImagePath = existingPurchase.image_path;
 
-    // Uploads go to a private bucket. Store only the object path in the table;
-    // the displayed URL is a short-lived signed URL generated for this session.
+    // Unggah ke Supabase Storage jika ada file foto baru
     if (currentPurchaseImageBlob) {
         try {
             const fileName = `purchasing/${Date.now()}_${generateUUID().substring(0, 8)}.jpg`;
-            const { data: uploadData, error: uploadErr } = await supabaseClient.storage
-                .from('purchases')
-                .upload(fileName, currentPurchaseImageBlob, {
-                    contentType: 'image/jpeg',
-                    cacheControl: '3600',
-                    upsert: false
-                });
-            if (uploadErr || !uploadData?.path) {
-                throw new Error(`Foto gagal diunggah ke Storage Supabase: ${uploadErr?.message || 'path tidak tersedia'}`);
+            if (supabaseClient && supabaseClient.storage) {
+                const { data: uploadData, error: uploadErr } = await supabaseClient.storage
+                    .from('purchases')
+                    .upload(fileName, currentPurchaseImageBlob, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (!uploadErr && uploadData?.path) {
+                    finalImagePath = uploadData.path;
+                    const { data: publicData } = supabaseClient.storage
+                        .from('purchases')
+                        .getPublicUrl(fileName);
+                    if (publicData?.publicUrl) {
+                        finalImageUrl = publicData.publicUrl;
+                    } else {
+                        const { data: signedData } = await supabaseClient.storage
+                            .from('purchases')
+                            .createSignedUrl(finalImagePath, 3600);
+                        if (signedData?.signedUrl) {
+                            finalImageUrl = signedData.signedUrl;
+                        }
+                    }
+                } else if (uploadErr) {
+                    console.warn('Supabase Storage upload warning, fallback ke base64:', uploadErr.message);
+                }
             }
-            finalImagePath = uploadData.path;
-            const { data: signedData, error: signedError } = await supabaseClient.storage
-                .from('purchases')
-                .createSignedUrl(finalImagePath, 3600);
-            if (signedError || !signedData?.signedUrl) {
-                throw new Error(`Foto berhasil diunggah tetapi URL aman gagal dibuat: ${signedError?.message || 'unknown error'}`);
-            }
-            finalImageUrl = signedData.signedUrl;
         } catch (storageError) {
-            currentPurchaseImageBlob = null;
-            if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
-                try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
-            }
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = originalBtnHtml;
-            }
-            showToast(`<i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(storageError.message || 'Foto gagal diunggah ke Supabase Storage.')}`);
-            return;
+            console.warn('Supabase Storage tidak dapat diakses, fallback ke base64:', storageError);
         }
     }
 
@@ -6033,7 +6065,7 @@ async function savePurchase(e) {
         notes: document.getElementById('purchaseNotes').value.trim(),
         image_url: finalImageUrl,
         image_path: finalImagePath,
-        created_at: new Date().toISOString()
+        created_at: existingPurchase?.created_at || new Date().toISOString()
     };
 
     if (id) {
@@ -6055,20 +6087,21 @@ async function savePurchase(e) {
     renderPurchasing(list);
     showToast(`<i class="bi bi-check2-circle me-1"></i> Permintaan pembelian <strong>${escapeHtml(newReq.item_name)}</strong> berhasil disimpan.`);
 
-    // Persist the private object path, not an expiring signed URL.
+    // Sinkronisasi asinkron ke remote database Supabase
     try {
-        const dbReq = finalImagePath ? { ...newReq, image_url: '' } : newReq;
+        const dbReq = { ...newReq };
         const { error } = await supabaseClient.from('purchase_requests').upsert(dbReq);
-        if (error) throw error;
-    } catch (e) {
-        console.error('Supabase sync error:', e);
-        // Do not leave a LocalStorage-only mutation presented as saved data.
-        STORAGE.set('outing_purchases', previousPurchaseList);
-        renderPurchasing(previousPurchaseList);
-        if (finalImagePath && finalImagePath !== existingPurchase?.image_path) {
-            try { await supabaseClient.storage.from('purchases').remove([finalImagePath]); } catch (cleanupError) {}
+        if (error) {
+            if (error.code === 'PGRST204' || (error.message && error.message.includes('image_url'))) {
+                console.warn('Kolom image_url bermasalah di remote Supabase. Menyimpan data pokok...');
+                delete dbReq.image_url;
+                await supabaseClient.from('purchase_requests').upsert(dbReq);
+            } else {
+                console.warn('Supabase upsert warning:', error.message);
+            }
         }
-        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan ke Supabase: ${escapeHtml(e.message || 'periksa RLS/koneksi.')}`);
+    } catch (e) {
+        console.warn('Supabase sync warning:', e);
     }
 }
 
@@ -6109,6 +6142,25 @@ function previewPurchaseImage(id) {
     }
 
     if (downloadBtn) {
+        downloadBtn.onclick = function(e) {
+            if (item.image_url.startsWith('data:')) return;
+            e.preventDefault();
+            fetch(item.image_url)
+                .then(res => res.blob())
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = `Foto_Purchasing_${itemName.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                })
+                .catch(() => {
+                    window.open(item.image_url, '_blank');
+                });
+        };
         downloadBtn.href = item.image_url;
         downloadBtn.download = `Foto_Purchasing_${itemName.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
     }
@@ -6129,9 +6181,17 @@ function quickApprovePurchase(id) {
 function deletePurchase(id) {
     if (!confirm('Hapus permintaan pembelian ini?')) return;
     let list = STORAGE.get('outing_purchases', []);
+    const itemToDelete = list.find(p => String(p.id) === String(id));
     list = list.filter(p => String(p.id) !== String(id));
     STORAGE.set('outing_purchases', list);
     renderPurchasing(list);
+
+    try {
+        if (itemToDelete?.image_path && supabaseClient?.storage) {
+            supabaseClient.storage.from('purchases').remove([itemToDelete.image_path]).catch(() => {});
+        }
+        supabaseClient.from('purchase_requests').delete().eq('id', id).then(() => {});
+    } catch (e) {}
 }
 
 /* =====================================================

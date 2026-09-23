@@ -225,7 +225,7 @@ Cara kerja:
 - Semua tindakan tersebut divalidasi di server melalui fungsi `SECURITY DEFINER` (`admin_save_participant`, `admin_delete_participant`, `admin_bulk_import_participants`), bukan lewat `UPDATE`/`DELETE` langsung dari browser, karena pembuatan akun menyentuh skema `auth`.
 - **Import Excel** peserta memakai jalur yang sama: baris baru otomatis dibuatkan akun login (password default `outing123`) dan daftar akun baru ditampilkan setelah proses selesai. Mode **Gantikan Seluruh Data** hanya membersihkan data pelengkap (kamar/armada) yang tidak ada di berkas — akun user tidak pernah dihapus oleh impor.
 - **Export Excel** peserta selalu membaca data user terkini dari Supabase, bukan cache lama, dan menambahkan kolom Role, Seksi, serta Status Akun.
-- Kedua berkas SQL di atas (juga `fix_admin_login.sql`) diuji otomatis dengan PostgreSQL asli melalui [`scratch/pglite`](scratch/pglite) — mencakup pembuatan akun, penghapusan, pengaman Admin terakhir, dan impor massal pada skema lama.
+- Kedua berkas SQL di atas (juga `fix_admin_login.sql`) mencakup pembuatan akun, penghapusan, pengaman Admin terakhir, dan impor massal pada skema lama.
 
 ---
 
@@ -311,18 +311,15 @@ Tabel `donation_year_closures` dan `donation_foundation_disbursements` memastika
 ## 📁 Struktur Berkas Project
 
 ```text
-D:\PowerPro\Tools\Web\Outing│
 ├── index.html                               # Aplikasi utama (Single Page Application - SPA)
 ├── database_schema.sql                      # DDL PostgreSQL/Supabase, Auth trigger, RPC & RLS
 ├── supabase/seed.sql                        # Seed akun demo Supabase Auth (development)
 ├── supabase/fix_admin_login.sql             # Perbaikan skema & akun Admin (idempoten)
 ├── supabase/check_admin_login.sql           # Diagnosa read-only penyebab Admin gagal login
 ├── supabase/participant_management.sql      # Fungsi simpan/hapus/impor peserta (SECURITY DEFINER)
-├── supabase/config.toml                      # Konfigurasi Edge Function reminder
-├── supabase/functions/send-donation-reminders/ # Worker reminder WhatsApp server-side
+├── supabase/config.toml                     # Konfigurasi Supabase project
 ├── README.md                                # Dokumentasi lengkap, progress, & panduan transfer akun
-├── Rangkuman_Project_Outing_Management.docx # Dokumen spesifikasi acuan & catatan progress
-└── index.backup-20260921.html               # Backup versi sebelum update Excel Engine
+└── Rangkuman_Project_Outing_Management.docx # Dokumen spesifikasi acuan & catatan progress
 ```
 
 ---
