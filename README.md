@@ -5,6 +5,23 @@ Aplikasi ini dikembangkan untuk mengelola seluruh rangkaian kegiatan outing seca
 
 ---
 
+## 🔧 Update Supabase: registrasi, approval, dan peserta (23 September 2026)
+
+Untuk project yang sudah berjalan, **backup database lalu jalankan seluruh
+[`supabase/update_website.sql`](supabase/update_website.sql)** di Supabase SQL Editor.
+File gabungan ini mencakup semua SQL/RPC website, perbaikan constraint yang
+menghentikan schema lama, dan `admin_save_participant`/hapus/impor peserta.
+Jalankan [`supabase/check_website_update.sql`](supabase/check_website_update.sql)
+untuk verifikasi. **Deploy `index.html` terbaru juga** agar banner/toast approval
+Admin aktif (polling 30 detik; bukan notifikasi WhatsApp/email).
+
+Panduan, perubahan RLS/storage, batas migrasi, dan checklist tes:
+**[`supabase/UPDATE_WEBSITE.md`](supabase/UPDATE_WEBSITE.md)**.
+Tidak perlu seed/reset akun atau menjalankan file patch satu per satu setelah
+bundle sukses. Panduan ini menggantikan urutan patch terpisah di bagian lama di bawah.
+
+---
+
 ## 📌 Ringkasan Status & Perkembangan Project
 
 Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang tercantum dalam dokumen acuan `Rangkuman_Project_Outing_Management.docx`, termasuk standarisasi **Universal Excel Engine (Export & Import di Seluruh Modul)**:

@@ -911,6 +911,14 @@
 
     <!-- MAIN CONTAINER -->
     <div class="main-container">
+        <div id="registrationNotificationBanner" class="alert alert-warning d-none" role="status" aria-live="polite">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span><i class="bi bi-bell-fill me-2"></i><span id="registrationNotificationText"></span></span>
+                <button type="button" class="btn btn-sm btn-outline-dark" onclick="showPage('user_approvals')">
+                    <i class="bi bi-person-check me-1"></i> Buka Approval
+                </button>
+            </div>
+        </div>
 
         <!-- =============================================
              PAGE: HOME / DASHBOARD
@@ -3482,12 +3490,14 @@ function canManage(module) {
    AUTH PAGES TOGGLING & SESSIONS
 ===================================================== */
 function showLogin() {
+    stopRegistrationNotifications();
     document.getElementById('loginPage').classList.remove('d-none');
     document.getElementById('registerPage').classList.add('d-none');
     document.getElementById('appPage').classList.add('d-none');
 }
 
 function showRegister() {
+    stopRegistrationNotifications();
     document.getElementById('loginPage').classList.add('d-none');
     document.getElementById('registerPage').classList.remove('d-none');
     document.getElementById('appPage').classList.add('d-none');
@@ -3717,8 +3727,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Password minimal 6 karakter.</div>`;
         return;
     }
-    if (username.length < 3) {
-        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> User ID minimal 3 karakter.</div>`;
+    if (username.length < 3 || username.length > 100) {
+        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> User ID harus 3–100 karakter.</div>`;
         return;
     }
     if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
@@ -3753,6 +3763,10 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             throw error;
         }
         if (!data?.user) throw new Error('Supabase tidak mengembalikan akun baru.');
+        // Supabase dapat menyamarkan signup email duplikat tanpa error eksplisit.
+        if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            throw new Error('User ID sudah terdaftar. Silakan login atau hubungi Admin.');
+        }
 
         // If email confirmation is disabled, signUp may create a session. A new
         // profile is still PENDING and must never enter the app automatically.
@@ -3841,6 +3855,7 @@ async function loadDashboard() {
     try {
         showApp();
         await loadProfile();
+        startRegistrationNotifications();
     } catch (error) {
         console.error('Dashboard error:', error);
         try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
@@ -3968,6 +3983,7 @@ function applyRoleSimulation() {
     updateRoleSimulatorVisibility();
     setupManagementMenu();
     updateViewOnlyNotices();
+    startRegistrationNotifications();
 
     alert(`Simulasi hak akses berhasil diubah ke: ${newRole} (Section: ${newSection}). Menu & wewenang tombol telah disesuaikan!`);
 }
@@ -4892,6 +4908,9 @@ const EXCEL_MODULE_CONFIG = {
                     .map(item => `• ${item.username} / ${item.password}`)
                     .join('\n');
                 alert(`Akun login baru dibuat dengan password default:\n\n${list}${newLogins.length > 15 ? `\n... dan ${newLogins.length - 15} akun lainnya` : ''}\n\nMohon bagikan ke peserta yang bersangkutan.`);
+            }
+            if (summary.replace_cleanup_skipped) {
+                alert('Ada baris gagal. Penghapusan data pelengkap di luar file dibatalkan agar data lama tidak hilang. Perbaiki baris gagal lalu impor ulang.');
             }
             if (errors.length > 0) {
                 const detail = errors.slice(0, 10)
@@ -6840,7 +6859,7 @@ async function recheckParticipantFeature() {
         showToast('<i class="bi bi-check2-circle me-1"></i> Fungsi database peserta sudah aktif.');
         await loadParticipants();
     } else {
-        alert('Fungsi database masih belum terdeteksi.\n\nPastikan SELURUH isi supabase/participant_management.sql sudah dijalankan di Supabase SQL Editor (klik RUN sampai muncul pesan Success), lalu coba Cek Ulang lagi.');
+        alert('Fungsi database masih belum terdeteksi.\n\nPastikan SELURUH isi supabase/update_website.sql sudah dijalankan di Supabase SQL Editor (klik RUN sampai muncul pesan Success), lalu coba Cek Ulang lagi.');
     }
 }
 
@@ -6848,8 +6867,8 @@ function copyParticipantSetupSteps() {
     const steps = [
         'Cara mengaktifkan fitur Tambah/Edit/Hapus Peserta:',
         '1. Buka Supabase Dashboard -> SQL Editor -> New query.',
-        '2. Buka berkas supabase/participant_management.sql, lalu salin SELURUH isinya.',
-        '3. Tempel di SQL Editor dan klik RUN (harus muncul "Success. No rows returned").',
+        '2. Buka berkas supabase/update_website.sql, lalu salin SELURUH isinya.',
+        '3. Tempel di SQL Editor dan klik RUN sampai selesai tanpa error (hasil verifikasi dapat berupa tabel).',
         '4. Muat ulang halaman aplikasi, lalu klik tombol "Cek Ulang".',
         '',
         'Bila fungsi sudah dijalankan tetapi masih error, jalankan perintah ini:',
@@ -6877,7 +6896,7 @@ function renderParticipantsFeatureWarning() {
         <i class="bi bi-tools me-1"></i>
         <strong>Fitur Tambah / Edit / Hapus Peserta belum aktif.</strong>
         Fungsi database modul peserta belum ada di Supabase, sehingga tombol simpan dan hapus akan gagal.
-        Jalankan berkas <code>supabase/participant_management.sql</code> di Supabase SQL Editor, lalu klik <strong>Cek Ulang</strong>.
+        Jalankan berkas <code>supabase/update_website.sql</code> di Supabase SQL Editor, lalu klik <strong>Cek Ulang</strong>.
         <div class="mt-2 d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-sm btn-dark" onclick="copyParticipantSetupSteps()">
                 <i class="bi bi-clipboard me-1"></i>Salin Langkah
@@ -7202,15 +7221,83 @@ async function callSupabaseRpc(fnName, args, label) {
         return {
             ok: false,
             message: missing
-                ? `Fungsi database ${fnName} belum terdeteksi di Supabase.\n\nLangkah perbaikan:\n1. Buka Supabase Dashboard -> SQL Editor.\n2. Tempel seluruh isi berkas supabase/participant_management.sql lalu klik RUN.\n3. Muat ulang halaman ini dan coba lagi.\n\nBila berkas sudah dijalankan, tunggu beberapa detik agar PostgREST memuat ulang skema, atau jalankan: NOTIFY pgrst, 'reload schema';`
+                ? `Fungsi database ${fnName} belum terdeteksi di Supabase.\n\nLangkah perbaikan:\n1. Buka Supabase Dashboard -> SQL Editor.\n2. Tempel seluruh isi berkas supabase/update_website.sql lalu klik RUN.\n3. Muat ulang halaman ini dan coba lagi.\n\nBila berkas sudah dijalankan, tunggu beberapa detik agar PostgREST memuat ulang skema, atau jalankan: NOTIFY pgrst, 'reload schema';`
                 : `Gagal ${label || 'memproses data'}: ${error?.message || error}`
         };
     }
 }
 
 /* =====================================================
-   USER APPROVAL MANAGEMENT (ADMIN / INITIATOR)
+   USER APPROVAL MANAGEMENT (ADMIN ONLY)
 ===================================================== */
+// Sumber antrean selalu database, bukan localStorage. Polling tidak memerlukan
+// Realtime Supabase dan tetap menemukan registrasi saat Admin sebelumnya offline.
+let registrationNotificationSession = null;
+
+function stopRegistrationNotifications() {
+    const state = registrationNotificationSession;
+    registrationNotificationSession = null; // invalidate outstanding requests
+    if (state?.timer) clearInterval(state.timer);
+    document.getElementById('registrationNotificationBanner')?.classList.add('d-none');
+}
+
+function startRegistrationNotifications() {
+    stopRegistrationNotifications();
+    if (!isTrustedAdmin()) return;
+    const state = { pendingIds: new Set(), initialized: false, busy: false, timer: null };
+    registrationNotificationSession = state;
+    refreshRegistrationNotifications(state);
+    state.timer = setInterval(() => {
+        if (!document.hidden) refreshRegistrationNotifications(state);
+    }, 30000);
+}
+
+async function refreshRegistrationNotifications(state = registrationNotificationSession) {
+    if (!state || state !== registrationNotificationSession || state.busy || !isTrustedAdmin()) return;
+    state.busy = true;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_pending_registration_notifications');
+        if (error) throw error;
+        if (!data || !Array.isArray(data.pending_ids) || !Number.isInteger(data.pending_count)) {
+            throw new Error('Respons antrean approval tidak valid.');
+        }
+        if (state !== registrationNotificationSession || !isTrustedAdmin()) return;
+        const pendingIds = new Set(data.pending_ids.map(String));
+        const newCount = [...pendingIds].filter(id => !state.pendingIds.has(id)).length;
+        const banner = document.getElementById('registrationNotificationBanner');
+        const text = document.getElementById('registrationNotificationText');
+        if (text) text.textContent = `${data.pending_count} user menunggu persetujuan Admin.`;
+        banner?.classList.toggle('d-none', data.pending_count === 0);
+        updateUserApprovalBadge(data.pending_count);
+        if (newCount > 0) {
+            showToast(state.initialized
+                ? `<i class="bi bi-person-plus me-1"></i> ${newCount} registrasi baru menunggu approval. Buka tombol Approval pada banner.`
+                : `<i class="bi bi-bell me-1"></i> ${data.pending_count} user menunggu approval Admin.`, 'primary');
+        }
+        const changed = newCount > 0 || [...state.pendingIds].some(id => !pendingIds.has(id));
+        state.pendingIds = pendingIds;
+        state.initialized = true;
+        if (changed && document.getElementById('pageUserApprovals')?.classList.contains('active')) {
+            await loadUserApprovals();
+        }
+    } catch (error) {
+        if (state !== registrationNotificationSession || !isTrustedAdmin()) return;
+        console.warn('Notifikasi registrasi:', error);
+        const text = document.getElementById('registrationNotificationText');
+        if (text) text.textContent = 'Notifikasi approval belum dapat dimuat. Cek koneksi / jalankan supabase/update_website.sql; daftar dapat dicek melalui Buka Approval. Sistem mencoba lagi setiap 30 detik.';
+        document.getElementById('registrationNotificationBanner')?.classList.remove('d-none');
+        const badge = document.getElementById('userApprovalPendingBadge');
+        if (badge) { badge.textContent = 'Belum terhubung'; badge.className = 'badge bg-secondary'; }
+    } finally {
+        state.busy = false;
+    }
+}
+
+window.addEventListener('focus', () => refreshRegistrationNotifications());
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshRegistrationNotifications();
+});
+
 async function loadUserApprovals() {
     const container = document.getElementById('userApprovalsList');
     const message = document.getElementById('userApprovalMessage');
@@ -7236,9 +7323,9 @@ async function loadUserApprovals() {
     } catch (error) {
         console.error('loadUserApprovals error:', error);
         container.innerHTML = `<div class="alert alert-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal memuat user dari Supabase: ${escapeHtml(error.message || 'Unknown error')}</div>`;
-        // Never render a local pending list as an approval authority. The
-        // server query is the only source for this admin action.
-        updateUserApprovalBadge(0);
+        // Jangan menampilkan 0 (seolah semua sudah diproses) saat query gagal.
+        const badge = document.getElementById('userApprovalPendingBadge');
+        if (badge) { badge.textContent = 'Gagal memuat'; badge.className = 'badge bg-danger'; }
     }
 }
 
@@ -7370,6 +7457,7 @@ async function setUserApprovalStatus(userId, nextStatus, rejectionReason = '') {
 
         if (message) message.innerHTML = `<div class="alert alert-success py-2 small"><i class="bi bi-check-circle-fill me-1"></i> Status user <strong>@${escapeHtml(data.username || '')}</strong> berhasil diubah menjadi <strong>${escapeHtml(approvalStatusLabel(data.approval_status))}</strong>.</div>`;
         await loadUserApprovals();
+        await refreshRegistrationNotifications();
     } catch (error) {
         console.error('setUserApprovalStatus error:', error);
         if (message) message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal menyimpan approval: ${escapeHtml(error.message || 'Unknown error')}</div>`;
