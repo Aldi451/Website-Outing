@@ -1357,7 +1357,7 @@
                 <div class="content-header">
                     <div>
                         <h5><i class="bi bi-person-check me-2 text-primary"></i>Data Peserta Outing</h5>
-                        <small class="text-muted">Daftar kehadiran, kamar, dan armada transportasi</small>
+                        <small class="text-muted">Bersumber langsung dari data user terdaftar • kelola kamar &amp; armada di sini</small>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-sm btn-outline-secondary" onclick="showPage('home')">
@@ -1376,11 +1376,13 @@
                 </div>
 
                 <div class="content-body">
+                    <div id="participantsSourceNote" class="alert alert-info py-2 small mb-3 d-none"></div>
+
                     <!-- SEARCH & FILTER -->
                     <div class="mb-3">
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" id="participantSearchInput" class="form-control" placeholder="Cari nama, departemen, atau User ID..." oninput="searchParticipants(this.value)">
+                            <input type="text" id="participantSearchInput" class="form-control" placeholder="Cari nama, departemen, kamar, atau User ID..." oninput="searchParticipants(this.value)">
                         </div>
                     </div>
 
@@ -2501,6 +2503,9 @@
             <form id="formParticipant" onsubmit="saveParticipant(event)">
                 <input type="hidden" id="participantId">
                 <div class="modal-body">
+                    <div class="alert alert-info py-2 small" id="participantFormHint">
+                        Data peserta tersimpan sebagai user aplikasi.
+                    </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Nama Lengkap</label>
                         <input type="text" id="partName" class="form-control" placeholder="Nama lengkap peserta" required>
@@ -2508,7 +2513,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-semibold">User ID / Username</label>
-                            <input type="text" id="partUsername" class="form-control" placeholder="Username">
+                            <input type="text" id="partUsername" class="form-control" placeholder="Username" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-semibold">Nomor Telepon</label>
@@ -2526,6 +2531,18 @@
                                 <option value="L">Laki-laki</option>
                                 <option value="P">Perempuan</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3" id="participantPasswordRow">
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Password Akun Login</label>
+                            <div class="input-group">
+                                <input type="text" id="partPassword" class="form-control" placeholder="Minimal 6 karakter" minlength="6">
+                                <button type="button" class="btn btn-outline-secondary" onclick="generateParticipantPassword()">
+                                    <i class="bi bi-shuffle me-1"></i>Acak
+                                </button>
+                            </div>
+                            <small class="text-muted" style="font-size: 11px;">Peserta login memakai User ID di atas + password ini. Bagikan setelah data disimpan.</small>
                         </div>
                     </div>
                     <div class="row g-2 mb-3">
@@ -4811,7 +4828,10 @@ const EXCEL_MODULE_CONFIG = {
                 "Gender": item.gender || 'L',
                 "Transportasi / Bus": item.transport || '-',
                 "Kamar / Villa": item.room || '-',
-                "Status Kehadiran": item.status || 'CONFIRMED'
+                "Status Kehadiran": item.status || 'CONFIRMED',
+                "Role": item.role || '-',
+                "Seksi": item.section || '-',
+                "Status Akun": item.approval_status ? approvalStatusLabel(item.approval_status) : '-'
             }));
         },
         createItemFromRow: (row) => ({
@@ -4826,9 +4846,59 @@ const EXCEL_MODULE_CONFIG = {
             room: row.room || 'Belum Diatur',
             status: (row.status || 'CONFIRMED').toUpperCase()
         }),
-        onAfterSave: () => {
-            renderParticipants(STORAGE.get('outing_participants', []));
-            loadDashboard();
+        // Impor peserta harus lewat server karena akun login (Supabase Auth)
+        // hanya boleh dibuat/diubah dengan hak akses admin di database.
+        bulkImport: async (rows, mode) => {
+            const payload = rows
+                .map(row => ({
+                    username: normalizeUsername(row.username || ''),
+                    full_name: (row.full_name || '').trim(),
+                    phone: (row.phone || '').trim() || null,
+                    department: (row.department || '').trim() || null,
+                    gender: (row.gender || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
+                    transport: (row.transport || '').trim() || null,
+                    room: (row.room || '').trim() || null,
+                    status: (row.status || 'CONFIRMED').toUpperCase()
+                }))
+                .filter(row => row.username || row.full_name);
+
+            if (payload.length === 0) {
+                alert('Tidak ada baris peserta yang bisa diimpor. Pastikan kolom User ID atau Nama Lengkap terisi.');
+                return false;
+            }
+
+            const result = await callSupabaseRpc('admin_bulk_import_participants', {
+                p_rows: payload,
+                p_mode: mode === 'replace' ? 'replace' : 'upsert',
+                p_default_password: 'outing123'
+            }, 'mengimpor peserta');
+
+            if (!result.ok) {
+                alert(result.message);
+                return false;
+            }
+
+            const summary = result.data || {};
+            const newLogins = Array.isArray(summary.new_logins) ? summary.new_logins : [];
+            const errors = Array.isArray(summary.errors) ? summary.errors : [];
+
+            showToast(`<i class="bi bi-check2-circle me-1"></i> Impor peserta selesai: <strong>${summary.created || 0}</strong> akun baru, <strong>${summary.updated || 0}</strong> diperbarui${summary.skipped ? `, ${summary.skipped} dilewati` : ''}.`);
+
+            if (newLogins.length > 0) {
+                const list = newLogins.slice(0, 15)
+                    .map(item => `• ${item.username} / ${item.password}`)
+                    .join('\n');
+                alert(`Akun login baru dibuat dengan password default:\n\n${list}${newLogins.length > 15 ? `\n... dan ${newLogins.length - 15} akun lainnya` : ''}\n\nMohon bagikan ke peserta yang bersangkutan.`);
+            }
+            if (errors.length > 0) {
+                const detail = errors.slice(0, 10)
+                    .map(item => `• ${item.username}: ${item.error}`)
+                    .join('\n');
+                alert(`Sebagian baris dilewati:\n\n${detail}`);
+            }
+
+            await loadParticipants();
+            return true;
         }
     }
 };
@@ -4836,6 +4906,15 @@ const EXCEL_MODULE_CONFIG = {
 /* =====================================================
    EXPORT MODULE EXCEL (REAL-TIME LOCAL DATA)
 ===================================================== */
+/* Modul peserta bersumber dari data user terkini, modul lain dari cache lokal. */
+function excelSourceItems(module) {
+    if (module === 'participants' && Array.isArray(participantsCache) && participantsCache.length > 0) {
+        return participantsCache;
+    }
+    const config = EXCEL_MODULE_CONFIG[module];
+    return config ? STORAGE.get(config.storageKey, []) : [];
+}
+
 function exportModuleExcel(module) {
     if (module === 'master') {
         exportMasterExcel();
@@ -4848,10 +4927,11 @@ function exportModuleExcel(module) {
         return;
     }
 
-    // Always fetch latest data from local storage
-    const items = STORAGE.get(config.storageKey, []);
+    // Modul peserta memakai data user terbaru dari Supabase, modul lain memakai
+    // cache lokal.
+    const items = excelSourceItems(module);
     if (!items || items.length === 0) {
-        if (!confirm(`Data ${config.name} saat ini kosong di sistem lokal. Tetap unduh berkas template kosong?`)) {
+        if (!confirm(`Data ${config.name} saat ini kosong. Tetap unduh berkas kosong?`)) {
             return;
         }
     }
@@ -4910,7 +4990,7 @@ function exportMasterExcel() {
     const modules = ['rundown', 'finance', 'purchasing', 'logistic', 'konsumsi', 'public_area', 'participants'];
     modules.forEach(modKey => {
         const conf = EXCEL_MODULE_CONFIG[modKey];
-        const data = STORAGE.get(conf.storageKey, []);
+        const data = excelSourceItems(modKey);
         const rows = conf.transformExport(data);
         const ws = XLSX.utils.json_to_sheet(rows);
 
@@ -5221,7 +5301,7 @@ function updateUniversalImportRowCount() {
 /* =====================================================
    SAVE UNIVERSAL IMPORT TO LOCAL STORAGE & SUPABASE
 ===================================================== */
-function saveUniversalImport() {
+async function saveUniversalImport() {
     if (!canManage(currentImportModule)) {
         alert('Hanya panitia/admin yang dapat menyimpan perubahan data.');
         return;
@@ -5248,6 +5328,32 @@ function saveUniversalImport() {
     });
 
     const isReplace = document.getElementById('universalModeReplace')?.checked;
+
+    // Modul dengan penangan khusus (mis. Peserta) menyimpan lewat RPC server agar
+    // akun Auth dan validasi role tetap dijalankan di database.
+    if (typeof config.bulkImport === 'function') {
+        const saveBtn = document.getElementById('btnSaveUniversalImport');
+        const originalLabel = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+        }
+        try {
+            const saved = await config.bulkImport(newItems.map(item => ({ ...item })), isReplace ? 'replace' : 'append');
+            if (saved === false) return;
+
+            const modalEl = document.getElementById('modalUniversalImportExcel');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+            return;
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalLabel || 'Simpan Data ke Sistem';
+            }
+        }
+    }
+
     let currentItems = STORAGE.get(config.storageKey, []);
 
     let finalItems = [];
@@ -6523,40 +6629,134 @@ function deleteAnnouncement(id) {
 
 /* =====================================================
    PARTICIPANTS MODULE
+   Sumber data: tabel public.users (akun terdaftar).
+   Tabel public.participants hanya pelengkap (kamar/armada/status kehadiran).
 ===================================================== */
+let participantsCache = [];
+let participantsDataNote = '';
+
+function normalizeUsername(value) {
+    return String(value || '').replace(/^@+/, '').trim().toLowerCase();
+}
+
+// Nilai aman untuk disisipkan sebagai argumen string di atribut HTML.
+function jsAttr(value) {
+    return escapeHtml(JSON.stringify(String(value ?? '')));
+}
+
+function approvalBadgeFor(profile) {
+    const status = getApprovalStatus(profile);
+    const styles = {
+        APPROVED: 'bg-success-subtle text-success-emphasis border-success-subtle',
+        PENDING: 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
+        REJECTED: 'bg-danger-subtle text-danger-emphasis border-danger-subtle'
+    };
+    return `<span class="badge border ${styles[status] || styles.PENDING}">${escapeHtml(approvalStatusLabel(status))}</span>`;
+}
+
+// Peserta = user terdaftar. Cache lokal hanya dipakai bila Supabase gagal dibaca.
+async function fetchParticipantUsers() {
+    try {
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('*')
+                .order('full_name');
+            if (error) throw error;
+            return Array.isArray(data) ? data : [];
+        }
+    } catch (error) {
+        console.warn('Daftar user dari Supabase gagal dimuat:', error?.message || error);
+        participantsDataNote = 'Gagal memuat data user dari Supabase, menampilkan cache lokal. Bila tabel users belum sinkron, jalankan supabase/fix_admin_login.sql.';
+    }
+    syncUsersToParticipants();
+    return STORAGE.get('outing_local_users', []);
+}
+
+// Data pelengkap bersifat opsional: tabel participants boleh belum ada.
+async function fetchParticipantEnrichment() {
+    const map = new Map();
+    try {
+        const { data, error } = await supabaseClient.from('participants').select('*');
+        if (error) throw error;
+        (data || []).forEach(row => {
+            if (row.user_id) map.set(`id:${row.user_id}`, row);
+            const uname = normalizeUsername(row.username);
+            if (uname) map.set(`username:${uname}`, row);
+        });
+    } catch (error) {
+        console.warn('Data pelengkap peserta (kamar/armada) tidak tersedia:', error?.message || error);
+    }
+    return map;
+}
+
+function buildParticipantRow(user, enrichment) {
+    const username = normalizeUsername(user.username);
+    const extra = (user.auth_user_id && enrichment.get(`id:${user.auth_user_id}`))
+        || enrichment.get(`id:${user.id}`)
+        || enrichment.get(`username:${username}`)
+        || {};
+    const fullName = user.full_name || user.name || user.email || username || 'Tanpa Nama';
+
+    return {
+        id: user.id,
+        user_id: user.id,
+        auth_user_id: user.auth_user_id || null,
+        username,
+        full_name: fullName,
+        name: fullName,
+        phone: user.phone || extra.phone || '',
+        department: user.department || extra.department || '',
+        role: String(user.role || 'PARTICIPANT').toUpperCase(),
+        section: String(user.section || '').toUpperCase(),
+        approval_status: getApprovalStatus(user),
+        gender: user.gender || extra.gender || 'L',
+        transport: extra.transport || user.transport || '',
+        room: extra.room || user.room || '',
+        status: extra.status || user.status || 'CONFIRMED',
+        enrichment_id: extra.id || null,
+        local_only: !isUuid(user.id)
+    };
+}
+
 async function loadParticipants() {
     try {
-        // 1. Pastikan seluruh user yang telah mendaftar otomatis masuk ke data peserta
-        syncUsersToParticipants();
-
-        let participants = [];
-        try {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                const { data } = await supabaseClient.from('participants').select('*');
-                if (data && data.length > 0) {
-                    participants = data;
-                }
-            }
-        } catch (e) {}
-
-        const localParts = STORAGE.get('outing_participants', []);
-        localParts.forEach(lp => {
-            const cleanLp = (lp.username || '').replace(/^@+/, '').toLowerCase();
-            if (!participants.some(p => ((p.username || '').replace(/^@+/, '').toLowerCase() === cleanLp) || String(p.id) === String(lp.id))) {
-                participants.push(lp);
-            }
-        });
+        participantsDataNote = '';
+        const users = await fetchParticipantUsers();
+        const enrichment = await fetchParticipantEnrichment();
+        const list = users.map(user => buildParticipantRow(user, enrichment));
+        list.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'id'));
+        participantsCache = list;
 
         // Perbarui angka statistik peserta di dashboard
         const statEl = document.getElementById('statParticipants');
-        if (statEl) {
-            statEl.textContent = participants.length;
-        }
+        if (statEl) statEl.textContent = list.length;
 
-        renderParticipants(participants);
+        renderParticipants(list);
+        renderParticipantsSourceNote();
+
+        // Simpan salinan ringkas ke cache lokal supaya laporan/softcopy, arsip,
+        // dan mode luring memakai daftar peserta yang sama dengan tampilan.
+        try {
+            STORAGE.set('outing_participants', list);
+        } catch (mirrorError) {
+            console.warn('Gagal menyimpan salinan peserta ke cache lokal:', mirrorError);
+        }
     } catch (error) {
         console.error('loadParticipants error:', error);
     }
+}
+
+function renderParticipantsSourceNote() {
+    const note = document.getElementById('participantsSourceNote');
+    if (!note) return;
+    if (participantsDataNote) {
+        note.className = 'alert alert-warning py-2 small mb-3';
+        note.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(participantsDataNote)}`;
+        return;
+    }
+    note.className = 'alert alert-info py-2 small mb-3';
+    note.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>Data peserta diambil langsung dari <strong>data user terdaftar</strong>. Tombol <strong>Tambah Peserta</strong> membuat akun login baru, sedangkan <strong>Edit</strong> melengkapi kamar/armada peserta.';
 }
 
 function renderParticipants(list) {
@@ -6564,43 +6764,53 @@ function renderParticipants(list) {
     if (!container) return;
 
     if (!list || list.length === 0) {
-        container.innerHTML = `<div class="empty-state"><i class="bi bi-person-x"></i><div>Belum ada peserta terdaftar.</div></div>`;
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="bi bi-person-x"></i>
+                <div>Belum ada peserta terdaftar.</div>
+                <small class="text-muted">Peserta muncul otomatis setelah user membuat akun, atau tambahkan lewat tombol Tambah Peserta.</small>
+            </div>
+        `;
         return;
     }
 
-    const currentUsername = (currentProfile?.username || currentUser?.username || '').toLowerCase().replace(/^@+/, '');
+    const currentUsername = normalizeUsername(currentProfile?.username || currentUser?.username);
     const isManager = canManage('participants');
 
     container.innerHTML = list.map(item => {
-        const username = (item.username || '-').replace(/^@+/, '');
-        const name = item.full_name || item.name || username;
+        const username = item.username || '-';
+        const name = item.full_name || username;
         const initial = (name.charAt(0) || 'U').toUpperCase();
-        const isMe = currentUsername && username.toLowerCase() === currentUsername;
+        const isMe = currentUsername && username === currentUsername;
 
         return `
             <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="avatar" style="width: 44px; height: 44px; font-size: 18px;">${initial}</div>
+                    <div class="avatar" style="width: 44px; height: 44px; font-size: 18px;">${escapeHtml(initial)}</div>
                     <div>
                         <div class="fw-semibold">
-                            ${name}
+                            ${escapeHtml(name)}
                             ${isMe ? '<span class="badge bg-primary ms-1">Anda</span>' : ''}
                         </div>
                         <div class="text-muted small">
-                            User ID: <strong class="text-dark">@${username}</strong> • ${item.phone || '-'}
+                            User ID: <strong class="text-dark">@${escapeHtml(username)}</strong>${item.phone ? ` • ${escapeHtml(item.phone)}` : ''}
                         </div>
                         <div class="small mt-1">
-                            ${item.department ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-building"></i> ${item.department}</span>` : ''}
-                            ${item.transport ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-bus-front"></i> ${item.transport}</span>` : ''}
-                            ${item.room ? `<span class="badge bg-light text-dark border"><i class="bi bi-door-closed"></i> ${item.room}</span>` : ''}
+                            <span class="badge bg-light text-dark border me-1"><i class="bi bi-person-badge"></i> ${escapeHtml(item.role)}</span>
+                            ${item.section ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-diagram-3"></i> ${escapeHtml(item.section)}</span>` : ''}
+                            ${item.department ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-building"></i> ${escapeHtml(item.department)}</span>` : ''}
+                            ${item.transport ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-bus-front"></i> ${escapeHtml(item.transport)}</span>` : ''}
+                            ${item.room ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-door-closed"></i> ${escapeHtml(item.room)}</span>` : ''}
+                            ${isManager ? approvalBadgeFor(item) : ''}
                         </div>
                     </div>
                 </div>
                 <div class="text-end">
-                    <span class="badge bg-light text-dark border mb-1">${item.status || item.role || 'CONFIRMED'}</span>
+                    <span class="badge bg-light text-dark border mb-1">${escapeHtml(item.status || 'CONFIRMED')}</span>
                     ${isManager ? `
                         <div>
-                            <button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="openParticipantModal('${item.id}')">Edit</button>
+                            <button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="openParticipantModal(${jsAttr(item.id)})">Edit</button>
+                            ${isMe ? '' : `<button class="btn btn-sm btn-link p-0 text-decoration-none text-danger ms-2" onclick="deleteParticipant(${jsAttr(item.id)})">Hapus</button>`}
                         </div>
                     ` : ''}
                 </div>
@@ -6610,27 +6820,29 @@ function renderParticipants(list) {
 }
 
 function searchParticipants(query) {
-    syncUsersToParticipants();
-    const all = STORAGE.get('outing_participants', []);
-    if (!query || !query.trim()) {
-        renderParticipants(all);
+    const q = String(query || '').toLowerCase().trim();
+    if (!q) {
+        renderParticipants(participantsCache);
         return;
     }
-    const q = query.toLowerCase().trim();
     const qCleanUser = q.replace(/^@+/, '');
-    const filtered = all.filter(p => {
-        const pName = (p.full_name || p.name || '').toLowerCase();
-        const pUser = (p.username || '').toLowerCase().replace(/^@+/, '');
-        const pDept = (p.department || '').toLowerCase();
-        const pPhone = (p.phone || '').replace(/\D/g, '');
-        const qDigits = q.replace(/\D/g, '');
-
-        return pName.includes(q) ||
-               pUser.includes(qCleanUser) ||
-               pDept.includes(q) ||
-               (qDigits && pPhone.includes(qDigits));
+    const qDigits = q.replace(/\D/g, '');
+    const filtered = participantsCache.filter(p => {
+        const pPhone = String(p.phone || '').replace(/\D/g, '');
+        return String(p.full_name || '').toLowerCase().includes(q)
+            || String(p.username || '').includes(qCleanUser)
+            || String(p.department || '').toLowerCase().includes(q)
+            || String(p.room || '').toLowerCase().includes(q)
+            || String(p.transport || '').toLowerCase().includes(q)
+            || (qDigits && pPhone.includes(qDigits));
     });
     renderParticipants(filtered);
+}
+
+function generateParticipantPassword() {
+    const field = document.getElementById('partPassword');
+    if (!field) return;
+    field.value = `outing${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 function openParticipantModal(id = null) {
@@ -6640,15 +6852,19 @@ function openParticipantModal(id = null) {
     }
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParticipant'));
     document.getElementById('formParticipant').reset();
+    document.getElementById('participantId').value = id || '';
+
+    const usernameField = document.getElementById('partUsername');
+    const passwordRow = document.getElementById('participantPasswordRow');
+    const passwordField = document.getElementById('partPassword');
+    const hint = document.getElementById('participantFormHint');
 
     if (id) {
         document.getElementById('modalParticipantTitle').textContent = 'Edit Data Peserta';
-        const list = STORAGE.get('outing_participants', []);
-        const item = list.find(p => String(p.id) === String(id));
+        const item = participantsCache.find(p => String(p.id) === String(id));
         if (item) {
-            document.getElementById('participantId').value = item.id;
-            document.getElementById('partName').value = item.full_name || item.name || '';
-            document.getElementById('partUsername').value = (item.username || '').replace(/^@+/, '');
+            document.getElementById('partName').value = item.full_name || '';
+            usernameField.value = item.username || '';
             document.getElementById('partPhone').value = item.phone || '';
             document.getElementById('partDept').value = item.department || '';
             document.getElementById('partGender').value = item.gender || 'L';
@@ -6656,64 +6872,198 @@ function openParticipantModal(id = null) {
             document.getElementById('partRoom').value = item.room || '';
             document.getElementById('partStatus').value = item.status || 'CONFIRMED';
         }
+        usernameField.readOnly = true;
+        usernameField.classList.add('bg-light');
+        passwordRow?.classList.add('d-none');
+        if (passwordField) passwordField.required = false;
+        if (hint) {
+            hint.className = 'alert alert-light border py-2 small';
+            hint.innerHTML = '<i class="bi bi-info-circle me-1"></i>User ID tidak dapat diubah karena terhubung ke akun login Supabase Auth. Password peserta hanya bisa diubah dari halaman Profil masing-masing.';
+        }
     } else {
         document.getElementById('modalParticipantTitle').textContent = 'Tambah Peserta Baru';
-        document.getElementById('participantId').value = '';
+        usernameField.readOnly = false;
+        usernameField.classList.remove('bg-light');
+        passwordRow?.classList.remove('d-none');
+        if (passwordField) passwordField.required = true;
+        if (hint) {
+            hint.className = 'alert alert-info py-2 small';
+            hint.innerHTML = '<i class="bi bi-person-plus me-1"></i>Peserta baru otomatis dibuatkan <strong>akun login</strong> (email internal <code>username@outing.local</code>) dan langsung berstatus APPROVED.';
+        }
     }
     modal.show();
 }
 
 async function saveParticipant(e) {
     e.preventDefault();
+
     const id = document.getElementById('participantId').value;
-    const list = STORAGE.get('outing_participants', []);
-    const rawUser = document.getElementById('partUsername').value.trim();
-    const cleanUser = rawUser.replace(/^@+/, '').toLowerCase();
     const fullName = document.getElementById('partName').value.trim();
-    const phone = document.getElementById('partPhone').value.trim();
+    const username = normalizeUsername(document.getElementById('partUsername').value);
+    const password = document.getElementById('partPassword')?.value || '';
 
-    const newPart = {
-        id: id || generateUUID(),
-        outing_id: isUuid(currentOuting?.id) ? currentOuting.id : null,
-        full_name: fullName,
-        name: fullName,
-        username: cleanUser || `user_${Date.now().toString().slice(-4)}`,
-        phone: phone,
-        department: document.getElementById('partDept').value.trim() || 'Peserta',
-        gender: document.getElementById('partGender').value || 'L',
-        transport: document.getElementById('partTransport').value.trim() || 'Bus 1',
-        room: document.getElementById('partRoom').value.trim() || 'Villa',
-        status: document.getElementById('partStatus').value || 'CONFIRMED',
-        created_at: new Date().toISOString()
-    };
+    if (!fullName) {
+        alert('Nama lengkap wajib diisi.');
+        return;
+    }
+    if (!id) {
+        if (!/^[a-z0-9._-]{3,100}$/.test(username)) {
+            alert('User ID minimal 3 karakter dan hanya boleh huruf, angka, titik, strip, atau underscore.');
+            return;
+        }
+        if (password && password.length < 6) {
+            alert('Password minimal 6 karakter.');
+            return;
+        }
+    }
 
-    // Participant management is a server-backed admin operation. Do not claim
-    // success from a LocalStorage-only write when RLS rejects the request.
-    const { name, ...participantFields } = newPart;
-    const remotePart = {
-        ...participantFields,
-        id: isUuid(newPart.id) ? newPart.id : generateUUID(),
-        user_id: null
-    };
-    const { error: remoteError } = await supabaseClient.from('participants').upsert(remotePart);
-    if (remoteError) {
-        alert(`Data peserta gagal disimpan ke Supabase: ${remoteError.message}`);
+    const submitBtn = document.querySelector('#formParticipant button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+    }
+
+    try {
+        const result = await callSupabaseRpc('admin_save_participant', {
+            p_user_id: isUuid(id) ? id : null,
+            p_username: username || null,
+            p_full_name: fullName,
+            p_phone: formatPhone(document.getElementById('partPhone').value.trim()) || null,
+            p_department: document.getElementById('partDept').value.trim() || null,
+            p_gender: document.getElementById('partGender').value || 'L',
+            p_transport: document.getElementById('partTransport').value.trim() || null,
+            p_room: document.getElementById('partRoom').value.trim() || null,
+            p_status: document.getElementById('partStatus').value || 'CONFIRMED',
+            p_password: password || null,
+            p_create_if_missing: !id
+        }, 'menyimpan peserta');
+
+        if (!result.ok) {
+            alert(result.message);
+            return;
+        }
+
+        const data = result.data || {};
+        if (data.action === 'skipped') {
+            alert(data.message || 'Peserta tidak dapat disimpan.');
+            return;
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('modalParticipant'))?.hide();
+        showToast(`<i class="bi bi-check2-circle me-1"></i> Peserta <strong>${escapeHtml(fullName)}</strong> berhasil ${id ? 'diperbarui' : 'ditambahkan'}${data.created_login ? ' beserta akun loginnya' : ''}.`);
+
+        if (data.default_password_used) {
+            alert(`Akun login peserta dibuat dengan password default: ${data.default_password || 'outing123'}\n\nUser ID: ${data.username}\nMohon bagikan ke peserta yang bersangkutan.`);
+        }
+
+        await loadParticipants();
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Simpan Peserta';
+        }
+    }
+}
+
+// Hapus peserta = hapus data user + data pelengkap + akun login (server-side).
+async function deleteParticipant(id) {
+    if (!canManage('participants')) {
+        alert('Hanya Admin atau Inisiator yang dapat menghapus data peserta.');
         return;
     }
 
-    if (id) {
-        const idx = list.findIndex(p => String(p.id) === String(id));
-        if (idx !== -1) list[idx] = { ...list[idx], ...newPart };
-    } else {
-        list.push(newPart);
+    const item = participantsCache.find(p => String(p.id) === String(id));
+    if (!item) {
+        alert('Data peserta tidak ditemukan. Silakan muat ulang halaman peserta.');
+        return;
     }
 
-    STORAGE.set('outing_participants', list);
-    bootstrap.Modal.getInstance(document.getElementById('modalParticipant')).hide();
-    renderParticipants(list);
+    const myUsername = normalizeUsername(currentProfile?.username || currentUser?.username);
+    if (item.username && item.username === myUsername) {
+        alert('Anda tidak dapat menghapus akun Anda sendiri.');
+        return;
+    }
+    if (item.role === 'ADMIN') {
+        alert('Akun Admin tidak dapat dihapus dari modul Peserta. Ubah role akun tersebut lebih dahulu bila memang diperlukan.');
+        return;
+    }
 
-    const statEl = document.getElementById('statParticipants');
-    if (statEl) statEl.textContent = list.length;
+    const confirmed = confirm(
+        `Hapus peserta "${item.full_name}" (@${item.username})?\n\n` +
+        'Yang ikut terhapus: profil user, data kamar/armada, dan AKUN LOGIN peserta ini di Supabase Auth. ' +
+        'Tindakan ini permanen dan tidak dapat dibatalkan.'
+    );
+    if (!confirmed) return;
+
+    const result = await callSupabaseRpc('admin_delete_participant', {
+        p_user_id: item.local_only ? null : item.id,
+        p_username: item.username || null,
+        p_delete_auth_account: true
+    }, 'menghapus peserta');
+
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    const data = result.data || {};
+    if (data.action === 'not_found') {
+        if (!item.local_only) {
+            alert(data.message || 'Peserta tidak ditemukan di Supabase.');
+            return;
+        }
+        // Baris demo/lokal saja: cukup bersihkan cache lokal.
+        purgeLocalParticipantCaches(item.username, item.id);
+        showToast(`<i class="bi bi-trash me-1"></i> Data peserta lokal <strong>${escapeHtml(item.full_name)}</strong> dihapus.`);
+        await loadParticipants();
+        return;
+    }
+
+    purgeLocalParticipantCaches(item.username, item.id);
+    showToast(`<i class="bi bi-trash me-1"></i> Peserta <strong>${escapeHtml(item.full_name)}</strong> dihapus${data.auth_deleted ? ' beserta akun loginnya' : ''}.`);
+    await loadParticipants();
+}
+
+// Bersihkan salinan lokal agar tidak muncul kembali saat Supabase tidak terbaca.
+function purgeLocalParticipantCaches(username, id) {
+    const cleanUser = normalizeUsername(username);
+    try {
+        const participants = STORAGE.get('outing_participants', []).filter(p => {
+            const sameUser = cleanUser && normalizeUsername(p.username) === cleanUser;
+            const sameId = id && String(p.id) === String(id);
+            return !sameUser && !sameId;
+        });
+        STORAGE.set('outing_participants', participants);
+
+        if (cleanUser) {
+            const users = STORAGE.get('outing_local_users', []).filter(u => normalizeUsername(u.username) !== cleanUser);
+            STORAGE.set('outing_local_users', users);
+        }
+    } catch (error) {
+        console.warn('Gagal membersihkan cache peserta lokal:', error);
+    }
+}
+
+// Pemanggil RPC dengan pesan bantuan bila fungsi database belum dibuat.
+async function callSupabaseRpc(fnName, args, label) {
+    if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+        return { ok: false, message: 'Supabase belum terhubung. Periksa Project URL dan anon key.' };
+    }
+    try {
+        const { data, error } = await supabaseClient.rpc(fnName, args);
+        if (error) throw error;
+        return { ok: true, data };
+    } catch (error) {
+        console.error(`${label || fnName} gagal:`, error);
+        const raw = `${error?.code || ''} ${error?.message || ''}`;
+        const missing = /PGRST202|could not find the function|schema cache/i.test(raw);
+        return {
+            ok: false,
+            message: missing
+                ? `Fungsi database ${fnName} belum ada di Supabase. Jalankan berkas supabase/participant_management.sql di Supabase SQL Editor, lalu coba lagi.`
+                : `Gagal ${label || 'memproses data'}: ${error?.message || error}`
+        };
+    }
 }
 
 /* =====================================================

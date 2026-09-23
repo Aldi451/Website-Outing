@@ -179,6 +179,7 @@ Jika menggunakan VS Code:
 2. Jalankan [`supabase/seed.sql`](supabase/seed.sql) untuk akun demo. Script ini memakai `crypt()` di database Auth, bukan `users.password_hash` atau LocalStorage. Kredensial demo adalah akun development; ganti password atau hapus seed sebelum production.
 3. Jika project sudah berisi user custom lama, password PBKDF2 lama tidak dimigrasikan. Buat/reset akun tersebut di Supabase Auth, isi metadata `username`, lalu hubungkan profile `users.auth_user_id` melalui prosedur admin/migrasi terkontrol.
 4. **Project yang sudah berjalan lama:** jika `database_schema.sql` pernah dijalankan pada versi awal, tabel `public.users` bisa belum memiliki kolom `role_id`/`section_id` beserta foreign key-nya (lihat [Troubleshooting Admin Tidak Bisa Login](#-troubleshooting-admin-tidak-bisa-login)). Jalankan [`supabase/fix_admin_login.sql`](supabase/fix_admin_login.sql) sekali untuk menyelaraskan skema dan memperbaiki akun Admin. Setelah itu [`supabase/seed.sql`](supabase/seed.sql) dapat dijalankan kembali untuk akun demo lainnya.
+5. **Fungsi manajemen peserta:** jalankan [`supabase/participant_management.sql`](supabase/participant_management.sql) (sekali saja pada project yang sudah berjalan). Berkas ini membuat fungsi `admin_save_participant`, `admin_delete_participant`, dan `admin_bulk_import_participants`, sekaligus menyelaraskan kolom tabel `participants` pada project lama yang belum punya kolom `username`/`room`. Tanpa berkas ini, modul Peserta tetap menampilkan data user, namun penyimpanan akan memberi tahu bahwa fungsi database belum ada.
 
 ### Langkah 3: Aktifkan reminder WhatsApp Donasi
 
@@ -202,6 +203,29 @@ python -m http.server 8080
 ```
 
 Buka `http://localhost:8080`. Hosting production wajib memakai HTTPS agar session Supabase Auth tersimpan aman. Browser tidak lagi mengirim password ke tabel `public.users`; login, session, dan ganti password seluruhnya memakai Supabase Auth.
+
+---
+
+## 👥 Modul Peserta: Bersumber dari Data User
+
+Modul **Peserta** tidak lagi menyimpan daftar orang terpisah. Daftar peserta diambil langsung dari tabel `public.users` (akun yang terdaftar), sehingga setiap user yang mendaftar otomatis muncul sebagai peserta tanpa perlu diimpor ulang.
+
+Cara kerja:
+
+| Bagian | Sumber data | Keterangan |
+|---|---|---|
+| Nama, User ID, telepon, departemen, role, seksi, status akun | `public.users` | Sumber utama; peserta = user terdaftar |
+| Kamar/villa, armada bus, gender, status kehadiran | `public.participants` | Data pelengkap pada form **Edit**; boleh kosong bila tabel belum ada |
+
+### Tambah, Edit, dan Hapus Peserta
+
+- **Tambah Peserta** membuat **akun login** baru (Supabase Auth, email internal `username@outing.local`) beserta profilnya, sehingga peserta dapat langsung login memakai User ID + password yang diisi Admin. Bila kolom password dibiarkan kosong, password default `outing123` yang dipakai dan aplikasi menampilkan pesannya.
+- **Edit** hanya melengkapi data profil dan data pelengkap (kamar, armada, status kehadiran). User ID tidak dapat diubah karena terhubung ke akun login; password peserta diubah sendiri lewat menu **Profil → Ganti Password**.
+- **Hapus** menghapus profil `public.users`, data pelengkap, keanggotaan outing, **dan akun login Supabase Auth** milik peserta tersebut. Pengaman yang berlaku: akun sendiri tidak dapat dihapus, akun ber-role ADMIN tidak dapat dihapus dari modul ini, dan Admin terakhir selalu ditolak oleh database.
+- Semua tindakan tersebut divalidasi di server melalui fungsi `SECURITY DEFINER` (`admin_save_participant`, `admin_delete_participant`, `admin_bulk_import_participants`), bukan lewat `UPDATE`/`DELETE` langsung dari browser, karena pembuatan akun menyentuh skema `auth`.
+- **Import Excel** peserta memakai jalur yang sama: baris baru otomatis dibuatkan akun login (password default `outing123`) dan daftar akun baru ditampilkan setelah proses selesai. Mode **Gantikan Seluruh Data** hanya membersihkan data pelengkap (kamar/armada) yang tidak ada di berkas — akun user tidak pernah dihapus oleh impor.
+- **Export Excel** peserta selalu membaca data user terkini dari Supabase, bukan cache lama, dan menambahkan kolom Role, Seksi, serta Status Akun.
+- Kedua berkas SQL di atas (juga `fix_admin_login.sql`) diuji otomatis dengan PostgreSQL asli melalui [`scratch/pglite`](scratch/pglite) — mencakup pembuatan akun, penghapusan, pengaman Admin terakhir, dan impor massal pada skema lama.
 
 ---
 
@@ -274,7 +298,10 @@ Tabel `donation_year_closures` dan `donation_foundation_disbursements` memastika
    - Fitur manipulasi berkas Excel yang sebelumnya hanya terdapat pada modul Rundown telah diekspansi menjadi **Universal Excel Engine** yang melayani seluruh 7 modul aplikasi dan Master Backup multi-sheet.
 4. **Proteksi Hak Akses (View-Only RBAC)**:
    - Peserta biasa tetap dapat melihat informasi umum dan mengekspor Excel jadwal/laporan, namun tombol edit, tambah baris, dan import data Excel otomatis disembunyikan.
-5. **Masalah Admin Gagal Login pada Skema Lama (`PGRST200`)**:
+5. **Daftar Peserta Terpisah dari Data User**:
+   - Modul Peserta kini membaca langsung tabel `users` (satu sumber kebenaran), sementara kamar/armada/kehadiran disimpan sebagai data pelengkap. Sebelumnya ada daftar peserta terpisah yang bisa berbeda dengan akun terdaftar.
+   - Disediakan fitur hapus peserta yang menghapus profil sekaligus akun login, dengan pengaman Admin terakhir dan larangan menghapus akun sendiri.
+6. **Masalah Admin Gagal Login pada Skema Lama (`PGRST200`)**:
    - Pembacaan profil kini memakai strategi berlapis: embed `roles(...)`/`sections(...)` dicoba lebih dulu, lalu otomatis mundur ke kolom dasar bila database belum punya `role_id`/`section_id` atau foreign key-nya. Sebelumnya kegagalan ini membuat dashboard gagal dimuat, sesi di-signOut, dan pengguna terlempar kembali ke halaman login seolah-olah password salah.
    - Setiap langkah pemuatan dashboard (outing, rundown, keuangan, pengumuman, peserta, logistik, donasi) kini terisolasi: satu modul yang gagal tidak lagi membatalkan seluruh sesi login.
    - Pesan galat skema (`PGRST200`, `PGRST205`, `42703`) menampilkan petunjuk perbaikan langsung di halaman login, dan tersedia `supabase/check_admin_login.sql` (diagnosa) serta `supabase/fix_admin_login.sql` (perbaikan).
@@ -290,6 +317,7 @@ D:\PowerPro\Tools\Web\Outing│
 ├── supabase/seed.sql                        # Seed akun demo Supabase Auth (development)
 ├── supabase/fix_admin_login.sql             # Perbaikan skema & akun Admin (idempoten)
 ├── supabase/check_admin_login.sql           # Diagnosa read-only penyebab Admin gagal login
+├── supabase/participant_management.sql      # Fungsi simpan/hapus/impor peserta (SECURITY DEFINER)
 ├── supabase/config.toml                      # Konfigurasi Edge Function reminder
 ├── supabase/functions/send-donation-reminders/ # Worker reminder WhatsApp server-side
 ├── README.md                                # Dokumentasi lengkap, progress, & panduan transfer akun
@@ -314,6 +342,7 @@ D:\PowerPro\Tools\Web\Outing│
 - [x] Modul Dana Solidaritas Staff terpisah dari Outing: kasus musibah, approval Admin, penyaluran staff, closing tahunan manual, dan fallback yayasan tercatat dengan ledger/RLS.
 - [x] Supabase Edge Function worker untuk memproses antrean reminder WhatsApp tanpa menyimpan token provider di frontend.
 - [x] Dokumentasi progress dan pembaruan pada `README.md` dan `Rangkuman_Project_Outing_Management.docx`.
+- [x] Modul Peserta bersumber dari data user terdaftar, lengkap dengan tambah/edit/hapus peserta dan impor Excel yang membuat akun login melalui RPC `SECURITY DEFINER`.
 - [ ] *(Opsional)* Integrasi WhatsApp Click-to-Chat URL pada nomor telepon peserta untuk memudahkan koordinator bus menghubungi peserta secara instan.
 - [ ] *(Opsional)* Deployment frontend ke GitHub Pages, Vercel, atau Netlify (cukup upload file repositori ini).
 

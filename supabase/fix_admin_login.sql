@@ -30,7 +30,14 @@
 -- ====================================================================
 -- BAGIAN A. SINKRONISASI SKEMA (akar masalah PGRST200)
 -- ====================================================================
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- pgcrypto dipakai untuk meng-hash password. Bila gagal diaktifkan, script tetap
+-- berlanjut agar perbaikan skema (BAGIAN A) tetap berjalan.
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '[A] pgcrypto tidak dapat diaktifkan (%): pastikan extension ini tersedia bila ingin mereset password.', SQLERRM;
+END $$;
 
 -- Tabel master role & seksi + seed. Dibuat bila belum ada supaya foreign key
 -- di bawah selalu punya tabel tujuan.
@@ -48,26 +55,60 @@ CREATE TABLE IF NOT EXISTS public.sections (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-INSERT INTO public.roles (name, description) VALUES
-    ('ADMIN', 'Akses penuh dan konfigurasi sistem outing'),
-    ('INITIATOR', 'Inisiator acara dengan kewenangan management outing'),
-    ('FINANCE', 'Pengelola transaksi kas dan laporan keuangan'),
-    ('PURCHASING', 'Pengelola pengadaan barang dan purchase request'),
-    ('LOGISTIC', 'Pengelola perlengkapan, armada, dan tugas operasional'),
-    ('KONSUMSI', 'Pengelola rencana konsumsi dan meal plan'),
-    ('PUBLIC_AREA', 'Pengelola informasi publik dan pengumuman'),
-    ('PARTICIPANT', 'Peserta biasa dengan hak akses view-only')
-ON CONFLICT DO NOTHING;
+-- Seed dilakukan dengan pemeriksaan kolom karena tabel master versi lama bisa
+-- hanya punya kolom `name` tanpa `description`. Bila seed gagal karena bentuk
+-- tabel yang tidak terduga, script tetap berlanjut dan mencetak NOTICE.
+DO $$
+DECLARE
+    v_has_description BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'roles' AND column_name = 'description'
+    ) INTO v_has_description;
 
-INSERT INTO public.sections (name, description) VALUES
-    ('INISIATOR', 'Tim Inisiator / Ketua Panitia Acara'),
-    ('KEUANGAN', 'Seksi Keuangan & Kas'),
-    ('PURCHASING', 'Seksi Purchasing & Pengadaan Barang'),
-    ('LOGISTIC', 'Seksi Logistik, Perlengkapan & Transport'),
-    ('KONSUMSI', 'Seksi Konsumsi & Katering'),
-    ('PUBLIC_AREA', 'Seksi Public Area & Informasi'),
-    ('PUBLIC', 'Peserta Umum')
-ON CONFLICT DO NOTHING;
+    IF v_has_description THEN
+        INSERT INTO public.roles (name, description) VALUES
+            ('ADMIN', 'Akses penuh dan konfigurasi sistem outing'),
+            ('INITIATOR', 'Inisiator acara dengan kewenangan management outing'),
+            ('FINANCE', 'Pengelola transaksi kas dan laporan keuangan'),
+            ('PURCHASING', 'Pengelola pengadaan barang dan purchase request'),
+            ('LOGISTIC', 'Pengelola perlengkapan, armada, dan tugas operasional'),
+            ('KONSUMSI', 'Pengelola rencana konsumsi dan meal plan'),
+            ('PUBLIC_AREA', 'Pengelola informasi publik dan pengumuman'),
+            ('PARTICIPANT', 'Peserta biasa dengan hak akses view-only')
+        ON CONFLICT DO NOTHING;
+    ELSE
+        INSERT INTO public.roles (name) VALUES
+            ('ADMIN'), ('INITIATOR'), ('FINANCE'), ('PURCHASING'),
+            ('LOGISTIC'), ('KONSUMSI'), ('PUBLIC_AREA'), ('PARTICIPANT')
+        ON CONFLICT DO NOTHING;
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'sections' AND column_name = 'description'
+    ) INTO v_has_description;
+
+    IF v_has_description THEN
+        INSERT INTO public.sections (name, description) VALUES
+            ('INISIATOR', 'Tim Inisiator / Ketua Panitia Acara'),
+            ('KEUANGAN', 'Seksi Keuangan & Kas'),
+            ('PURCHASING', 'Seksi Purchasing & Pengadaan Barang'),
+            ('LOGISTIC', 'Seksi Logistik, Perlengkapan & Transport'),
+            ('KONSUMSI', 'Seksi Konsumsi & Katering'),
+            ('PUBLIC_AREA', 'Seksi Public Area & Informasi'),
+            ('PUBLIC', 'Peserta Umum')
+        ON CONFLICT DO NOTHING;
+    ELSE
+        INSERT INTO public.sections (name) VALUES
+            ('INISIATOR'), ('KEUANGAN'), ('PURCHASING'), ('LOGISTIC'),
+            ('KONSUMSI'), ('PUBLIC_AREA'), ('PUBLIC')
+        ON CONFLICT DO NOTHING;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '[A] Seed roles/sections dilewati: %', SQLERRM;
+END $$;
 
 -- Kolom penghubung ke tabel master. Inilah yang membuat embed
 -- roles(...) / sections(...) dikenali PostgREST.
@@ -131,8 +172,13 @@ BEGIN
         RAISE NOTICE 'Foreign key users.section_id -> sections.id dibuat.';
     END IF;
 
-    -- Tabel outing_users (bila sudah ada) memakai kolom yang sama.
+    -- Tabel outing_users (bila sudah ada) memakai kolom yang sama. Kolomnya harus
+    -- ditambahkan lebih dulu, karena CREATE TABLE IF NOT EXISTS tidak menambah
+    -- kolom pada tabel yang sudah terlanjur dibuat.
     IF to_regclass('public.outing_users') IS NOT NULL THEN
+        ALTER TABLE public.outing_users ADD COLUMN IF NOT EXISTS role_id UUID;
+        ALTER TABLE public.outing_users ADD COLUMN IF NOT EXISTS section_id UUID;
+
         FOR v_fk IN
             SELECT * FROM (VALUES
                 ('outing_users_role_id_fkey', 'role_id', 'public.roles'),
@@ -192,6 +238,9 @@ DECLARE
     v_auth_id UUID;
     v_has_identities BOOLEAN;
 BEGIN
+    -- pgcrypto dapat berada di schema `public` maupun `extensions`.
+    SET LOCAL search_path = public, extensions, pg_temp;
+
     SELECT id INTO v_auth_id
     FROM auth.users
     WHERE lower(email) = v_admin_email
