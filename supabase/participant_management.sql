@@ -3,6 +3,9 @@
 -- ====================================================================
 -- Cara pakai: Supabase Dashboard -> SQL Editor -> New query -> tempel
 -- seluruh isi berkas ini -> RUN. Script bersifat idempoten.
+-- Prasyarat patch terpisah: tabel users/participants dan helper RLS sudah ada.
+-- Untuk update lengkap (register, approval, RLS, semua modul), gunakan
+-- supabase/update_website.sql. Tidak perlu menjalankan seed/fix_admin_login.
 --
 -- Modul Peserta kini bersumber dari tabel public.users (akun terdaftar):
 --   public.users          -> sumber utama data peserta (nama, User ID, telepon,
@@ -19,12 +22,12 @@
 --   admin_bulk_import_participants    -> impor Excel massal
 -- ====================================================================
 
-DO $$
-BEGIN
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE '[0] pgcrypto tidak dapat diaktifkan (%): pembuatan akun peserta butuh extension ini.', SQLERRM;
-END $$;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Trigger Auth memakai kolom profil ini, termasuk pada project versi lama.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- ====================================================================
 -- 0. PENYELARASAN SKEMA TABEL PESERTA
@@ -60,9 +63,6 @@ END $$;
 -- ====================================================================
 -- 1. SIMPAN / UBAH PESERTA
 -- ====================================================================
-DROP FUNCTION IF EXISTS public.admin_save_participant(
-    UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN);
-
 CREATE OR REPLACE FUNCTION public.admin_save_participant(
     p_user_id UUID DEFAULT NULL,
     p_username TEXT DEFAULT NULL,
@@ -83,8 +83,9 @@ AS $$
 DECLARE
     v_caller UUID := auth.uid();
     v_is_manager BOOLEAN;
-    v_username TEXT := lower(regexp_replace(coalesce(p_username, ''), '^@+', ''));
+    v_username TEXT := lower(regexp_replace(trim(coalesce(p_username, '')), '^@+', ''));
     v_email TEXT;
+    v_auth_id UUID;
     v_user_id UUID := p_user_id;
     v_target_username TEXT;
     v_action TEXT := 'updated';
@@ -104,7 +105,7 @@ BEGIN
     SELECT EXISTS (
         SELECT 1 FROM public.users u
         WHERE u.auth_user_id = v_caller
-          AND coalesce(u.approval_status, 'APPROVED') = 'APPROVED'
+          AND u.approval_status = 'APPROVED'
           AND (
               upper(coalesce(u.role, '')) IN ('ADMIN', 'INITIATOR')
               OR upper(coalesce(u.section, '')) IN ('INISIATOR')
@@ -113,6 +114,16 @@ BEGIN
 
     IF v_is_manager IS NOT TRUE THEN
         RAISE EXCEPTION 'Hanya Admin atau Inisiator yang dapat mengubah data peserta.';
+    END IF;
+
+    -- Serialisasikan pembuatan username yang sama (double-click / impor bersamaan).
+    PERFORM pg_advisory_xact_lock(hashtextextended(v_username, 0));
+
+    IF NULLIF(p_gender, '') IS NOT NULL AND p_gender NOT IN ('L', 'P') THEN
+        RAISE EXCEPTION 'Gender harus L atau P.';
+    END IF;
+    IF NULLIF(p_status, '') IS NOT NULL AND p_status NOT IN ('CONFIRMED', 'PENDING', 'CANCELLED') THEN
+        RAISE EXCEPTION 'Status kehadiran tidak valid.';
     END IF;
 
     -- 1) Tentukan baris user yang akan diubah.
@@ -149,19 +160,22 @@ BEGIN
         IF v_user_id IS NULL THEN
             v_user_id := gen_random_uuid();
             v_password := NULLIF(p_password, '');
-            IF v_password IS NULL OR length(v_password) < 6 THEN
-                v_password := 'outing123';
+            IF v_password IS NULL THEN
+                v_password := encode(gen_random_bytes(12), 'hex');
                 v_default_password := TRUE;
+            ELSIF length(v_password) < 6 THEN
+                RAISE EXCEPTION 'Password minimal 6 karakter.';
             END IF;
 
             INSERT INTO auth.users (
                 instance_id, id, aud, role, email, encrypted_password,
                 email_confirmed_at, confirmation_token, email_change,
-                email_change_token_new, recovery_token, raw_app_meta_data,
+                email_change_token_new, email_change_token_current, reauthentication_token,
+                recovery_token, raw_app_meta_data,
                 raw_user_meta_data, created_at, updated_at
             ) VALUES (
                 '00000000-0000-0000-0000-000000000000', v_user_id, 'authenticated', 'authenticated',
-                v_email, crypt(v_password, gen_salt('bf')), now(), '', '', '', '',
+                v_email, crypt(v_password, gen_salt('bf')), now(), '', '', '', '', '', '',
                 '{"provider":"email","providers":["email"]}'::jsonb,
                 jsonb_build_object(
                     'username', v_username,
@@ -172,22 +186,25 @@ BEGIN
                 now(), now()
             );
 
-            -- Tanpa baris auth.identities, login password dapat ditolak.
-            BEGIN
-                INSERT INTO auth.identities (
-                    id, user_id, provider_id, identity_data, provider,
-                    last_sign_in_at, created_at, updated_at
-                ) VALUES (
-                    gen_random_uuid(), v_user_id, v_user_id::text,
-                    jsonb_build_object('sub', v_user_id::text, 'email', v_email, 'email_verified', true),
-                    'email', now(), now(), now()
-                );
-            EXCEPTION WHEN OTHERS THEN
-                RAISE NOTICE 'Baris auth.identities gagal dibuat: %', SQLERRM;
-            END;
-
             v_created_login := TRUE;
         END IF;
+
+        -- Identity wajib untuk akun baru maupun Auth lama yang dipakai ulang.
+        -- Error harus membatalkan transaksi, bukan disembunyikan sebagai NOTICE.
+        INSERT INTO auth.identities (
+            id, user_id, provider_id, identity_data, provider, created_at, updated_at
+        )
+        SELECT gen_random_uuid(), v_user_id, v_user_id::text,
+               jsonb_build_object('sub', v_user_id::text, 'email', v_email, 'email_verified', true),
+               'email', now(), now()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM auth.identities i WHERE i.user_id = v_user_id AND i.provider = 'email'
+        );
+
+        v_auth_id := v_user_id;
+        -- Trigger Auth dapat membuat profil dengan UUID berbeda dari auth.users.
+        SELECT u.id INTO v_user_id FROM public.users u WHERE u.auth_user_id = v_auth_id;
+        v_user_id := COALESCE(v_user_id, v_auth_id);
 
         -- Profil public.users. Trigger legacy enforce_new_auth_user_pending bisa
         -- memaksa PARTICIPANT/PENDING, jadi status approval dipastikan lewat UPDATE.
@@ -195,7 +212,7 @@ BEGIN
             id, auth_user_id, username, full_name, role, section,
             approval_status, approved_at, created_at, updated_at
         ) VALUES (
-            v_user_id, v_user_id, v_username,
+            v_user_id, v_auth_id, v_username,
             COALESCE(NULLIF(p_full_name, ''), v_username),
             'PARTICIPANT', 'PUBLIC', 'APPROVED', now(), now(), now()
         )
@@ -204,10 +221,16 @@ BEGIN
         UPDATE public.users
         SET approval_status = 'APPROVED',
             approved_at = COALESCE(approved_at, now()),
+            approved_by = (SELECT id FROM public.users WHERE auth_user_id = v_caller),
+            rejection_reason = NULL,
             role = COALESCE(NULLIF(role, ''), 'PARTICIPANT'),
             section = COALESCE(NULLIF(section, ''), 'PUBLIC'),
             updated_at = now()
         WHERE id = v_user_id;
+
+        -- Akun Auth lama yang dipakai ulang tidak di-reset passwordnya.
+        UPDATE auth.users SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+        WHERE id = v_auth_id AND lower(email) = v_email;
 
         v_action := 'created';
         v_target_username := v_username;
@@ -273,9 +296,7 @@ BEGIN
                     COALESCE(NULLIF(p_status, ''), 'CONFIRMED'), now()
                 );
             END IF;
-        EXCEPTION WHEN OTHERS THEN
-            RAISE NOTICE 'Data pelengkap peserta (kamar/armada) gagal disimpan: %', SQLERRM;
-        END;
+        END; -- Error data pelengkap membatalkan seluruh simpan (termasuk akun baru).
     END IF;
 
     RETURN jsonb_build_object(
@@ -284,13 +305,13 @@ BEGIN
         'username', v_target_username,
         'created_login', v_created_login,
         'default_password_used', v_default_password,
-        'default_password', CASE WHEN v_default_password THEN 'outing123' ELSE NULL END
+        'default_password', CASE WHEN v_default_password THEN v_password ELSE NULL END
     );
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.admin_save_participant(
-    UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC;
+    UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_save_participant(
     UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO authenticated;
 
@@ -298,8 +319,6 @@ GRANT EXECUTE ON FUNCTION public.admin_save_participant(
 -- ====================================================================
 -- 2. HAPUS PESERTA
 -- ====================================================================
-DROP FUNCTION IF EXISTS public.admin_delete_participant(UUID, TEXT, BOOLEAN);
-
 CREATE OR REPLACE FUNCTION public.admin_delete_participant(
     p_user_id UUID DEFAULT NULL,
     p_username TEXT DEFAULT NULL,
@@ -312,7 +331,7 @@ AS $$
 DECLARE
     v_caller UUID := auth.uid();
     v_is_manager BOOLEAN;
-    v_username TEXT := lower(regexp_replace(coalesce(p_username, ''), '^@+', ''));
+    v_username TEXT := lower(regexp_replace(trim(coalesce(p_username, '')), '^@+', ''));
     -- Tidak memakai RECORD agar aman saat target belum ditemukan (record yang
     -- belum terisi tidak boleh diakses field-nya).
     v_target_id UUID;
@@ -332,7 +351,7 @@ BEGIN
     SELECT EXISTS (
         SELECT 1 FROM public.users u
         WHERE u.auth_user_id = v_caller
-          AND coalesce(u.approval_status, 'APPROVED') = 'APPROVED'
+          AND u.approval_status = 'APPROVED'
           AND (
               upper(coalesce(u.role, '')) IN ('ADMIN', 'INITIATOR')
               OR upper(coalesce(u.section, '')) IN ('INISIATOR')
@@ -416,19 +435,17 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_delete_participant(UUID, TEXT, BOOLEAN) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_delete_participant(UUID, TEXT, BOOLEAN) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_delete_participant(UUID, TEXT, BOOLEAN) TO authenticated;
 
 
 -- ====================================================================
 -- 3. IMPOR PESERTA DARI EXCEL (MASSAL)
 -- ====================================================================
-DROP FUNCTION IF EXISTS public.admin_bulk_import_participants(JSONB, TEXT, TEXT);
-
 CREATE OR REPLACE FUNCTION public.admin_bulk_import_participants(
     p_rows JSONB,
     p_mode TEXT DEFAULT 'upsert',
-    p_default_password TEXT DEFAULT 'outing123'
+    p_default_password TEXT DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -456,7 +473,7 @@ BEGIN
     SELECT EXISTS (
         SELECT 1 FROM public.users u
         WHERE u.auth_user_id = v_caller
-          AND coalesce(u.approval_status, 'APPROVED') = 'APPROVED'
+          AND u.approval_status = 'APPROVED'
           AND (
               upper(coalesce(u.role, '')) IN ('ADMIN', 'INITIATOR')
               OR upper(coalesce(u.section, '')) IN ('INISIATOR')
@@ -465,6 +482,13 @@ BEGIN
 
     IF v_is_manager IS NOT TRUE THEN
         RAISE EXCEPTION 'Hanya Admin atau Inisiator yang dapat mengimpor data peserta.';
+    END IF;
+
+    IF jsonb_typeof(COALESCE(p_rows, '[]'::jsonb)) <> 'array' THEN
+        RAISE EXCEPTION 'p_rows harus berupa array JSON.';
+    END IF;
+    IF lower(coalesce(p_mode, 'upsert')) NOT IN ('upsert', 'replace') THEN
+        RAISE EXCEPTION 'Mode impor harus upsert atau replace.';
     END IF;
 
     -- Setiap baris diproses terpisah agar satu baris bermasalah tidak
@@ -493,14 +517,16 @@ BEGIN
                 p_create_if_missing => TRUE
             );
 
-            v_usernames := v_usernames || v_username;
+            v_usernames := array_append(v_usernames, v_username);
 
             IF v_result ->> 'action' = 'created' THEN
                 v_created := v_created + 1;
-                v_new_logins := v_new_logins || jsonb_build_object(
-                    'username', v_result ->> 'username',
-                    'password', p_default_password
-                );
+                IF (v_result ->> 'created_login')::boolean THEN
+                    v_new_logins := v_new_logins || jsonb_build_object(
+                        'username', v_result ->> 'username',
+                        'password', COALESCE(v_result ->> 'default_password', p_default_password)
+                    );
+                END IF;
             ELSIF v_result ->> 'action' = 'updated' THEN
                 v_updated := v_updated + 1;
             ELSE
@@ -518,7 +544,7 @@ BEGIN
 
     -- Mode "Gantikan Seluruh Data": hapus HANYA data pelengkap peserta yang tidak
     -- ada di berkas. Akun user (dan akun login) tidak pernah dihapus oleh impor.
-    IF v_is_replace AND to_regclass('public.participants') IS NOT NULL AND array_length(v_usernames, 1) IS NOT NULL THEN
+    IF v_is_replace AND v_skipped = 0 AND to_regclass('public.participants') IS NOT NULL AND array_length(v_usernames, 1) IS NOT NULL THEN
         DELETE FROM public.participants
         WHERE lower(coalesce(username, '')) <> ALL (v_usernames);
         GET DIAGNOSTICS v_removed_enrichment = ROW_COUNT;
@@ -531,15 +557,29 @@ BEGIN
         'updated', v_updated,
         'skipped', v_skipped,
         'removed_enrichment', v_removed_enrichment,
+        'replace_cleanup_skipped', v_is_replace AND v_skipped > 0,
         'new_logins', v_new_logins,
         'errors', v_errors
     );
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_bulk_import_participants(JSONB, TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_bulk_import_participants(JSONB, TEXT, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_bulk_import_participants(JSONB, TEXT, TEXT) TO authenticated;
 
+
+-- INITIATOR dapat membaca daftar yang dikelolanya; approval tetap ADMIN-only.
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.users, public.participants TO authenticated;
+DROP POLICY IF EXISTS "participant managers read users" ON public.users;
+CREATE POLICY "participant managers read users" ON public.users
+    FOR SELECT TO authenticated USING (
+        public.current_app_user_is_approved() AND (
+            public.current_app_role() IN ('ADMIN', 'INITIATOR')
+            OR public.current_app_section() = 'INISIATOR'
+        )
+    );
 
 -- ====================================================================
 -- 4. VERIFIKASI
