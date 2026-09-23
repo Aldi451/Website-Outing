@@ -3517,16 +3517,73 @@ async function resolveLoginIdentifier(identifier) {
     return { email: authEmailForUsername(data), username: String(data).toLowerCase() };
 }
 
-async function getAuthenticatedProfile(authUserId) {
+/* Nama role & seksi diambil terpisah bila database belum punya foreign key
+   dari users.role_id/section_id ke tabel master. */
+async function enrichProfileRoleNames(profile) {
+    const enriched = { ...profile };
+    if (enriched.role_id && !enriched.roles) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('roles').select('id, name').eq('id', enriched.role_id).maybeSingle();
+            if (!error && data) enriched.roles = data;
+        } catch (error) {
+            console.warn('Gagal memuat nama role:', error?.message || error);
+        }
+    }
+    if (enriched.section_id && !enriched.sections) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('sections').select('id, name').eq('id', enriched.section_id).maybeSingle();
+            if (!error && data) enriched.sections = data;
+        } catch (error) {
+            console.warn('Gagal memuat nama section:', error?.message || error);
+        }
+    }
+    return enriched;
+}
+
+/* Membaca profil memakai dua strategi. Database yang belum dimigrasi penuh
+   tidak memiliki kolom role_id/section_id maupun foreign key ke roles/sections,
+   sehingga embed di bawah ini ditolak PostgREST (PGRST200/PGRST205). Fallback
+   kolom dasar membuat login Admin tetap berhasil di skema lama. */
+async function fetchProfileByAuthUserId(authUserId) {
     const { data, error } = await supabaseClient
         .from('users')
-        // Avoid PostgREST relationship errors on legacy Supabase schemas.
+        .select('*, roles(id, name), sections(id, name)')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (!error) return data;
+
+    console.warn('Profil dengan relasi roles/sections gagal dimuat, memakai kolom dasar:', error.message);
+    const fallback = await supabaseClient
+        .from('users')
         .select('*')
         .eq('auth_user_id', authUserId)
         .maybeSingle();
-    if (error) throw error;
+    if (fallback.error) throw fallback.error;
+    return fallback.data ? await enrichProfileRoleNames(fallback.data) : null;
+}
+
+async function getAuthenticatedProfile(authUserId) {
+    const data = await fetchProfileByAuthUserId(authUserId);
     if (!data) throw new Error('Profil aplikasi untuk akun Auth ini belum tersedia. Hubungi Admin.');
     return data;
+}
+
+/* Pesan bantuan untuk error skema Supabase yang paling sering muncul. */
+function backendErrorHint(error) {
+    const raw = String(error?.message || '');
+    const code = String(error?.code || '');
+    if (code === 'PGRST200' || /could not find a relationship/i.test(raw)) {
+        return 'Database Supabase belum sinkron: kolom role_id/section_id atau foreign key ke tabel roles/sections belum ada. Jalankan berkas supabase/fix_admin_login.sql di Supabase SQL Editor.';
+    }
+    if (code === 'PGRST205' || /could not find the table/i.test(raw)) {
+        return 'Ada tabel yang belum dibuat di Supabase. Jalankan database_schema.sql lalu supabase/fix_admin_login.sql di Supabase SQL Editor.';
+    }
+    if (code === '42703' || /column .* does not exist/i.test(raw)) {
+        return 'Ada kolom yang belum ada di tabel Supabase. Jalankan supabase/fix_admin_login.sql untuk menyelaraskan skema.';
+    }
+    return '';
 }
 
 function approvalErrorForUser(user) {
@@ -3584,7 +3641,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
                 throw new Error('Supabase Auth tidak dapat dihubungi. Periksa Project URL/anon key, status project, dan koneksi browser.');
             }
             if (authMessage.toLowerCase().includes('email not confirmed')) {
-                throw new Error('Email akun belum dikonfirmasi. Nonaktifkan email confirmation untuk domain demo atau gunakan email valid.');
+                throw new Error('Email akun belum dikonfirmasi di Supabase Auth. Jalankan berkas supabase/fix_admin_login.sql (bagian B) di Supabase SQL Editor untuk mengonfirmasi email Admin tanpa kirim email.');
             }
             throw new Error('User ID atau Password yang Anda masukkan salah.');
         }
@@ -3604,10 +3661,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         await loadDashboard();
     } catch (error) {
         console.error('Login error:', error);
+        const hint = backendErrorHint(error);
         message.innerHTML = `
             <div class="alert alert-danger py-2 small">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
                 ${escapeHtml(error.message || 'Gagal login, periksa kembali User ID dan Password Anda.')}
+                ${hint ? `<div class="mt-1" style="font-size: 11px;"><i class="bi bi-tools me-1"></i>${escapeHtml(hint)}</div>` : ''}
             </div>
         `;
     } finally {
@@ -3740,33 +3799,28 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 /* =====================================================
    DASHBOARD INITIALIZER
 ===================================================== */
-async function loadDashboard() {
+/* Satu modul yang gagal (mis. tabel Donasi belum dibuat) tidak boleh
+   membatalkan seluruh dashboard dan mengeluarkan pengguna dari sesi login. */
+async function runDashboardStep(label, step) {
     try {
-        if (!currentUser) {
-            showLogin();
-            return;
-        }
+        return await step();
+    } catch (error) {
+        console.warn(`Dashboard step "${label}" gagal:`, error);
+        return null;
+    }
+}
 
+async function loadDashboard() {
+    if (!currentUser) {
+        showLogin();
+        return;
+    }
+
+    // Hanya profil pengguna yang bersifat wajib: tanpa profil, role & status
+    // approval tidak diketahui sehingga login memang tidak dapat dilanjutkan.
+    try {
         showApp();
         await loadProfile();
-        await loadOuting();
-
-        // Load all module data
-        await Promise.all([
-            loadRundown(),
-            loadFinance(),
-            loadAnnouncements(),
-            loadParticipants(),
-            loadTasks(),
-            loadDonations()
-        ]);
-
-        setupManagementMenu();
-        if (typeof updateArchiveSelectors === 'function') updateArchiveSelectors();
-        if (typeof renderArchivesTable === 'function') renderArchivesTable();
-        if (typeof updateSupabaseStatsSummary === 'function') updateSupabaseStatsSummary();
-        showPage('home');
-
     } catch (error) {
         console.error('Dashboard error:', error);
         try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
@@ -3776,6 +3830,26 @@ async function loadDashboard() {
         showLogin();
         throw error;
     }
+
+    // Modul berikut bersifat pelengkap dan selalu terisolasi.
+    await runDashboardStep('outing', loadOuting);
+    await Promise.all([
+        runDashboardStep('rundown', loadRundown),
+        runDashboardStep('keuangan', loadFinance),
+        runDashboardStep('pengumuman', loadAnnouncements),
+        runDashboardStep('peserta', loadParticipants),
+        runDashboardStep('logistik', loadTasks),
+        runDashboardStep('donasi', loadDonations)
+    ]);
+
+    await runDashboardStep('menu & arsip', async () => {
+        setupManagementMenu();
+        if (typeof updateArchiveSelectors === 'function') updateArchiveSelectors();
+        if (typeof renderArchivesTable === 'function') renderArchivesTable();
+        if (typeof updateSupabaseStatsSummary === 'function') updateSupabaseStatsSummary();
+    });
+
+    showPage('home');
 }
 
 function updateRoleSimulatorVisibility() {
@@ -3793,12 +3867,7 @@ async function loadProfile() {
     const authUserId = currentUser?.auth_user_id || currentUser?.id;
     if (!authUserId) throw new Error('Sesi Supabase Auth tidak ditemukan. Silakan login ulang.');
 
-    const { data, error } = await supabaseClient
-        .from('users')
-        .select('*, roles(id, name), sections(id, name)')
-        .eq('auth_user_id', authUserId)
-        .maybeSingle();
-    if (error) throw error;
+    const data = await fetchProfileByAuthUserId(authUserId);
     if (!data) throw new Error('Profil aplikasi tidak ditemukan untuk sesi Auth ini.');
 
     const approvalError = approvalErrorForUser(data);
@@ -7802,7 +7871,13 @@ async function checkSession() {
         showLogin();
         const loginMessage = document.getElementById('loginMessage');
         if (loginMessage && error?.message) {
-            loginMessage.innerHTML = `<div class="alert alert-warning py-2 small"><i class="bi bi-shield-exclamation me-1"></i>${escapeHtml(error.message)}</div>`;
+            const hint = backendErrorHint(error);
+            loginMessage.innerHTML = `
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-shield-exclamation me-1"></i>${escapeHtml(error.message)}
+                    ${hint ? `<div class="mt-1" style="font-size: 11px;"><i class="bi bi-tools me-1"></i>${escapeHtml(hint)}</div>` : ''}
+                </div>
+            `;
         }
     }
 }

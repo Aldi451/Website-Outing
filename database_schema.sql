@@ -107,6 +107,39 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 
+-- Kolom penghubung ke tabel master roles/sections. Tabel users versi lama hanya
+-- memiliki kolom teks `role`/`section`, dan CREATE TABLE IF NOT EXISTS tidak
+-- menambah kolom pada tabel yang sudah ada. Tanpa kolom & foreign key berikut,
+-- permintaan profil dari frontend (select('*, roles(id, name), sections(id, name)'))
+-- ditolak PostgREST dengan PGRST200 sehingga login selalu gagal.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role_id UUID;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS section_id UUID;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'users_role_id_fkey'
+          AND conrelid = 'public.users'::regclass
+    ) THEN
+        ALTER TABLE public.users
+            ADD CONSTRAINT users_role_id_fkey
+            FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'users_section_id_fkey'
+          AND conrelid = 'public.users'::regclass
+    ) THEN
+        ALTER TABLE public.users
+            ADD CONSTRAINT users_section_id_fkey
+            FOREIGN KEY (section_id) REFERENCES public.sections(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON public.users (role_id);
+CREATE INDEX IF NOT EXISTS idx_users_section_id ON public.users (section_id);
+
 UPDATE public.users
 SET approval_status = 'APPROVED'
 WHERE approval_status IS NULL;
@@ -183,6 +216,33 @@ CREATE TABLE IF NOT EXISTS public.outing_users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(outing_id, user_id)
 );
+
+-- Lihat catatan pada migrasi public.users: tabel lama tidak ikut mendapat kolom
+-- baru dari CREATE TABLE IF NOT EXISTS.
+ALTER TABLE public.outing_users ADD COLUMN IF NOT EXISTS role_id UUID;
+ALTER TABLE public.outing_users ADD COLUMN IF NOT EXISTS section_id UUID;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'outing_users_role_id_fkey'
+          AND conrelid = 'public.outing_users'::regclass
+    ) THEN
+        ALTER TABLE public.outing_users
+            ADD CONSTRAINT outing_users_role_id_fkey
+            FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'outing_users_section_id_fkey'
+          AND conrelid = 'public.outing_users'::regclass
+    ) THEN
+        ALTER TABLE public.outing_users
+            ADD CONSTRAINT outing_users_section_id_fkey
+            FOREIGN KEY (section_id) REFERENCES public.sections(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.participants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
