@@ -21,6 +21,7 @@ const toasts = [], timers = new Map();
 let nextTimer = 1;
 const context = vm.createContext({
     window: dom.window, document: dom.window.document, console: { warn() {} },
+    SERVER_BACKEND_MODE: false,
     isTrustedAdmin: () => trusted,
     supabaseClient: { rpc: async name => {
         assert.equal(name, 'admin_pending_registration_notifications'); requests++;
