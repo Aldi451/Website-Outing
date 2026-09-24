@@ -29,7 +29,7 @@ Tidak perlu menjalankan `participant_management.sql` atau `registration_notifica
 | Inisiator tidak melihat daftar yang dikelolanya | Read policy `users` hanya self/Admin, sementara RPC memperbolehkan Inisiator | Read policy manager peserta; approval/notifikasi tetap hanya Admin |
 | Register lama belum tampil | Akun Auth ada, trigger profil sebelumnya belum terpasang | Backfill akun `@outing.local` tanpa profil sebagai PARTICIPANT/PENDING; benturan username dilaporkan, tidak ditautkan sembarangan |
 | Replace impor dengan baris gagal | Bisa menghapus data pelengkap yang tidak masuk daftar sukses | Cleanup replace dibatalkan bila ada baris gagal; ringkasan error tetap dikembalikan |
-| Password fallback | Password pendek diam-diam diganti password bersama | Password pendek ditolak; jika benar-benar kosong RPC membuat password acak. UI impor lama masih mengirim `outing123` secara eksplisit—ganti setelah dibagikan |
+| Password fallback | Password pendek diam-diam diganti password bersama | Password pendek ditolak; jika password kosong, RPC membuat password acak 24 karakter di server. Form Tambah Peserta dan impor Excel membiarkan server membuat password acak per akun; hasil kredensial hanya ditampilkan setelah berhasil dibuat. |
 
 ## Batas dan perubahan yang perlu diketahui
 
@@ -67,6 +67,7 @@ npm install --prefix .testtools embedded-postgres@18.4.0-beta.17 pg@8.23.0 jsdom
 python scripts/build_sql_update.py --check
 node tests/sql_update.test.mjs
 node tests/registration_notifications.test.mjs
+node tests/local_participants.test.mjs
 ```
 
 Tes SQL menjalankan PostgreSQL lokal sementara (port 55432) dengan fixture schema `auth`/`storage`: fresh install, rerun, signup, approval, RLS, RPC peserta, rollback, impor, backfill, dan kecocokan nama parameter/grants seluruh 9 RPC frontend. Tes UI memakai DOM lokal untuk polling, deduplikasi, error/retry, role guard, dan cleanup logout. Ini **bukan** tes GoTrue/PostgREST atau login end-to-end pada Supabase produksi; checklist browser di atas tetap perlu dilakukan.

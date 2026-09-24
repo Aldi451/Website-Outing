@@ -1,13 +1,21 @@
 # 🌴 Outing Management System
-> **Single-Page Application (SPA)** berbasis HTML5, CSS3, JavaScript Vanilla, Bootstrap 5.3, SheetJS, dan Supabase Backend.
+> **SPA** berbasis HTML/CSS/JavaScript dengan backend **PHP + MySQL** untuk deployment di InfinityFree.
 
-Aplikasi ini dikembangkan untuk mengelola seluruh rangkaian kegiatan outing secara terpusat, transparan, dan terstruktur. Setiap seksi kepanitiaan (Keuangan, Purchasing, Logistik, Konsumsi, Public Area, dan Inisiator) memiliki wewenang untuk mengelola kebutuhan masing-masing, sementara seluruh peserta dapat melihat informasi umum kegiatan secara real-time.
+Deployment aktif hanya menyediakan dua role: **Admin** mengelola data outing dan **Member** memiliki akses baca saja. Data bersama dan sesi login disimpan di MySQL, bukan `localStorage`. Peserta dimasukkan manual dan hanya menyimpan nama, telepon/WhatsApp, serta status.
+
+## Deployment aktif: InfinityFree (PHP + MySQL)
+
+Ikuti [panduan deployment InfinityFree](INFINITYFREE_GUIDE.md). Buat database MySQL di control panel InfinityFree, salin `config.example.php` menjadi `config.php`, isi kredensial database dan password Admin/Member secara privat, lalu upload `index.html`, `api.php`, `.htaccess`, dan `config.php` ke `htdocs`. Tabel aplikasi dibuat otomatis oleh API saat pertama kali diakses.
+
+Tidak ada password bawaan yang aman untuk production. Tentukan kedua password akun dan `app_secret` sendiri; jangan commit atau membagikan `config.php`. Bagian README yang diberi label **Arsip Supabase** di bawah merupakan dokumentasi arsitektur terdahulu dan bukan langkah deployment aktif.
 
 ---
 
-## 🔧 Update Supabase: registrasi, approval, dan peserta (23 September 2026)
+## Arsip Supabase — update lama: registrasi, approval, dan peserta (23 September 2026)
 
-Untuk project yang sudah berjalan, **backup database lalu jalankan seluruh
+> Seluruh bagian README di bawah adalah dokumentasi deployment Supabase terdahulu. Bagian ini tidak dibutuhkan untuk hosting aktif InfinityFree.
+
+Untuk project Supabase lama yang masih berjalan, **backup database lalu jalankan seluruh
 [`supabase/update_website.sql`](supabase/update_website.sql)** di Supabase SQL Editor.
 File gabungan ini mencakup semua SQL/RPC website, perbaikan constraint yang
 menghentikan schema lama, dan `admin_save_participant`/hapus/impor peserta.
@@ -22,7 +30,7 @@ bundle sukses. Panduan ini menggantikan urutan patch terpisah di bagian lama di 
 
 ---
 
-## 📌 Ringkasan Status & Perkembangan Project
+## Arsip Supabase — ringkasan status versi terdahulu
 
 Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang tercantum dalam dokumen acuan `Rangkuman_Project_Outing_Management.docx`, termasuk standarisasi **Universal Excel Engine (Export & Import di Seluruh Modul)**:
 
@@ -46,7 +54,7 @@ Progress pengembangan website ini telah menyelesaikan seluruh modul utama yang t
 
 ---
 
-## 👥 Matriks Role & Hak Akses
+## Arsip Supabase — matriks role versi terdahulu
 
 Aplikasi menerapkan kontrol hak akses berbasis peran (*Role-Based Access Control*) dan seksi (*Section*):
 
@@ -76,21 +84,9 @@ Aplikasi menerapkan kontrol hak akses berbasis peran (*Role-Based Access Control
 
 ---
 
-## 🔑 Akun Demo untuk Pengujian Cepat
+## Akun hosting
 
-Untuk mempermudah pengujian di perangkat lain atau oleh pengguna lain, aplikasi telah dilengkapi dengan akun bawaan (*pre-seeded accounts*):
-
-| Role / Seksi | User ID | Password | Hak Akses Utama |
-|---|---|---|---|
-| **Admin / Inisiator** | `admin` | `power88` | Akses penuh ke seluruh menu, approval user, Pengaturan Outing, Export & Import semua modul |
-| **Section Keuangan** | `keuangan` | `finance123` | Kelola transaksi kas masuk/keluar, saldo kas, Export & Import Excel Keuangan |
-| **Section Purchasing** | `purchasing` | `purchase123` | Buat & approve request pengadaan, vendor, Export & Import Excel Purchasing |
-| **Section Logistic** | `logistic` | `logistik123` | Kelola task persiapan, armada bus, perlengkapan, Export & Import Excel Logistik |
-| **Section Konsumsi** | `konsumsi` | `makan123` | Kelola jadwal makan, katering, porsi, menu, Export & Import Excel Konsumsi |
-| **Section Public Area** | `public` | `public123` | Publikasi pengumuman penting, prioritas, Export & Import Excel Pengumuman |
-| **Peserta Biasa** | `peserta` | `peserta123` | View-only rundown, laporan kas, pengumuman, Export Excel dokumen jadwal/kas |
-
-> 💡 **Tips Pengujian:** jalankan `supabase/seed.sql` setelah schema untuk membuat akun Auth demo. Login langsung memakai User ID di atas; aplikasi memetakan User ID ke email internal `username@outing.local`. Nomor WhatsApp tetap dapat dipakai karena resolver server-side. Untuk beralih perspektif antar role secara cepat, gunakan dropdown **"Simulasi Hak Akses"** pada menu Profil. **Approval hanya dapat dilakukan oleh Admin asli; simulator tidak dapat menaikkan privilege database.**
+Versi InfinityFree tidak menyertakan akun demo atau registrasi publik. Atur username dan password berbeda untuk Admin dan Member secara privat di `config.php` (salinan lokal dari `config.example.php`). Admin dapat mengelola data outing; Member hanya dapat membaca data. Jangan simpan password di browser atau repository.
 
 ---
 
@@ -163,27 +159,15 @@ Untuk meningkatkan akurasi dan akuntabilitas pengadaan barang/jasa tanpa membeba
 
 ---
 
-## 🚀 Cara Menjalankan Project
+## Menjalankan aplikasi
 
-Aplikasi ini bersifat *zero-dependency* di sisi frontend (menggunakan CDN Bootstrap 5.3, Bootstrap Icons, dan SheetJS), sehingga dapat dijalankan dengan sangat mudah:
+Aplikasi aktif memerlukan PHP dan MySQL. Membuka `index.html` langsung, GitHub Pages, Live Server, atau `python -m http.server` tidak dapat menjalankan API login/data. Untuk production di InfinityFree, ikuti [panduan deployment](INFINITYFREE_GUIDE.md) dan gunakan HTTPS.
 
-### Opsi 1: Langsung Buka File HTML
-Cukup buka file `index.html` dengan cara *double-click* atau klik kanan lalu buka menggunakan browser modern apa pun (Google Chrome, Microsoft Edge, Mozilla Firefox, Safari).
-
-### Opsi 2: Menggunakan Local Web Server (Direkomendasikan)
-Jika menggunakan Python di terminal / PowerShell:
-```powershell
-# Jalankan web server lokal di direktori project:
-python -m http.server 8080
-```
-Lalu buka browser di alamat: `http://localhost:8080`
-
-Jika menggunakan VS Code:
-- Pasang ekstensi **Live Server**, lalu klik kanan pada `index.html` dan pilih **"Open with Live Server"**.
+Untuk pengujian lokal, siapkan PHP 8.1+ dengan ekstensi PDO MySQL, database MySQL, dan `config.php` berisi kredensial development. Jalankan PHP server dari direktori project, lalu buka alamat lokal yang ditampilkan oleh PHP.
 
 ---
 
-## 🗄️ Panduan Setup Supabase di Akun Lain
+## Arsip Supabase — panduan setup lama di akun lain
 
 ### Langkah 1: Buat Project dan siapkan Auth
 1. Buka [Supabase Dashboard](https://supabase.com/dashboard), buat project baru, dan tunggu database siap.
@@ -195,8 +179,8 @@ Jika menggunakan VS Code:
 1. Di SQL Editor, jalankan seluruh [`database_schema.sql`](database_schema.sql). Schema membuat linkage `users.auth_user_id → auth.users.id`, trigger profile/participant, helper RLS, RPC approval Admin, serta private Storage bucket `purchases`.
 2. Jalankan [`supabase/seed.sql`](supabase/seed.sql) untuk akun demo. Script ini memakai `crypt()` di database Auth, bukan `users.password_hash` atau LocalStorage. Kredensial demo adalah akun development; ganti password atau hapus seed sebelum production.
 3. Jika project sudah berisi user custom lama, password PBKDF2 lama tidak dimigrasikan. Buat/reset akun tersebut di Supabase Auth, isi metadata `username`, lalu hubungkan profile `users.auth_user_id` melalui prosedur admin/migrasi terkontrol.
-4. **Project yang sudah berjalan lama:** jika `database_schema.sql` pernah dijalankan pada versi awal, tabel `public.users` bisa belum memiliki kolom `role_id`/`section_id` beserta foreign key-nya (lihat [Troubleshooting Admin Tidak Bisa Login](#-troubleshooting-admin-tidak-bisa-login)). Jalankan [`supabase/fix_admin_login.sql`](supabase/fix_admin_login.sql) sekali untuk menyelaraskan skema dan memperbaiki akun Admin. Setelah itu [`supabase/seed.sql`](supabase/seed.sql) dapat dijalankan kembali untuk akun demo lainnya.
-5. **Fungsi manajemen peserta:** jalankan [`supabase/participant_management.sql`](supabase/participant_management.sql) (sekali saja pada project yang sudah berjalan). Berkas ini membuat fungsi `admin_save_participant`, `admin_delete_participant`, dan `admin_bulk_import_participants`, sekaligus menyelaraskan kolom tabel `participants` pada project lama yang belum punya kolom `username`/`room`. Tanpa berkas ini, modul Peserta tetap menampilkan data user, namun penyimpanan akan memberi tahu bahwa fungsi database belum ada.
+4. **Project yang sudah berjalan lama:** jangan menjalankan rangkaian patch lama satu per satu. Backup database, lalu jalankan seluruh [`supabase/update_website.sql`](supabase/update_website.sql) untuk menyelaraskan schema, foreign key, RLS, approval, dan modul peserta. Verifikasi dengan [`supabase/check_website_update.sql`](supabase/check_website_update.sql). Tidak perlu menjalankan `fix_admin_login.sql`, `participant_management.sql`, atau `registration_notifications.sql` terpisah setelah bundle sukses.
+5. `database_schema.sql` tetap menjadi schema instalasi baru; untuk database existing gunakan bundle update di atas agar migrasi dan fitur website berjalan bersama.
 
 ### Langkah 3: Aktifkan reminder WhatsApp Donasi
 
@@ -223,7 +207,7 @@ Buka `http://localhost:8080`. Hosting production wajib memakai HTTPS agar sessio
 
 ---
 
-## 👥 Modul Peserta: Bersumber dari Data User
+## Arsip Supabase — modul peserta dari akun user
 
 Modul **Peserta** tidak lagi menyimpan daftar orang terpisah. Daftar peserta diambil langsung dari tabel `public.users` (akun yang terdaftar), sehingga setiap user yang mendaftar otomatis muncul sebagai peserta tanpa perlu diimpor ulang.
 
@@ -236,13 +220,13 @@ Cara kerja:
 
 ### Tambah, Edit, dan Hapus Peserta
 
-- **Tambah Peserta** membuat **akun login** baru (Supabase Auth, email internal `username@outing.local`) beserta profilnya, sehingga peserta dapat langsung login memakai User ID + password yang diisi Admin. Bila kolom password dibiarkan kosong, password default `outing123` yang dipakai dan aplikasi menampilkan pesannya.
+- **Tambah Peserta** membuat **akun login** baru (Supabase Auth, email internal `username@outing.local`) beserta profilnya. Admin dapat menentukan password minimal 6 karakter atau membiarkannya kosong agar Supabase membuat password acak 24 karakter yang ditampilkan satu kali setelah akun dibuat.
 - **Edit** hanya melengkapi data profil dan data pelengkap (kamar, armada, status kehadiran). User ID tidak dapat diubah karena terhubung ke akun login; password peserta diubah sendiri lewat menu **Profil → Ganti Password**.
 - **Hapus** menghapus profil `public.users`, data pelengkap, keanggotaan outing, **dan akun login Supabase Auth** milik peserta tersebut. Pengaman yang berlaku: akun sendiri tidak dapat dihapus, akun ber-role ADMIN tidak dapat dihapus dari modul ini, dan Admin terakhir selalu ditolak oleh database.
 - Semua tindakan tersebut divalidasi di server melalui fungsi `SECURITY DEFINER` (`admin_save_participant`, `admin_delete_participant`, `admin_bulk_import_participants`), bukan lewat `UPDATE`/`DELETE` langsung dari browser, karena pembuatan akun menyentuh skema `auth`.
-- **Import Excel** peserta memakai jalur yang sama: baris baru otomatis dibuatkan akun login (password default `outing123`) dan daftar akun baru ditampilkan setelah proses selesai. Mode **Gantikan Seluruh Data** hanya membersihkan data pelengkap (kamar/armada) yang tidak ada di berkas — akun user tidak pernah dihapus oleh impor.
+- **Import Excel** peserta memakai jalur yang sama: baris baru otomatis dibuatkan akun login dengan password acak unik dari Supabase. Daftar seluruh kredensial baru hanya ditampilkan setelah impor, jadi simpan dan bagikan secara privat. Mode **Gantikan Seluruh Data** hanya membersihkan data pelengkap (kamar/armada) yang tidak ada di berkas — akun user tidak pernah dihapus oleh impor.
 - **Export Excel** peserta selalu membaca data user terkini dari Supabase, bukan cache lama, dan menambahkan kolom Role, Seksi, serta Status Akun.
-- Kedua berkas SQL di atas (juga `fix_admin_login.sql`) mencakup pembuatan akun, penghapusan, pengaman Admin terakhir, dan impor massal pada skema lama.
+- Bundle [`supabase/update_website.sql`](supabase/update_website.sql) menyertakan RPC peserta, pengaman server, dan migrasi skema lama; setelah bundle sukses, jangan jalankan file patch peserta terpisah.
 
 ---
 
@@ -321,22 +305,20 @@ Tabel `donation_year_closures` dan `donation_foundation_disbursements` memastika
 6. **Masalah Admin Gagal Login pada Skema Lama (`PGRST200`)**:
    - Pembacaan profil kini memakai strategi berlapis: embed `roles(...)`/`sections(...)` dicoba lebih dulu, lalu otomatis mundur ke kolom dasar bila database belum punya `role_id`/`section_id` atau foreign key-nya. Sebelumnya kegagalan ini membuat dashboard gagal dimuat, sesi di-signOut, dan pengguna terlempar kembali ke halaman login seolah-olah password salah.
    - Setiap langkah pemuatan dashboard (outing, rundown, keuangan, pengumuman, peserta, logistik, donasi) kini terisolasi: satu modul yang gagal tidak lagi membatalkan seluruh sesi login.
-   - Pesan galat skema (`PGRST200`, `PGRST205`, `42703`) menampilkan petunjuk perbaikan langsung di halaman login, dan tersedia `supabase/check_admin_login.sql` (diagnosa) serta `supabase/fix_admin_login.sql` (perbaikan).
+   - Pesan galat skema (`PGRST200`, `PGRST205`, `42703`) menampilkan petunjuk menjalankan bundle `supabase/update_website.sql` di halaman login. Diagnosa read-only tersedia di `supabase/check_admin_login.sql`; `supabase/fix_admin_login.sql` tetap tersedia sebagai perbaikan terarah untuk kasus Admin lama.
 
 ---
 
 ## 📁 Struktur Berkas Project
 
 ```text
-├── index.html                               # Aplikasi utama (Single Page Application - SPA)
-├── database_schema.sql                      # DDL PostgreSQL/Supabase, Auth trigger, RPC & RLS
-├── supabase/seed.sql                        # Seed akun demo Supabase Auth (development)
-├── supabase/fix_admin_login.sql             # Perbaikan skema & akun Admin (idempoten)
-├── supabase/check_admin_login.sql           # Diagnosa read-only penyebab Admin gagal login
-├── supabase/participant_management.sql      # Fungsi simpan/hapus/impor peserta (SECURITY DEFINER)
-├── supabase/config.toml                     # Konfigurasi Supabase project
-├── README.md                                # Dokumentasi lengkap, progress, & panduan transfer akun
-└── Rangkuman_Project_Outing_Management.docx # Dokumen spesifikasi acuan & catatan progress
+├── index.html              # SPA frontend (HTML/CSS/JavaScript)
+├── api.php                 # PHP API: session, login, state, logout; PDO MySQL
+├── config.example.php      # Template database/login (copy to private config.php)
+├── .htaccess               # Mencegah akses langsung ke config.php
+├── INFINITYFREE_GUIDE.md   # Langkah upload dan setup InfinityFree
+├── README.md               # Ringkasan aplikasi dan arsip dokumentasi lama
+└── supabase/               # SQL/docs deployment terdahulu; bukan untuk MySQL InfinityFree
 ```
 
 ---

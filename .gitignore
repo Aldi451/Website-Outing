@@ -1,3 +1,10 @@
-# Tooling verifikasi lokal (jsdom) — tidak ikut ter-commit
+# Private hosting credentials — never commit
+config.php
+
+# Local development/test artifacts
 .testtools/
 node_modules/
+.local/
+*.sqlite3
+__pycache__/
+*.py[cod]

@@ -9,8 +9,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- SheetJS (Excel Parser & Generator) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -763,7 +761,7 @@
                 <label class="form-label small fw-semibold">User ID / Username</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-person"></i></span>
-                    <input type="text" id="loginUserId" class="form-control" placeholder="User ID / Username / No. WhatsApp" required>
+                    <input type="text" id="loginUserId" class="form-control" placeholder="Username Admin atau Member" autocomplete="username" required>
                 </div>
             </div>
 
@@ -783,11 +781,9 @@
             </button>
         </form>
 
-        <div class="text-center mt-3 small">
-            <span class="text-muted">Belum punya akun?</span>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold" onclick="showRegister()">
-                Daftar sekarang
-            </button>
+        <div class="text-center mt-3 small text-muted">
+            Login tersedia untuk <strong>Admin</strong> dan <strong>Member</strong>.
+            Data peserta outing diisi manual oleh Admin.
         </div>
 
         <div id="loginMessage" class="mt-3"></div>
@@ -911,6 +907,9 @@
 
     <!-- MAIN CONTAINER -->
     <div class="main-container">
+        <div id="serverStorageStatus" class="alert alert-success py-2 small mb-3" role="status">
+            <i class="bi bi-hdd-network-fill me-1"></i>Mode server PHP/MySQL aktif. Data outing tersimpan bersama di database hosting.
+        </div>
         <div id="registrationNotificationBanner" class="alert alert-warning d-none" role="status" aria-live="polite">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <span><i class="bi bi-bell-fill me-2"></i><span id="registrationNotificationText"></span></span>
@@ -1365,7 +1364,7 @@
                 <div class="content-header">
                     <div>
                         <h5><i class="bi bi-person-check me-2 text-primary"></i>Data Peserta Outing</h5>
-                        <small class="text-muted">Bersumber langsung dari data user terdaftar • kelola kamar &amp; armada di sini</small>
+                        <small class="text-muted">Data peserta berisi nama, nomor telepon/WhatsApp, dan status kehadiran</small>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-sm btn-outline-secondary" onclick="showPage('home')">
@@ -1390,7 +1389,7 @@
                     <div class="mb-3">
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" id="participantSearchInput" class="form-control" placeholder="Cari nama, departemen, kamar, atau User ID..." oninput="searchParticipants(this.value)">
+                            <input type="text" id="participantSearchInput" class="form-control" placeholder="Cari nama atau nomor telepon/WhatsApp..." oninput="searchParticipants(this.value)">
                         </div>
                     </div>
 
@@ -1568,7 +1567,7 @@
                     </div>
 
                     <!-- CARD: MANAJEMEN SIKLUS OUTING & PEMBERSIHAN DATA SUPABASE -->
-                    <div class="card border-danger border-opacity-25 bg-danger bg-opacity-10 p-3 mt-4">
+                    <div class="card border-danger border-opacity-25 bg-danger bg-opacity-10 p-3 mt-4" id="supabaseLifecycleCard">
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-3">
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
@@ -1652,14 +1651,14 @@
         </div>
 
         <!-- =============================================
-             PAGE: USER APPROVALS (ADMIN / INITIATOR)
+             PAGE: USER APPROVALS (ADMIN ONLY)
         ============================================== -->
         <div id="pageUserApprovals" class="page">
             <div class="content-card">
                 <div class="content-header">
                     <div>
                         <h5><i class="bi bi-person-check me-2 text-primary"></i>Approval User Baru</h5>
-                        <small class="text-muted">Tinjau dan setujui akun yang baru melakukan registrasi</small>
+                        <small class="text-muted">Tinjau registrasi dan setujui akun baru (khusus Admin)</small>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-warning text-dark" id="userApprovalPendingBadge">0 Menunggu</span>
@@ -1876,7 +1875,7 @@
                                 <label class="form-label text-muted small mb-0">Nomor Telepon</label>
                                 <div id="profilePhone" class="fw-semibold">-</div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-6" id="profileDepartmentGroup">
                                 <label class="form-label text-muted small mb-0">Departemen</label>
                                 <div id="profileDepartment" class="fw-semibold">-</div>
                             </div>
@@ -1884,7 +1883,7 @@
                                 <label class="form-label text-muted small mb-0">Role Saat Ini</label>
                                 <div><span id="profileRoleBadge" class="badge bg-primary">Participant</span></div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-6" id="profileSectionGroup">
                                 <label class="form-label text-muted small mb-0">Section / Bagian</label>
                                 <div id="profileSection" class="fw-semibold">-</div>
                             </div>
@@ -1892,7 +1891,7 @@
                     </div>
 
                     <!-- CHANGE PASSWORD -->
-                    <div class="card border border-warning border-opacity-50 p-3 mb-3 bg-white">
+                    <div class="card border border-warning border-opacity-50 p-3 mb-3 bg-white" id="cloudPasswordCard">
                         <label class="form-label fw-semibold text-dark small mb-1">
                             <i class="bi bi-key-fill me-1 text-warning"></i> Ganti Password
                         </label>
@@ -2515,63 +2514,22 @@
                 <input type="hidden" id="participantId">
                 <div class="modal-body">
                     <div class="alert alert-info py-2 small" id="participantFormHint">
-                        Data peserta tersimpan sebagai user aplikasi.
+                        Isi data peserta outing; peserta tidak memerlukan akun login.
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Nama Lengkap</label>
-                        <input type="text" id="partName" class="form-control" placeholder="Nama lengkap peserta" required>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">User ID / Username</label>
-                            <input type="text" id="partUsername" class="form-control" placeholder="Username" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">Nomor Telepon</label>
-                            <input type="tel" id="partPhone" class="form-control" placeholder="08xxxxxxxx">
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">Departemen / Divisi</label>
-                            <input type="text" id="partDept" class="form-control" placeholder="Contoh: IT, Marketing">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">Gender</label>
-                            <select id="partGender" class="form-select">
-                                <option value="L">Laki-laki</option>
-                                <option value="P">Perempuan</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3" id="participantPasswordRow">
-                        <div class="col-12">
-                            <label class="form-label small fw-semibold">Password Akun Login</label>
-                            <div class="input-group">
-                                <input type="text" id="partPassword" class="form-control" placeholder="Minimal 6 karakter" minlength="6">
-                                <button type="button" class="btn btn-outline-secondary" onclick="generateParticipantPassword()">
-                                    <i class="bi bi-shuffle me-1"></i>Acak
-                                </button>
-                            </div>
-                            <small class="text-muted" style="font-size: 11px;">Peserta login memakai User ID di atas + password ini. Bagikan setelah data disimpan.</small>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">Transportasi</label>
-                            <input type="text" id="partTransport" class="form-control" placeholder="Bus 1 / Bus 2 / Pribadi">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold">Kamar / Villa</label>
-                            <input type="text" id="partRoom" class="form-control" placeholder="Kamar 101 / Villa A">
-                        </div>
+                        <input type="text" id="partName" class="form-control" placeholder="Nama lengkap peserta" maxlength="150" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Status Konfirmasi</label>
+                        <label class="form-label small fw-semibold">Nomor Telepon / WhatsApp</label>
+                        <input type="tel" id="partPhone" class="form-control" placeholder="08xxxxxxxxxx" maxlength="30">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Status Kehadiran</label>
                         <select id="partStatus" class="form-select">
-                            <option value="CONFIRMED">CONFIRMED (Pasti Ikut)</option>
-                            <option value="PENDING">PENDING (Menunggu Konfirmasi)</option>
-                            <option value="CANCELLED">CANCELLED (Batal Ikut)</option>
+                            <option value="CONFIRMED">Hadir</option>
+                            <option value="PENDING">Menunggu Konfirmasi</option>
+                            <option value="CANCELLED">Batal</option>
                         </select>
                     </div>
                 </div>
@@ -3008,14 +2966,21 @@
 <!-- =====================================================
      JAVASCRIPT LOGIC
 ===================================================== -->
+<script src="api.php?route=bootstrap.js"></script>
 <script>
 /* =====================================================
-   SUPABASE CLIENT CONFIGURATION
+   HOSTED SERVER CONFIGURATION
 ===================================================== */
-const SUPABASE_URL = "https://ncylyddceptiukzzanlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jeWx5ZGRjZXB0aXVrenphbmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTk4MDEsImV4cCI6MjEwNTI3NTgwMX0.qO3JYJ5wM8StlptYr0nforp0GaRoQHDLRuCi6aXPyzw";
-
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SERVER_BACKEND_MODE = true;
+// Supabase is intentionally not initialized: InfinityFree uses this PHP/MySQL API.
+const supabaseClient = null;
+const SERVER_API_ENDPOINT = 'api.php';
+function serverApiUrl(route, params = {}) {
+    const query = new URLSearchParams();
+    query.set('route', route);
+    Object.entries(params).forEach(([key, value]) => query.set(key, String(value)));
+    return `${SERVER_API_ENDPOINT}?${query.toString()}`;
+}
 
 /* =====================================================
    GLOBAL APPLICATION STATE
@@ -3042,11 +3007,54 @@ let donationState = {
 };
 
 /* =====================================================
-   LOCAL DATA STORAGE & SEEDING (HYBRID ENGINE)
+   SERVER-SYNCED STORAGE
 ===================================================== */
+const SERVER_BACKEND_STATE = window.__OUTING_SERVER_STATE__ || {};
+window.__OUTING_SERVER_AUTHORIZED__ = false;
+let serverPersistenceQueue = Promise.resolve();
+let serverPersistenceError = null;
+
+function cloneServerValue(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+}
+
+function persistServerStateValue(key, value) {
+    if (!SERVER_BACKEND_MODE || !window.__OUTING_SERVER_AUTHORIZED__ || currentUser?.role !== 'ADMIN') return;
+    serverPersistenceQueue = serverPersistenceQueue
+        .catch(() => {})
+        .then(async () => {
+            const response = await fetch(serverApiUrl('state', { key }), {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value })
+            });
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+            serverPersistenceError = null;
+        })
+        .catch(error => {
+            serverPersistenceError = error;
+            console.warn(`Data ${key} belum tersimpan ke server hosting:`, error?.message || error);
+            const status = document.getElementById('serverStorageStatus');
+            if (status) {
+                status.className = 'alert alert-warning py-2 small mb-3';
+                status.textContent = 'Koneksi ke server/database terputus. Periksa koneksi lalu simpan ulang perubahan.';
+            }
+        });
+}
+
 const STORAGE = {
     get: (key, defaultValue) => {
         try {
+            if (SERVER_BACKEND_MODE) {
+                return Object.prototype.hasOwnProperty.call(SERVER_BACKEND_STATE, key)
+                    ? cloneServerValue(SERVER_BACKEND_STATE[key])
+                    : defaultValue;
+            }
             const data = localStorage.getItem(key);
             return data ? JSON.parse(data) : defaultValue;
         } catch (e) {
@@ -3054,11 +3062,18 @@ const STORAGE = {
         }
     },
     set: (key, value) => {
+        if (SERVER_BACKEND_MODE) {
+            if (currentUser && String(currentUser.role).toUpperCase() !== 'ADMIN') return false;
+            SERVER_BACKEND_STATE[key] = cloneServerValue(value);
+            persistServerStateValue(key, value);
+            return true;
+        }
         try {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) {
             console.warn('LocalStorage write error:', e);
         }
+        return true;
     }
 };
 
@@ -3189,7 +3204,7 @@ function initSeedDataIfEmpty() {
             requires_remote_approval: false
         };
     });
-    // Hapus kredensial dari cache browser lama. LocalStorage hanya boleh
+    // Hapus kredensial dari cache lama. LocalStorage hanya boleh
     // menyimpan data tampilan; Supabase Auth adalah satu-satunya sumber login.
     const sanitizedUsers = migratedUsers.map(user => {
         const profile = Object.fromEntries(Object.entries(user).filter(([key]) =>
@@ -3285,8 +3300,29 @@ function initSeedDataIfEmpty() {
     syncUsersToParticipants();
 }
 
-// Run initial seed
-initSeedDataIfEmpty();
+// Hosted deployment starts with clean outing data (no sample participants or section accounts).
+function initHostedDataIfEmpty() {
+    const defaults = {
+        outing_current_info: {
+            id: 'hosted-outing', name: 'Outing Bersama', start_date: '', end_date: '', event_date: '',
+            location: '', address: '', description: '', status: 'PLANNING'
+        },
+        outing_rundowns: [],
+        outing_transactions: [],
+        outing_purchases: [],
+        outing_tasks: [],
+        outing_consumptions: [],
+        outing_announcements: [],
+        outing_participants: [],
+        outing_archives: []
+    };
+    Object.entries(defaults).forEach(([key, value]) => {
+        if (STORAGE.get(key, null) === null) STORAGE.set(key, value);
+    });
+}
+
+if (SERVER_BACKEND_MODE) initHostedDataIfEmpty();
+else initSeedDataIfEmpty();
 
 /* =====================================================
    HELPER UTILITIES
@@ -3451,6 +3487,8 @@ function isTrustedAdmin() {
 }
 
 function canManage(module) {
+    if (SERVER_BACKEND_MODE) return isAuthenticatedAdmin();
+
     const role = getUserRole();
     const section = getUserSection();
 
@@ -3489,7 +3527,18 @@ function canManage(module) {
 /* =====================================================
    AUTH PAGES TOGGLING & SESSIONS
 ===================================================== */
+function applyServerModeVisibility() {
+    if (!SERVER_BACKEND_MODE) return;
+    [
+        'registerPage', 'dnavDonations', 'pageDonations', 'pageUserApprovals', 'btnImportParticipants',
+        'cloudPasswordCard', 'profileDepartmentGroup', 'profileSectionGroup', 'supabaseLifecycleCard'
+    ].forEach(id => document.getElementById(id)?.classList.add('d-none'));
+    document.getElementById('registrationNotificationBanner')?.classList.add('d-none');
+    document.getElementById('roleSimulatorCard')?.classList.add('d-none');
+}
+
 function showLogin() {
+    applyServerModeVisibility();
     stopRegistrationNotifications();
     document.getElementById('loginPage').classList.remove('d-none');
     document.getElementById('registerPage').classList.add('d-none');
@@ -3497,6 +3546,10 @@ function showLogin() {
 }
 
 function showRegister() {
+    if (SERVER_BACKEND_MODE) {
+        showLogin();
+        return;
+    }
     stopRegistrationNotifications();
     document.getElementById('loginPage').classList.add('d-none');
     document.getElementById('registerPage').classList.remove('d-none');
@@ -3507,6 +3560,7 @@ function showApp() {
     document.getElementById('loginPage').classList.add('d-none');
     document.getElementById('registerPage').classList.add('d-none');
     document.getElementById('appPage').classList.remove('d-none');
+    applyServerModeVisibility();
 }
 
 // 1-Click Demo Login
@@ -3600,18 +3654,19 @@ async function getAuthenticatedProfile(authUserId) {
     return data;
 }
 
-/* Pesan bantuan untuk error skema Supabase yang paling sering muncul. */
+/* Pesan bantuan skema memakai bundle update resmi agar tidak mendorong patch lama. */
 function backendErrorHint(error) {
     const raw = String(error?.message || '');
     const code = String(error?.code || '');
+    const updateSteps = 'Jalankan supabase/update_website.sql secara utuh setelah backup, lalu verifikasi dengan supabase/check_website_update.sql. Setelah sukses, muat ulang halaman; bila perlu jalankan NOTIFY pgrst, \'reload schema\';.';
     if (code === 'PGRST200' || /could not find a relationship/i.test(raw)) {
-        return 'Database Supabase belum sinkron: kolom role_id/section_id atau foreign key ke tabel roles/sections belum ada. Jalankan berkas supabase/fix_admin_login.sql di Supabase SQL Editor.';
+        return `Relasi tabel role/seksi belum terbaca. ${updateSteps}`;
     }
     if (code === 'PGRST205' || /could not find the table/i.test(raw)) {
-        return 'Ada tabel yang belum dibuat di Supabase. Jalankan database_schema.sql lalu supabase/fix_admin_login.sql di Supabase SQL Editor.';
+        return `Tabel Supabase yang diperlukan belum tersedia. ${updateSteps}`;
     }
     if (code === '42703' || /column .* does not exist/i.test(raw)) {
-        return 'Ada kolom yang belum ada di tabel Supabase. Jalankan supabase/fix_admin_login.sql untuk menyelaraskan skema.';
+        return `Kolom Supabase yang diperlukan belum tersedia. ${updateSteps}`;
     }
     return '';
 }
@@ -3643,10 +3698,81 @@ function markAuthenticatedUser(user, authUser = null) {
 }
 
 /* =====================================================
+   HOSTED SERVER AUTH
+===================================================== */
+function normalizeServerSessionUser(user) {
+    const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
+    return {
+        id: user?.id || (isAdmin ? 'hosted-admin' : 'hosted-member'),
+        username: user?.username || (isAdmin ? 'admin' : 'member'),
+        full_name: user?.full_name || (isAdmin ? 'Admin Outing' : 'Member Outing'),
+        role: isAdmin ? 'ADMIN' : 'PARTICIPANT',
+        section: isAdmin ? 'INISIATOR' : 'PUBLIC',
+        department: isAdmin ? 'Panitia' : 'Peserta',
+        phone: '',
+        server_role_label: isAdmin ? 'ADMIN' : 'MEMBER'
+    };
+}
+
+async function refreshServerState() {
+    const response = await fetch(serverApiUrl('state'), { credentials: 'same-origin', cache: 'no-store' });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.state) throw new Error(result.error || 'Server hosting tidak dapat dibaca.');
+
+    Object.keys(SERVER_BACKEND_STATE).forEach(key => delete SERVER_BACKEND_STATE[key]);
+    Object.assign(SERVER_BACKEND_STATE, result.state);
+    const status = document.getElementById('serverStorageStatus');
+    if (status) {
+        status.className = 'alert alert-success py-2 small mb-3';
+        status.innerHTML = '<i class="bi bi-hdd-network-fill me-1"></i>Terhubung ke server hosting. Data outing tersimpan di MySQL.';
+    }
+}
+
+async function loginServer() {
+    const username = document.getElementById('loginUserId').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const message = document.getElementById('loginMessage');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menghubungkan...';
+    message.innerHTML = '';
+
+    try {
+        const response = await fetch(serverApiUrl('login'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.user) throw new Error(result.error || 'Login gagal.');
+
+        const serverProfile = normalizeServerSessionUser(result.user);
+        currentUser = markAuthenticatedUser(serverProfile, { id: serverProfile.id, email: '' });
+        currentProfile = currentUser;
+        window.__OUTING_SERVER_AUTHORIZED__ = serverProfile.role === 'ADMIN';
+        await refreshServerState();
+        await loadDashboard();
+    } catch (error) {
+        currentUser = null;
+        currentProfile = null;
+        window.__OUTING_SERVER_AUTHORIZED__ = false;
+        message.innerHTML = `<div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(error.message || 'Tidak dapat terhubung ke server PHP/MySQL. Periksa api.php, config.php, dan database hosting.')}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Login';
+    }
+}
+
+/* =====================================================
    LOGIN HANDLER
 ===================================================== */
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (SERVER_BACKEND_MODE) {
+        await loginServer();
+        return;
+    }
     const rawUserId = document.getElementById('loginUserId').value.trim();
     const password = document.getElementById('loginPassword').value;
     const btn = document.getElementById('loginBtn');
@@ -3671,7 +3797,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
                 throw new Error('Supabase Auth tidak dapat dihubungi. Periksa Project URL/anon key, status project, dan koneksi browser.');
             }
             if (authMessage.toLowerCase().includes('email not confirmed')) {
-                throw new Error('Email akun belum dikonfirmasi di Supabase Auth. Jalankan berkas supabase/fix_admin_login.sql (bagian B) di Supabase SQL Editor untuk mengonfirmasi email Admin tanpa kirim email.');
+                throw new Error('Email akun belum dikonfirmasi di Supabase Auth. Untuk akun internal @outing.local, jalankan supabase/update_website.sql setelah backup dan cek pengaturan Confirm email. Untuk email sungguhan, selesaikan verifikasi lewat email yang diterima.');
             }
             throw new Error('User ID atau Password yang Anda masukkan salah.');
         }
@@ -3710,6 +3836,10 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 ===================================================== */
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (SERVER_BACKEND_MODE) {
+        document.getElementById('registerMessage').innerHTML = '<div class="alert alert-info py-2 small">Akun Admin dan Member diatur pada konfigurasi hosting.</div>';
+        return;
+    }
     const name = document.getElementById('registerName').value.trim();
     const rawUsername = document.getElementById('registerUsername').value.trim();
     const username = rawUsername.replace(/^@+/, '').toLowerCase();
@@ -3855,7 +3985,7 @@ async function loadDashboard() {
     try {
         showApp();
         await loadProfile();
-        startRegistrationNotifications();
+        if (!SERVER_BACKEND_MODE) startRegistrationNotifications();
     } catch (error) {
         console.error('Dashboard error:', error);
         try { await supabaseClient.auth.signOut(); } catch (signOutError) {}
@@ -3874,7 +4004,7 @@ async function loadDashboard() {
         runDashboardStep('pengumuman', loadAnnouncements),
         runDashboardStep('peserta', loadParticipants),
         runDashboardStep('logistik', loadTasks),
-        runDashboardStep('donasi', loadDonations)
+        SERVER_BACKEND_MODE ? Promise.resolve(null) : runDashboardStep('donasi', loadDonations)
     ]);
 
     await runDashboardStep('menu & arsip', async () => {
@@ -3890,9 +4020,8 @@ async function loadDashboard() {
 function updateRoleSimulatorVisibility() {
     const roleCard = document.getElementById('roleSimulatorCard');
     if (!roleCard) return;
-    // Role chooser hanya tampil untuk akun Admin asli, bukan untuk user biasa
-    // atau hasil role simulation.
-    roleCard.classList.toggle('d-none', !isAuthenticatedAdmin());
+    // Hosted deployment intentionally exposes only Admin and Member accounts.
+    roleCard.classList.toggle('d-none', SERVER_BACKEND_MODE || !isAuthenticatedAdmin());
 }
 
 /* =====================================================
@@ -3902,33 +4031,36 @@ async function loadProfile() {
     const authUserId = currentUser?.auth_user_id || currentUser?.id;
     if (!authUserId) throw new Error('Sesi Supabase Auth tidak ditemukan. Silakan login ulang.');
 
-    const data = await fetchProfileByAuthUserId(authUserId);
-    if (!data) throw new Error('Profil aplikasi tidak ditemukan untuk sesi Auth ini.');
+    const data = SERVER_BACKEND_MODE ? currentUser : await fetchProfileByAuthUserId(authUserId);
+    if (!data) throw new Error('Profil aplikasi tidak ditemukan untuk sesi ini.');
 
     const approvalError = approvalErrorForUser(data);
     if (approvalError) {
-        await supabaseClient.auth.signOut();
+        if (!SERVER_BACKEND_MODE) await supabaseClient.auth.signOut();
         currentUser = null;
         currentProfile = null;
         throw approvalError;
     }
 
-    const authUser = currentUser?.auth_email
-        ? { id: authUserId, email: currentUser.auth_email }
-        : (await supabaseClient.auth.getUser()).data?.user;
+    const authUser = SERVER_BACKEND_MODE
+        ? { id: authUserId, email: '' }
+        : currentUser?.auth_email
+            ? { id: authUserId, email: currentUser.auth_email }
+            : (await supabaseClient.auth.getUser()).data?.user;
     currentProfile = data;
-    currentUser = markAuthenticatedUser(data, authUser);
+    currentUser = SERVER_BACKEND_MODE ? data : markAuthenticatedUser(data, authUser);
 
     const username = data.username || '';
     const fullName = data.full_name || username || 'User';
     const initial = (username || fullName || 'U').charAt(0).toUpperCase();
     const phone = data.phone || '-';
     const role = getUserRole();
+    const roleLabel = SERVER_BACKEND_MODE ? (data.server_role_label || (role === 'ADMIN' ? 'ADMIN' : 'MEMBER')) : role;
     const section = getUserSection() || '-';
     const department = data.department || '-';
 
     document.getElementById('topUserName').textContent = fullName;
-    document.getElementById('topUserRole').textContent = role;
+    document.getElementById('topUserRole').textContent = roleLabel;
     document.getElementById('topAvatar').textContent = initial;
 
     document.getElementById('profileAvatar').textContent = initial;
@@ -3936,7 +4068,7 @@ async function loadProfile() {
     document.getElementById('profileUsername').textContent = '@' + username;
     document.getElementById('profilePhone').textContent = phone;
     document.getElementById('profileDepartment').textContent = department;
-    document.getElementById('profileRoleBadge').textContent = role;
+    document.getElementById('profileRoleBadge').textContent = roleLabel;
     document.getElementById('profileSection').textContent = section;
     updateRoleSimulatorVisibility();
 
@@ -3956,6 +4088,10 @@ async function loadProfile() {
    ROLE SIMULATOR (DEMO PERSPECTIVE SWITCHER)
 ===================================================== */
 function applyRoleSimulation() {
+    if (SERVER_BACKEND_MODE) {
+        alert('Mode hosting hanya memakai role Admin dan Member. Simulasi role dimatikan.');
+        return;
+    }
     if (!isAuthenticatedAdmin()) {
         alert('Akses Ditolak: hanya Admin yang dapat memilih atau mensimulasikan role pengguna.');
         updateRoleSimulatorVisibility();
@@ -4136,7 +4272,7 @@ function updateViewOnlyNotices() {
     const btnImportPart = document.getElementById('btnImportParticipants');
     if (canManage('participants')) {
         btnAddPart?.classList.remove('d-none');
-        btnImportPart?.classList.remove('d-none');
+        btnImportPart?.classList.toggle('d-none', SERVER_BACKEND_MODE);
     } else {
         btnAddPart?.classList.add('d-none');
         btnImportPart?.classList.add('d-none');
@@ -4816,119 +4952,35 @@ const EXCEL_MODULE_CONFIG = {
         name: 'Data Peserta Outing',
         icon: 'bi-person-check',
         storageKey: 'outing_participants',
-        supabaseTable: 'participants',
         idField: 'id',
-        defaultSortField: 'full_name',
+        defaultSortField: 'name',
         exportFilename: 'Data_Peserta_Outing',
         templateFilename: 'Template_Data_Peserta_Outing.xlsx',
         columns: [
-            { key: 'username', label: 'ID / NIK', type: 'text', placeholder: 'NIK / User ID', width: 14, synonyms: ['username', 'id', 'nik', 'user_id', 'no pegawai'] },
-            { key: 'full_name', label: 'Nama Lengkap', type: 'text', placeholder: 'Nama Karyawan', required: true, width: 28, synonyms: ['full_name', 'name', 'nama', 'nama lengkap', 'peserta'] },
-            { key: 'department', label: 'Departemen / Divisi', type: 'text', placeholder: 'Finance / IT / HR', width: 20, synonyms: ['department', 'departemen', 'divisi', 'dept', 'bagian'] },
-            { key: 'phone', label: 'No. WhatsApp', type: 'text', placeholder: '081234567890', width: 18, synonyms: ['phone', 'telepon', 'no telepon', 'wa', 'whatsapp', 'no hp'] },
-            { key: 'gender', label: 'Gender', type: 'select', options: [{val:'L', label:'L (Laki-laki)'}, {val:'P', label:'P (Perempuan)'}], width: 10, synonyms: ['gender', 'jenis kelamin', 'jk', 'sex'] },
-            { key: 'transport', label: 'Transportasi / Bus', type: 'text', placeholder: 'Bus 1 / Mobil Pribadi', width: 20, synonyms: ['transport', 'transportasi', 'armada', 'bus', 'kendaraan'] },
-            { key: 'room', label: 'Kamar / Villa', type: 'text', placeholder: 'Kamar Melati 1', width: 20, synonyms: ['room', 'kamar', 'villa', 'ruangan', 'rooming'] },
-            { key: 'status', label: 'Status', type: 'select', options: [{val:'CONFIRMED', label:'CONFIRMED'}, {val:'PENDING', label:'PENDING'}, {val:'CANCELLED', label:'CANCELLED'}], width: 14, synonyms: ['status', 'kehadiran', 'state'] }
+            { key: 'name', label: 'Nama Lengkap', type: 'text', placeholder: 'Nama lengkap peserta', required: true, width: 30, synonyms: ['name', 'full_name', 'nama', 'nama lengkap', 'peserta'] },
+            { key: 'phone', label: 'Nomor Telepon / WhatsApp', type: 'text', placeholder: '08xxxxxxxxxx', width: 24, synonyms: ['phone', 'telepon', 'no telepon', 'wa', 'whatsapp', 'no hp'] },
+            { key: 'status', label: 'Status Kehadiran', type: 'select', options: [{val:'CONFIRMED', label:'Hadir'}, {val:'PENDING', label:'Menunggu Konfirmasi'}, {val:'CANCELLED', label:'Batal'}], width: 22, synonyms: ['status', 'kehadiran', 'state'] }
         ],
-        templateRows: [
-            { "ID / NIK": "nik-001", "Nama Lengkap": "Budi Santoso", "Departemen / Divisi": "Management", "No. WhatsApp": "081234567890", "Gender": "L", "Transportasi / Bus": "Mobil Pribadi", "Kamar / Villa": "Villa Utama No. 1", "Status": "CONFIRMED" },
-            { "ID / NIK": "nik-002", "Nama Lengkap": "Siti Rahma", "Departemen / Divisi": "Finance", "No. WhatsApp": "081234567891", "Gender": "P", "Transportasi / Bus": "Bus 1", "Kamar / Villa": "Kamar Melati 1", "Status": "CONFIRMED" },
-            { "ID / NIK": "nik-003", "Nama Lengkap": "Dedi Kurniawan", "Departemen / Divisi": "Procurement", "No. WhatsApp": "081234567892", "Gender": "L", "Transportasi / Bus": "Bus 1", "Kamar / Villa": "Kamar Pinus 2", "Status": "CONFIRMED" },
-            { "ID / NIK": "nik-004", "Nama Lengkap": "Hendra Saputra", "Departemen / Divisi": "General Affairs", "No. WhatsApp": "081234567893", "Gender": "L", "Transportasi / Bus": "Bus 2", "Kamar / Villa": "Kamar Pinus 3", "Status": "CONFIRMED" }
-        ],
-        transformExport: (items) => {
-            return items.map((item, idx) => ({
-                "No.": idx + 1,
-                "ID / NIK": item.username || item.id || '-',
-                "Nama Lengkap": item.full_name || item.name || '-',
-                "Departemen": item.department || '-',
-                "No. WhatsApp": item.phone || '-',
-                "Gender": item.gender || 'L',
-                "Transportasi / Bus": item.transport || '-',
-                "Kamar / Villa": item.room || '-',
-                "Status Kehadiran": item.status || 'CONFIRMED',
-                "Role": item.role || '-',
-                "Seksi": item.section || '-',
-                "Status Akun": item.approval_status ? approvalStatusLabel(item.approval_status) : '-'
-            }));
-        },
-        createItemFromRow: (row) => ({
+        templateRows: [],
+        transformExport: (items) => items.map((item, idx) => ({
+            'No.': idx + 1,
+            'Nama Lengkap': item.name || item.full_name || '-',
+            'Nomor Telepon / WhatsApp': item.phone || '-',
+            'Status Kehadiran': participantStatusLabel(item.status)
+        })),
+        createItemFromRow: (row) => normalizeParticipantRecord({
             id: generateUUID(),
-            username: row.username || `nik-${Date.now().toString().slice(-4)}`,
-            full_name: row.full_name || 'Peserta Baru',
-            name: row.full_name || 'Peserta Baru',
-            department: row.department || 'Umum',
+            name: row.name || row.full_name || '',
             phone: row.phone || '',
-            gender: (row.gender || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
-            transport: row.transport || 'Bus 1',
-            room: row.room || 'Belum Diatur',
-            status: (row.status || 'CONFIRMED').toUpperCase()
-        }),
-        // Impor peserta harus lewat server karena akun login (Supabase Auth)
-        // hanya boleh dibuat/diubah dengan hak akses admin di database.
-        bulkImport: async (rows, mode) => {
-            const payload = rows
-                .map(row => ({
-                    username: normalizeUsername(row.username || ''),
-                    full_name: (row.full_name || '').trim(),
-                    phone: (row.phone || '').trim() || null,
-                    department: (row.department || '').trim() || null,
-                    gender: (row.gender || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
-                    transport: (row.transport || '').trim() || null,
-                    room: (row.room || '').trim() || null,
-                    status: (row.status || 'CONFIRMED').toUpperCase()
-                }))
-                .filter(row => row.username || row.full_name);
-
-            if (payload.length === 0) {
-                alert('Tidak ada baris peserta yang bisa diimpor. Pastikan kolom User ID atau Nama Lengkap terisi.');
-                return false;
-            }
-
-            const result = await callSupabaseRpc('admin_bulk_import_participants', {
-                p_rows: payload,
-                p_mode: mode === 'replace' ? 'replace' : 'upsert',
-                p_default_password: 'outing123'
-            }, 'mengimpor peserta');
-
-            if (!result.ok) {
-                alert(result.message);
-                return false;
-            }
-
-            const summary = result.data || {};
-            const newLogins = Array.isArray(summary.new_logins) ? summary.new_logins : [];
-            const errors = Array.isArray(summary.errors) ? summary.errors : [];
-
-            showToast(`<i class="bi bi-check2-circle me-1"></i> Impor peserta selesai: <strong>${summary.created || 0}</strong> akun baru, <strong>${summary.updated || 0}</strong> diperbarui${summary.skipped ? `, ${summary.skipped} dilewati` : ''}.`);
-
-            if (newLogins.length > 0) {
-                const list = newLogins.slice(0, 15)
-                    .map(item => `• ${item.username} / ${item.password}`)
-                    .join('\n');
-                alert(`Akun login baru dibuat dengan password default:\n\n${list}${newLogins.length > 15 ? `\n... dan ${newLogins.length - 15} akun lainnya` : ''}\n\nMohon bagikan ke peserta yang bersangkutan.`);
-            }
-            if (summary.replace_cleanup_skipped) {
-                alert('Ada baris gagal. Penghapusan data pelengkap di luar file dibatalkan agar data lama tidak hilang. Perbaiki baris gagal lalu impor ulang.');
-            }
-            if (errors.length > 0) {
-                const detail = errors.slice(0, 10)
-                    .map(item => `• ${item.username}: ${item.error}`)
-                    .join('\n');
-                alert(`Sebagian baris dilewati:\n\n${detail}`);
-            }
-
-            await loadParticipants();
-            return true;
-        }
+            status: row.status || 'PENDING'
+        })
     }
 };
 
 /* =====================================================
    EXPORT MODULE EXCEL (REAL-TIME LOCAL DATA)
 ===================================================== */
-/* Modul peserta bersumber dari data user terkini, modul lain dari cache lokal. */
+/* Modul peserta bersumber dari data user terkini, modul lain dari cache aplikasi. */
 function excelSourceItems(module) {
     if (module === 'participants' && Array.isArray(participantsCache) && participantsCache.length > 0) {
         return participantsCache;
@@ -4950,7 +5002,7 @@ function exportModuleExcel(module) {
     }
 
     // Modul peserta memakai data user terbaru dari Supabase, modul lain memakai
-    // cache lokal.
+    // cache aplikasi.
     const items = excelSourceItems(module);
     if (!items || items.length === 0) {
         if (!confirm(`Data ${config.name} saat ini kosong. Tetap unduh berkas kosong?`)) {
@@ -5060,6 +5112,10 @@ function downloadCurrentModuleTemplate() {
    OPEN UNIVERSAL EXCEL IMPORT MODAL
 ===================================================== */
 function openExcelImport(module) {
+    if (SERVER_BACKEND_MODE && module === 'participants') {
+        alert('Peserta ditambahkan secara manual melalui formulir Tambah Peserta.');
+        return;
+    }
     if (!canManage(module)) {
         alert('Akses Ditolak: Anda login sebagai peserta biasa (View Only). Hanya panitia / seksi terkait yang dapat mengimpor data.');
         return;
@@ -5415,7 +5471,7 @@ async function saveUniversalImport() {
     if (modalInstance) modalInstance.hide();
 
     // 5. User feedback
-    showToast(`<i class="bi bi-check2-circle me-1"></i> Sukses! <strong>${newItems.length} baris</strong> data ${escapeHtml(config.name)} berhasil disimpan ke sistem lokal & disinkronkan.`);
+    showToast(`<i class="bi bi-check2-circle me-1"></i> Sukses! <strong>${newItems.length} baris</strong> data ${escapeHtml(config.name)} berhasil disimpan ke database hosting.`);
 }
 
 /* =====================================================
@@ -5578,6 +5634,10 @@ function openTransactionModal(id = null) {
 
 async function saveTransaction(e) {
     e.preventDefault();
+    if (!canManage('finance')) {
+        alert('Hanya Admin yang dapat mengubah data keuangan.');
+        return;
+    }
     const items = STORAGE.get('outing_transactions', []);
     const newTrans = {
         id: generateUUID(),
@@ -5591,23 +5651,28 @@ async function saveTransaction(e) {
         created_at: new Date().toISOString()
     };
 
-    // `account` is a UI label; the schema uses cash_account_id. Omit unknown
-    // client-only fields from the REST payload.
-    const { account, ...transactionFields } = newTrans;
-    const remoteTrans = {
-        ...transactionFields,
-        created_by: isUuid(currentUser?.id) ? currentUser.id : null
-    };
-    const { error: remoteError } = await supabaseClient.from('cash_transactions').insert(remoteTrans);
-    if (remoteError) {
-        showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan transaksi ke Supabase: ${escapeHtml(remoteError.message)}`);
-        return;
-    }
-
     items.unshift(newTrans);
     STORAGE.set('outing_transactions', items);
+    if (SERVER_BACKEND_MODE) {
+        await serverPersistenceQueue;
+        if (serverPersistenceError) {
+            showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Data belum tersimpan ke server hosting: ${escapeHtml(serverPersistenceError.message || serverPersistenceError)}`);
+            return;
+        }
+    } else {
+        // `account` is a UI label; the schema uses cash_account_id.
+        const { account, ...transactionFields } = newTrans;
+        const remoteTrans = { ...transactionFields, created_by: isUuid(currentUser?.id) ? currentUser.id : null };
+        const { error: remoteError } = await supabaseClient.from('cash_transactions').insert(remoteTrans);
+        if (remoteError) {
+            showToast(`<i class="bi bi-exclamation-triangle me-1"></i>Gagal menyimpan transaksi: ${escapeHtml(remoteError.message)}`);
+            return;
+        }
+    }
+
     bootstrap.Modal.getInstance(document.getElementById('modalTransaction')).hide();
     renderFinance(items);
+    showToast('<i class="bi bi-check2-circle me-1"></i>Transaksi berhasil disimpan.');
 }
 
 function deleteTransaction(id) {
@@ -6707,9 +6772,8 @@ function deleteAnnouncement(id) {
 }
 
 /* =====================================================
-   PARTICIPANTS MODULE
-   Sumber data: tabel public.users (akun terdaftar).
-   Tabel public.participants hanya pelengkap (kamar/armada/status kehadiran).
+   PARTICIPANTS MODULE — shared server records
+   Participant fields are intentionally limited to name, phone, and status.
 ===================================================== */
 let participantsCache = [];
 let participantsDataNote = '';
@@ -6723,258 +6787,102 @@ function jsAttr(value) {
     return escapeHtml(JSON.stringify(String(value ?? '')));
 }
 
-function approvalBadgeFor(profile) {
-    const status = getApprovalStatus(profile);
-    const styles = {
-        APPROVED: 'bg-success-subtle text-success-emphasis border-success-subtle',
-        PENDING: 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
-        REJECTED: 'bg-danger-subtle text-danger-emphasis border-danger-subtle'
-    };
-    return `<span class="badge border ${styles[status] || styles.PENDING}">${escapeHtml(approvalStatusLabel(status))}</span>`;
+function normalizeParticipantStatus(value) {
+    const status = String(value || '').trim().toUpperCase();
+    return ['CONFIRMED', 'PENDING', 'CANCELLED'].includes(status) ? status : 'PENDING';
 }
 
-// Peserta = user terdaftar. Cache lokal hanya dipakai bila Supabase gagal dibaca.
-async function fetchParticipantUsers() {
-    try {
-        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-            const { data, error } = await supabaseClient
-                .from('users')
-                .select('*')
-                .order('full_name');
-            if (error) throw error;
-            return Array.isArray(data) ? data : [];
-        }
-    } catch (error) {
-        console.warn('Daftar user dari Supabase gagal dimuat:', error?.message || error);
-        participantsDataNote = 'Gagal memuat data user dari Supabase, menampilkan cache lokal. Bila tabel users belum sinkron, jalankan supabase/fix_admin_login.sql.';
-    }
-    syncUsersToParticipants();
-    return STORAGE.get('outing_local_users', []);
+function participantStatusLabel(status) {
+    return ({
+        CONFIRMED: 'Hadir',
+        PENDING: 'Menunggu Konfirmasi',
+        CANCELLED: 'Batal'
+    })[normalizeParticipantStatus(status)];
 }
 
-// Data pelengkap bersifat opsional: tabel participants boleh belum ada.
-async function fetchParticipantEnrichment() {
-    const map = new Map();
-    try {
-        const { data, error } = await supabaseClient.from('participants').select('*');
-        if (error) throw error;
-        (data || []).forEach(row => {
-            if (row.user_id) map.set(`id:${row.user_id}`, row);
-            const uname = normalizeUsername(row.username);
-            if (uname) map.set(`username:${uname}`, row);
-        });
-    } catch (error) {
-        console.warn('Data pelengkap peserta (kamar/armada) tidak tersedia:', error?.message || error);
-    }
-    return map;
-}
-
-function buildParticipantRow(user, enrichment) {
-    const username = normalizeUsername(user.username);
-    const extra = (user.auth_user_id && enrichment.get(`id:${user.auth_user_id}`))
-        || enrichment.get(`id:${user.id}`)
-        || enrichment.get(`username:${username}`)
-        || {};
-    const fullName = user.full_name || user.name || user.email || username || 'Tanpa Nama';
-
+function normalizeParticipantRecord(item = {}) {
+    const name = String(item.name || item.full_name || item.fullName || '').trim().slice(0, 150);
+    if (!name) return null;
     return {
-        id: user.id,
-        user_id: user.id,
-        auth_user_id: user.auth_user_id || null,
-        username,
-        full_name: fullName,
-        name: fullName,
-        phone: user.phone || extra.phone || '',
-        department: user.department || extra.department || '',
-        role: String(user.role || 'PARTICIPANT').toUpperCase(),
-        section: String(user.section || '').toUpperCase(),
-        approval_status: getApprovalStatus(user),
-        gender: user.gender || extra.gender || 'L',
-        transport: extra.transport || user.transport || '',
-        room: extra.room || user.room || '',
-        status: extra.status || user.status || 'CONFIRMED',
-        enrichment_id: extra.id || null,
-        local_only: !isUuid(user.id)
+        id: String(item.id || generateUUID()).slice(0, 100),
+        name,
+        phone: String(item.phone || item.whatsapp || item.telephone || '').trim().slice(0, 30),
+        status: normalizeParticipantStatus(item.status)
     };
+}
+
+function getParticipants() {
+    const value = STORAGE.get('outing_participants', []);
+    if (!Array.isArray(value)) return [];
+    return value.map(normalizeParticipantRecord).filter(Boolean);
 }
 
 async function loadParticipants() {
-    try {
-        participantsDataNote = '';
-        const users = await fetchParticipantUsers();
-        const enrichment = await fetchParticipantEnrichment();
-        const list = users.map(user => buildParticipantRow(user, enrichment));
-        list.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'id'));
-        participantsCache = list;
+    const stored = STORAGE.get('outing_participants', []);
+    const list = getParticipants();
+    participantsCache = list;
+    participantsDataNote = '';
 
-        // Perbarui angka statistik peserta di dashboard
-        const statEl = document.getElementById('statParticipants');
-        if (statEl) statEl.textContent = list.length;
-
-        renderParticipants(list);
-        renderParticipantsSourceNote();
-
-        // Peringatkan lebih awal bila fungsi database peserta belum ada, supaya
-        // Admin tidak terkejut saat menekan tombol simpan atau hapus.
-        if (canManage('participants')) {
-            const ready = await checkParticipantFeatureReady();
-            if (!ready) renderParticipantsFeatureWarning();
-        }
-
-        // Simpan salinan ringkas ke cache lokal supaya laporan/softcopy, arsip,
-        // dan mode luring memakai daftar peserta yang sama dengan tampilan.
-        try {
-            STORAGE.set('outing_participants', list);
-        } catch (mirrorError) {
-            console.warn('Gagal menyimpan salinan peserta ke cache lokal:', mirrorError);
-        }
-    } catch (error) {
-        console.error('loadParticipants error:', error);
+    // Admin opening the page also migrates any old participant records to the
+    // new three-field format. Members never write, even to the server cache.
+    if (isAuthenticatedAdmin() && JSON.stringify(stored) !== JSON.stringify(list)) {
+        STORAGE.set('outing_participants', list);
     }
-}
 
-let participantFeatureReady = null; // null = belum diperiksa
-
-// Cek ketersediaan fungsi database modul peserta sekali per sesi. Panggilan
-// memakai daftar baris kosong sehingga tidak mengubah data apa pun.
-async function checkParticipantFeatureReady(force = false) {
-    if (participantFeatureReady !== null && !force) return participantFeatureReady;
-    if (!canManage('participants')) {
-        participantFeatureReady = false;
-        return false;
-    }
-    const result = await callSupabaseRpc('admin_bulk_import_participants', {
-        p_rows: [],
-        p_mode: 'upsert'
-    }, 'memeriksa fitur peserta');
-    // Fungsi yang sudah ada mengembalikan ringkasan impor; yang belum ada
-    // menghasilkan PGRST202.
-    participantFeatureReady = result.ok === true;
-    return participantFeatureReady;
-}
-
-async function recheckParticipantFeature() {
-    const ready = await checkParticipantFeatureReady(true);
-    if (ready) {
-        showToast('<i class="bi bi-check2-circle me-1"></i> Fungsi database peserta sudah aktif.');
-        await loadParticipants();
-    } else {
-        alert('Fungsi database masih belum terdeteksi.\n\nPastikan SELURUH isi supabase/update_website.sql sudah dijalankan di Supabase SQL Editor (klik RUN sampai muncul pesan Success), lalu coba Cek Ulang lagi.');
-    }
-}
-
-function copyParticipantSetupSteps() {
-    const steps = [
-        'Cara mengaktifkan fitur Tambah/Edit/Hapus Peserta:',
-        '1. Buka Supabase Dashboard -> SQL Editor -> New query.',
-        '2. Buka berkas supabase/update_website.sql, lalu salin SELURUH isinya.',
-        '3. Tempel di SQL Editor dan klik RUN sampai selesai tanpa error (hasil verifikasi dapat berupa tabel).',
-        '4. Muat ulang halaman aplikasi, lalu klik tombol "Cek Ulang".',
-        '',
-        'Bila fungsi sudah dijalankan tetapi masih error, jalankan perintah ini:',
-        "NOTIFY pgrst, 'reload schema';",
-        '',
-        'Untuk memastikan fungsi sudah terbentuk, jalankan:',
-        "SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace",
-        "WHERE n.nspname = 'public' AND p.proname LIKE 'admin_%participant%';"
-    ].join('\n');
-
-    if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(steps)
-            .then(() => showToast('<i class="bi bi-clipboard-check me-1"></i> Langkah perbaikan disalin ke clipboard.'))
-            .catch(() => window.prompt('Salin langkah berikut:', steps));
-        return;
-    }
-    window.prompt('Salin langkah berikut:', steps);
-}
-
-function renderParticipantsFeatureWarning() {
-    const note = document.getElementById('participantsSourceNote');
-    if (!note || participantFeatureReady !== false) return;
-    note.className = 'alert alert-warning py-2 small mb-3';
-    note.innerHTML = `
-        <i class="bi bi-tools me-1"></i>
-        <strong>Fitur Tambah / Edit / Hapus Peserta belum aktif.</strong>
-        Fungsi database modul peserta belum ada di Supabase, sehingga tombol simpan dan hapus akan gagal.
-        Jalankan berkas <code>supabase/update_website.sql</code> di Supabase SQL Editor, lalu klik <strong>Cek Ulang</strong>.
-        <div class="mt-2 d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-sm btn-dark" onclick="copyParticipantSetupSteps()">
-                <i class="bi bi-clipboard me-1"></i>Salin Langkah
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-dark" onclick="recheckParticipantFeature()">
-                <i class="bi bi-arrow-clockwise me-1"></i>Cek Ulang
-            </button>
-        </div>
-    `;
+    const statEl = document.getElementById('statParticipants');
+    if (statEl) statEl.textContent = list.length;
+    renderParticipants(list);
+    renderParticipantsSourceNote();
 }
 
 function renderParticipantsSourceNote() {
     const note = document.getElementById('participantsSourceNote');
     if (!note) return;
-    if (participantsDataNote) {
-        note.className = 'alert alert-warning py-2 small mb-3';
-        note.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(participantsDataNote)}`;
-        return;
-    }
     note.className = 'alert alert-info py-2 small mb-3';
-    note.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>Data peserta diambil langsung dari <strong>data user terdaftar</strong>. Tombol <strong>Tambah Peserta</strong> membuat akun login baru, sedangkan <strong>Edit</strong> melengkapi kamar/armada peserta.';
+    note.textContent = 'Data peserta tersimpan bersama di database hosting. Hanya Admin yang dapat menambah, mengubah, atau menghapus peserta.';
 }
 
 function renderParticipants(list) {
     const container = document.getElementById('participantsList');
     if (!container) return;
 
-    if (!list || list.length === 0) {
+    if (!Array.isArray(list) || list.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="bi bi-person-x"></i>
-                <div>Belum ada peserta terdaftar.</div>
-                <small class="text-muted">Peserta muncul otomatis setelah user membuat akun, atau tambahkan lewat tombol Tambah Peserta.</small>
+                <div>Belum ada peserta.</div>
+                <small class="text-muted">Admin dapat menambahkan peserta secara manual.</small>
             </div>
         `;
         return;
     }
 
-    const currentUsername = normalizeUsername(currentProfile?.username || currentUser?.username);
     const isManager = canManage('participants');
-
     container.innerHTML = list.map(item => {
-        const username = item.username || '-';
-        const name = item.full_name || username;
-        const initial = (name.charAt(0) || 'U').toUpperCase();
-        const isMe = currentUsername && username === currentUsername;
+        const participant = normalizeParticipantRecord(item);
+        if (!participant) return '';
+        const initial = (participant.name.charAt(0) || 'P').toUpperCase();
+        const status = participant.status;
+        const badgeClass = status === 'CONFIRMED' ? 'bg-success-subtle text-success-emphasis'
+            : status === 'CANCELLED' ? 'bg-danger-subtle text-danger-emphasis'
+            : 'bg-warning-subtle text-warning-emphasis';
 
         return `
-            <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="avatar" style="width: 44px; height: 44px; font-size: 18px;">${escapeHtml(initial)}</div>
-                    <div>
-                        <div class="fw-semibold">
-                            ${escapeHtml(name)}
-                            ${isMe ? '<span class="badge bg-primary ms-1">Anda</span>' : ''}
-                        </div>
-                        <div class="text-muted small">
-                            User ID: <strong class="text-dark">@${escapeHtml(username)}</strong>${item.phone ? ` • ${escapeHtml(item.phone)}` : ''}
-                        </div>
-                        <div class="small mt-1">
-                            <span class="badge bg-light text-dark border me-1"><i class="bi bi-person-badge"></i> ${escapeHtml(item.role)}</span>
-                            ${item.section ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-diagram-3"></i> ${escapeHtml(item.section)}</span>` : ''}
-                            ${item.department ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-building"></i> ${escapeHtml(item.department)}</span>` : ''}
-                            ${item.transport ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-bus-front"></i> ${escapeHtml(item.transport)}</span>` : ''}
-                            ${item.room ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-door-closed"></i> ${escapeHtml(item.room)}</span>` : ''}
-                            ${isManager ? approvalBadgeFor(item) : ''}
-                        </div>
+            <div class="d-flex align-items-center justify-content-between gap-3 py-3 border-bottom">
+                <div class="d-flex align-items-center gap-3 min-w-0">
+                    <div class="avatar flex-shrink-0" style="width: 44px; height: 44px; font-size: 18px;">${escapeHtml(initial)}</div>
+                    <div class="min-w-0">
+                        <div class="fw-semibold text-break">${escapeHtml(participant.name)}</div>
+                        <div class="text-muted small">${participant.phone ? escapeHtml(participant.phone) : 'Nomor telepon/WhatsApp belum diisi'}</div>
+                        <span class="badge ${badgeClass} mt-1">${escapeHtml(participantStatusLabel(status))}</span>
                     </div>
                 </div>
-                <div class="text-end">
-                    <span class="badge bg-light text-dark border mb-1">${escapeHtml(item.status || 'CONFIRMED')}</span>
-                    ${isManager ? `
-                        <div>
-                            <button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="openParticipantModal(${jsAttr(item.id)})">Edit</button>
-                            ${isMe ? '' : `<button class="btn btn-sm btn-link p-0 text-decoration-none text-danger ms-2" onclick="deleteParticipant(${jsAttr(item.id)})">Hapus</button>`}
-                        </div>
-                    ` : ''}
-                </div>
+                ${isManager ? `
+                    <div class="text-nowrap flex-shrink-0">
+                        <button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="openParticipantModal(${jsAttr(participant.id)})">Edit</button>
+                        <button class="btn btn-sm btn-link p-0 text-decoration-none text-danger ms-2" onclick="deleteParticipant(${jsAttr(participant.id)})">Hapus</button>
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -6986,96 +6894,51 @@ function searchParticipants(query) {
         renderParticipants(participantsCache);
         return;
     }
-    const qCleanUser = q.replace(/^@+/, '');
     const qDigits = q.replace(/\D/g, '');
-    const filtered = participantsCache.filter(p => {
-        const pPhone = String(p.phone || '').replace(/\D/g, '');
-        return String(p.full_name || '').toLowerCase().includes(q)
-            || String(p.username || '').includes(qCleanUser)
-            || String(p.department || '').toLowerCase().includes(q)
-            || String(p.room || '').toLowerCase().includes(q)
-            || String(p.transport || '').toLowerCase().includes(q)
-            || (qDigits && pPhone.includes(qDigits));
-    });
-    renderParticipants(filtered);
-}
-
-function generateParticipantPassword() {
-    const field = document.getElementById('partPassword');
-    if (!field) return;
-    field.value = `outing${Math.floor(1000 + Math.random() * 9000)}`;
+    renderParticipants(participantsCache.filter(item => {
+        const phoneDigits = String(item.phone || '').replace(/\D/g, '');
+        return String(item.name || '').toLowerCase().includes(q)
+            || (qDigits && phoneDigits.includes(qDigits));
+    }));
 }
 
 function openParticipantModal(id = null) {
     if (!canManage('participants')) {
-        alert('Hanya Admin atau Inisiator yang dapat menambah/mengedit data peserta.');
+        alert('Hanya Admin yang dapat mengubah data peserta.');
         return;
     }
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParticipant'));
-    document.getElementById('formParticipant').reset();
+    const form = document.getElementById('formParticipant');
+    form.reset();
     document.getElementById('participantId').value = id || '';
+    const item = id ? participantsCache.find(participant => String(participant.id) === String(id)) : null;
+    document.getElementById('modalParticipantTitle').textContent = item ? 'Edit Data Peserta' : 'Tambah Peserta';
+    document.getElementById('partName').value = item?.name || '';
+    document.getElementById('partPhone').value = item?.phone || '';
+    document.getElementById('partStatus').value = item?.status || 'PENDING';
 
-    const usernameField = document.getElementById('partUsername');
-    const passwordRow = document.getElementById('participantPasswordRow');
-    const passwordField = document.getElementById('partPassword');
     const hint = document.getElementById('participantFormHint');
-
-    if (id) {
-        document.getElementById('modalParticipantTitle').textContent = 'Edit Data Peserta';
-        const item = participantsCache.find(p => String(p.id) === String(id));
-        if (item) {
-            document.getElementById('partName').value = item.full_name || '';
-            usernameField.value = item.username || '';
-            document.getElementById('partPhone').value = item.phone || '';
-            document.getElementById('partDept').value = item.department || '';
-            document.getElementById('partGender').value = item.gender || 'L';
-            document.getElementById('partTransport').value = item.transport || '';
-            document.getElementById('partRoom').value = item.room || '';
-            document.getElementById('partStatus').value = item.status || 'CONFIRMED';
-        }
-        usernameField.readOnly = true;
-        usernameField.classList.add('bg-light');
-        passwordRow?.classList.add('d-none');
-        if (passwordField) passwordField.required = false;
-        if (hint) {
-            hint.className = 'alert alert-light border py-2 small';
-            hint.innerHTML = '<i class="bi bi-info-circle me-1"></i>User ID tidak dapat diubah karena terhubung ke akun login Supabase Auth. Password peserta hanya bisa diubah dari halaman Profil masing-masing.';
-        }
-    } else {
-        document.getElementById('modalParticipantTitle').textContent = 'Tambah Peserta Baru';
-        usernameField.readOnly = false;
-        usernameField.classList.remove('bg-light');
-        passwordRow?.classList.remove('d-none');
-        if (passwordField) passwordField.required = true;
-        if (hint) {
-            hint.className = 'alert alert-info py-2 small';
-            hint.innerHTML = '<i class="bi bi-person-plus me-1"></i>Peserta baru otomatis dibuatkan <strong>akun login</strong> (email internal <code>username@outing.local</code>) dan langsung berstatus APPROVED.';
-        }
+    if (hint) {
+        hint.className = 'alert alert-info py-2 small';
+        hint.textContent = 'Isi tiga data peserta saja: nama, nomor telepon/WhatsApp, dan status kehadiran.';
     }
-    modal.show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParticipant')).show();
 }
 
-async function saveParticipant(e) {
-    e.preventDefault();
-
-    const id = document.getElementById('participantId').value;
-    const fullName = document.getElementById('partName').value.trim();
-    const username = normalizeUsername(document.getElementById('partUsername').value);
-    const password = document.getElementById('partPassword')?.value || '';
-
-    if (!fullName) {
-        alert('Nama lengkap wajib diisi.');
+async function saveParticipant(event) {
+    event.preventDefault();
+    if (!canManage('participants')) {
+        alert('Hanya Admin yang dapat mengubah data peserta.');
         return;
     }
-    if (!id) {
-        if (!/^[a-z0-9._-]{3,100}$/.test(username)) {
-            alert('User ID minimal 3 karakter dan hanya boleh huruf, angka, titik, strip, atau underscore.');
-            return;
-        }
-        if (password && password.length < 6) {
-            alert('Password minimal 6 karakter.');
-            return;
-        }
+
+    const id = document.getElementById('participantId').value;
+    const name = document.getElementById('partName').value.trim().slice(0, 150);
+    const rawPhone = document.getElementById('partPhone').value.trim();
+    const phone = formatPhone(rawPhone).slice(0, 30);
+    const status = normalizeParticipantStatus(document.getElementById('partStatus').value);
+    if (!name) {
+        alert('Nama peserta wajib diisi.');
+        return;
     }
 
     const submitBtn = document.querySelector('#formParticipant button[type="submit"]');
@@ -7083,41 +6946,22 @@ async function saveParticipant(e) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
     }
-
     try {
-        const result = await callSupabaseRpc('admin_save_participant', {
-            p_user_id: isUuid(id) ? id : null,
-            p_username: username || null,
-            p_full_name: fullName,
-            p_phone: formatPhone(document.getElementById('partPhone').value.trim()) || null,
-            p_department: document.getElementById('partDept').value.trim() || null,
-            p_gender: document.getElementById('partGender').value || 'L',
-            p_transport: document.getElementById('partTransport').value.trim() || null,
-            p_room: document.getElementById('partRoom').value.trim() || null,
-            p_status: document.getElementById('partStatus').value || 'CONFIRMED',
-            p_password: password || null,
-            p_create_if_missing: !id
-        }, 'menyimpan peserta');
+        const list = getParticipants();
+        const index = id ? list.findIndex(item => String(item.id) === String(id)) : -1;
+        const participant = { id: id || generateUUID(), name, phone, status };
+        if (index >= 0) list[index] = participant;
+        else list.unshift(participant);
 
-        if (!result.ok) {
-            alert(result.message);
-            return;
-        }
-
-        const data = result.data || {};
-        if (data.action === 'skipped') {
-            alert(data.message || 'Peserta tidak dapat disimpan.');
-            return;
-        }
+        STORAGE.set('outing_participants', list);
+        await serverPersistenceQueue;
+        if (serverPersistenceError) throw serverPersistenceError;
 
         bootstrap.Modal.getInstance(document.getElementById('modalParticipant'))?.hide();
-        showToast(`<i class="bi bi-check2-circle me-1"></i> Peserta <strong>${escapeHtml(fullName)}</strong> berhasil ${id ? 'diperbarui' : 'ditambahkan'}${data.created_login ? ' beserta akun loginnya' : ''}.`);
-
-        if (data.default_password_used) {
-            alert(`Akun login peserta dibuat dengan password default: ${data.default_password || 'outing123'}\n\nUser ID: ${data.username}\nMohon bagikan ke peserta yang bersangkutan.`);
-        }
-
+        showToast(`<i class="bi bi-check2-circle me-1"></i> Peserta <strong>${escapeHtml(name)}</strong> berhasil ${index >= 0 ? 'diperbarui' : 'ditambahkan'}.`);
         await loadParticipants();
+    } catch (error) {
+        alert(`Data belum berhasil disimpan ke server hosting: ${error.message || error}`);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -7126,83 +6970,24 @@ async function saveParticipant(e) {
     }
 }
 
-// Hapus peserta = hapus data user + data pelengkap + akun login (server-side).
 async function deleteParticipant(id) {
     if (!canManage('participants')) {
-        alert('Hanya Admin atau Inisiator yang dapat menghapus data peserta.');
+        alert('Hanya Admin yang dapat mengubah data peserta.');
         return;
     }
+    const item = participantsCache.find(participant => String(participant.id) === String(id));
+    if (!item) return;
+    if (!confirm(`Hapus peserta "${item.name}"?`)) return;
 
-    const item = participantsCache.find(p => String(p.id) === String(id));
-    if (!item) {
-        alert('Data peserta tidak ditemukan. Silakan muat ulang halaman peserta.');
+    const list = getParticipants().filter(participant => String(participant.id) !== String(id));
+    STORAGE.set('outing_participants', list);
+    await serverPersistenceQueue;
+    if (serverPersistenceError) {
+        alert(`Data belum berhasil disimpan ke server hosting: ${serverPersistenceError.message || serverPersistenceError}`);
         return;
     }
-
-    const myUsername = normalizeUsername(currentProfile?.username || currentUser?.username);
-    if (item.username && item.username === myUsername) {
-        alert('Anda tidak dapat menghapus akun Anda sendiri.');
-        return;
-    }
-    if (item.role === 'ADMIN') {
-        alert('Akun Admin tidak dapat dihapus dari modul Peserta. Ubah role akun tersebut lebih dahulu bila memang diperlukan.');
-        return;
-    }
-
-    const confirmed = confirm(
-        `Hapus peserta "${item.full_name}" (@${item.username})?\n\n` +
-        'Yang ikut terhapus: profil user, data kamar/armada, dan AKUN LOGIN peserta ini di Supabase Auth. ' +
-        'Tindakan ini permanen dan tidak dapat dibatalkan.'
-    );
-    if (!confirmed) return;
-
-    const result = await callSupabaseRpc('admin_delete_participant', {
-        p_user_id: item.local_only ? null : item.id,
-        p_username: item.username || null,
-        p_delete_auth_account: true
-    }, 'menghapus peserta');
-
-    if (!result.ok) {
-        alert(result.message);
-        return;
-    }
-
-    const data = result.data || {};
-    if (data.action === 'not_found') {
-        if (!item.local_only) {
-            alert(data.message || 'Peserta tidak ditemukan di Supabase.');
-            return;
-        }
-        // Baris demo/lokal saja: cukup bersihkan cache lokal.
-        purgeLocalParticipantCaches(item.username, item.id);
-        showToast(`<i class="bi bi-trash me-1"></i> Data peserta lokal <strong>${escapeHtml(item.full_name)}</strong> dihapus.`);
-        await loadParticipants();
-        return;
-    }
-
-    purgeLocalParticipantCaches(item.username, item.id);
-    showToast(`<i class="bi bi-trash me-1"></i> Peserta <strong>${escapeHtml(item.full_name)}</strong> dihapus${data.auth_deleted ? ' beserta akun loginnya' : ''}.`);
+    showToast(`<i class="bi bi-trash me-1"></i> Peserta <strong>${escapeHtml(item.name)}</strong> dihapus.`);
     await loadParticipants();
-}
-
-// Bersihkan salinan lokal agar tidak muncul kembali saat Supabase tidak terbaca.
-function purgeLocalParticipantCaches(username, id) {
-    const cleanUser = normalizeUsername(username);
-    try {
-        const participants = STORAGE.get('outing_participants', []).filter(p => {
-            const sameUser = cleanUser && normalizeUsername(p.username) === cleanUser;
-            const sameId = id && String(p.id) === String(id);
-            return !sameUser && !sameId;
-        });
-        STORAGE.set('outing_participants', participants);
-
-        if (cleanUser) {
-            const users = STORAGE.get('outing_local_users', []).filter(u => normalizeUsername(u.username) !== cleanUser);
-            STORAGE.set('outing_local_users', users);
-        }
-    } catch (error) {
-        console.warn('Gagal membersihkan cache peserta lokal:', error);
-    }
 }
 
 // Pemanggil RPC dengan pesan bantuan bila fungsi database belum dibuat.
@@ -7243,7 +7028,7 @@ function stopRegistrationNotifications() {
 
 function startRegistrationNotifications() {
     stopRegistrationNotifications();
-    if (!isTrustedAdmin()) return;
+    if (SERVER_BACKEND_MODE || !isTrustedAdmin()) return;
     const state = { pendingIds: new Set(), initialized: false, busy: false, timer: null };
     registrationNotificationSession = state;
     refreshRegistrationNotifications(state);
@@ -8225,13 +8010,13 @@ function setupManagementMenu() {
     menus.push({
         icon: 'bi-people',
         title: 'Data Peserta',
-        desc: 'Lihat daftar peserta, departemen, kamar & bus',
+        desc: 'Kelola nama, nomor WhatsApp, dan status kehadiran',
         action: "showPage('participants')"
     });
 
     // DONASI (domain terpisah dari outing). Non-donatur tidak diberi menu
     // laporan kasus; RLS tetap menjadi pengaman utama di database.
-    const hasDonationAccess = isTrustedAdmin() || donationState.memberships.some(item => item.status === 'ACTIVE');
+    const hasDonationAccess = !SERVER_BACKEND_MODE && (isTrustedAdmin() || donationState.memberships.some(item => item.status === 'ACTIVE'));
     if (hasDonationAccess) {
         menus.push({
             icon: 'bi-heart-fill',
@@ -8242,7 +8027,7 @@ function setupManagementMenu() {
     }
 
     // APPROVAL USER BARU (khusus Admin yang login secara nyata)
-    if (isTrustedAdmin()) {
+    if (!SERVER_BACKEND_MODE && isTrustedAdmin()) {
         menus.push({
             icon: 'bi-person-check',
             title: 'Approval User Baru',
@@ -8298,7 +8083,7 @@ function setupManagementMenu() {
     }
 
     // PUBLIC AREA
-    if (isAll || section.includes('PUBLIC') || role === 'PUBLIC_AREA') {
+    if (SERVER_BACKEND_MODE || isAll || section.includes('PUBLIC') || role === 'PUBLIC_AREA') {
         menus.push({
             icon: 'bi-megaphone',
             title: 'Public Area',
@@ -8320,7 +8105,7 @@ function setupManagementMenu() {
         menus.push({
             icon: 'bi-sliders',
             title: 'Pengaturan Outing',
-            desc: 'Konfigurasi acara, arsip outing & pembersihan Supabase',
+            desc: SERVER_BACKEND_MODE ? 'Info acara, arsip, dan data server hosting' : 'Konfigurasi acara, arsip outing & pembersihan Supabase',
             action: "showPage('settings')"
         });
     }
@@ -8340,6 +8125,14 @@ function setupManagementMenu() {
    PAGE NAVIGATION SWITCHER
 ===================================================== */
 function showPage(page) {
+    if (SERVER_BACKEND_MODE && page === 'settings' && !isAuthenticatedAdmin()) {
+        alert('Pengaturan outing hanya dapat dibuka oleh Admin.');
+        page = 'management';
+    }
+    if (SERVER_BACKEND_MODE && (page === 'donations' || page === 'user_approvals')) {
+        alert('Fitur ini tidak tersedia pada deployment hosting PHP/MySQL.');
+        page = 'management';
+    }
     if (page === 'donations' && !isTrustedAdmin() && !donationState.memberships.some(item => item.status === 'ACTIVE')) {
         alert('Menu Donasi hanya tersedia untuk donatur aktif. Hubungi Admin jika perlu diaktifkan.');
         page = 'management';
@@ -8416,7 +8209,12 @@ function showModule(moduleName) {
 ===================================================== */
 async function logout() {
     if (!confirm('Apakah Anda yakin ingin logout?')) return;
-    try { await supabaseClient.auth.signOut(); } catch (e) {}
+    if (SERVER_BACKEND_MODE) {
+        try { await fetch(serverApiUrl('logout'), { method: 'POST', credentials: 'same-origin' }); } catch (e) {}
+    } else {
+        try { await supabaseClient.auth.signOut(); } catch (e) {}
+    }
+    window.__OUTING_SERVER_AUTHORIZED__ = false;
     currentUser = null;
     currentProfile = null;
     currentOuting = null;
@@ -8426,6 +8224,30 @@ async function logout() {
 }
 
 async function checkSession() {
+    if (SERVER_BACKEND_MODE) {
+        try {
+            const response = await fetch(serverApiUrl('session'), { credentials: 'same-origin', cache: 'no-store' });
+            if (!response.ok) {
+                window.__OUTING_SERVER_AUTHORIZED__ = false;
+                showLogin();
+                return;
+            }
+            const result = await response.json();
+            const serverProfile = normalizeServerSessionUser(result.user);
+            currentUser = markAuthenticatedUser(serverProfile, { id: serverProfile.id, email: '' });
+            currentProfile = currentUser;
+            window.__OUTING_SERVER_AUTHORIZED__ = serverProfile.role === 'ADMIN';
+            await refreshServerState();
+            await loadDashboard();
+        } catch (error) {
+            console.warn('Server hosting tidak tersedia:', error);
+            showLogin();
+            const message = document.getElementById('loginMessage');
+            if (message) message.innerHTML = `<div class="alert alert-warning py-2 small">Periksa konfigurasi <code>config.php</code> dan koneksi database MySQL pada InfinityFree.</div>`;
+        }
+        return;
+    }
+
     try {
         const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
         if (sessionError) throw sessionError;
@@ -8471,6 +8293,10 @@ async function checkSession() {
 let currentSelectedReportOutingId = 'current';
 
 function saveCurrentOutingToArchivePrompt() {
+    if (!canManage('settings')) {
+        alert('Hanya Admin yang dapat membuat arsip outing.');
+        return;
+    }
     const info = STORAGE.get('outing_current_info', {}) || {};
     const defaultTitle = `${info.name || 'Annual Outing'} (${new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })})`;
     const title = prompt('Masukkan nama label arsip outing ini:', defaultTitle);
@@ -8905,32 +8731,26 @@ function generateSoftcopyReportHtml(data) {
 
         <!-- BAB VII: PESERTA -->
         <div class="report-section-heading">
-            <span><i class="bi bi-people me-1"></i> BAB VII. DIREKTORI PESERTA OUTING &amp; FASILITAS</span>
+            <span><i class="bi bi-people me-1"></i> BAB VII. DAFTAR PESERTA OUTING</span>
             <small class="text-muted fw-normal" style="font-size: 11px;">${participants.length} Peserta Terdaftar</small>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
                     <th style="width: 35px;" class="text-center">No</th>
-                    <th>Nama Lengkap Peserta</th>
-                    <th>Departemen</th>
-                    <th style="width: 45px;" class="text-center">L/P</th>
-                    <th>Armada Bus</th>
-                    <th>Kamar / Rooming</th>
-                    <th>No. WhatsApp</th>
+                    <th>Nama Lengkap</th>
+                    <th>Nomor Telepon / WhatsApp</th>
+                    <th>Status Kehadiran</th>
                 </tr>
             </thead>
             <tbody>
-                ${participants.length === 0 ? '<tr><td colspan="7" class="text-center text-muted py-2">Tidak ada data peserta</td></tr>' :
+                ${participants.length === 0 ? '<tr><td colspan="4" class="text-center text-muted py-2">Tidak ada data peserta</td></tr>' :
                     participants.map((p, i) => `
                         <tr>
                             <td class="text-center">${i + 1}</td>
-                            <td class="fw-bold">${escapeHtml(p.full_name || p.name || '-')}</td>
-                            <td>${escapeHtml(p.department || '-')}</td>
-                            <td class="text-center">${escapeHtml(p.gender || 'L')}</td>
-                            <td>${escapeHtml(p.transport || 'Bus 1')}</td>
-                            <td>${escapeHtml(p.room || 'Villa')}</td>
+                            <td class="fw-bold">${escapeHtml(p.name || p.full_name || '-')}</td>
                             <td>${escapeHtml(p.phone || '-')}</td>
+                            <td>${escapeHtml(participantStatusLabel(p.status))}</td>
                         </tr>
                     `).join('')
                 }
@@ -9455,6 +9275,10 @@ function updateSupabaseStatsSummary() {
 }
 
 function openPurgeSupabaseModal() {
+    if (SERVER_BACKEND_MODE) {
+        alert('Pembersihan Supabase dinonaktifkan pada mode hosting PHP/MySQL.');
+        return;
+    }
     if (!canManage('settings')) {
         alert('Hanya Admin atau Inisiator yang berwenang membersihkan database Supabase dan memulai outing baru.');
         return;
@@ -9488,6 +9312,10 @@ function openPurgeSupabaseModal() {
 }
 
 async function executePurgeSupabaseAndNewOuting() {
+    if (SERVER_BACKEND_MODE) {
+        alert('Pembersihan Supabase dinonaktifkan pada mode hosting PHP/MySQL.');
+        return;
+    }
     const btn = document.getElementById('btnConfirmPurgeSupabase');
     const msg = document.getElementById('purgeModalMessage');
     const newName = document.getElementById('newOutingName').value.trim();
